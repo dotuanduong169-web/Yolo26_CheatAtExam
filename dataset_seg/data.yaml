@@ -1,0 +1,13 @@
+train: train/images
+val: valid/images
+test: test/images
+
+nc: 5
+names: ['Answer_paper', 'Cheat_Paper', 'cellphone', 'earphone', 'smartwatch']
+
+roboflow:
+  workspace: cheat-paper-detection
+  project: exam_monitor
+  version: 1
+  license: CC BY 4.0
+  url: https://universe.roboflow.com/cheat-paper-detection/exam_monitor/dataset/1

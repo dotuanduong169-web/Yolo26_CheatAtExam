@@ -1,0 +1,43 @@
+/* PAGE BACKGROUND */
+body {
+    background: #f3f4f6;
+}
+
+/* SIDEBAR */
+.sidebar {
+    background: white;
+    border-radius: 12px;
+    padding: 20px;
+    height: 95vh;
+    border: 1px solid #e5e7eb;
+}
+
+/* LOGO */
+.logo {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 30px;
+}
+
+.logo-icon {
+    background: #2b7cd3;
+    color: white;
+    padding: 10px;
+    border-radius: 10px;
+}
+
+/* BUTTON STYLE */
+button[kind="secondary"] {
+    text-align: left;
+    border-radius: 8px !important;
+    padding: 10px !important;
+}
+
+button[kind="secondary"]:hover {
+    background: #f3f4f6 !important;
+}
+
+/* CONTENT */
+.content {
+    padding: 10px 20px;
+}

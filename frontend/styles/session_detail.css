@@ -1,0 +1,473 @@
+/* ===== GLOBAL BACKGROUND ===== */
+.stApp,
+body {
+    background-color: #f8fafc !important;
+}
+
+.block-container {
+    padding: 1.2rem 2rem 2rem;
+}
+
+/* ===== BACK BUTTON ===== */
+.back-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    color: #64748b;
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: color 0.2s;
+    margin-bottom: 8px;
+}
+
+.back-btn:hover {
+    color: #1677ff;
+}
+
+/* ===== PAGE HEADER ===== */
+.page-header {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    margin-bottom: 22px;
+}
+
+.page-header .title {
+    font-size: 22px;
+    font-weight: 700;
+    color: #1e293b;
+}
+
+.status-badge {
+    display: inline-block;
+    padding: 4px 14px;
+    border-radius: 999px;
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: 0.4px;
+}
+
+.status-done {
+    background: #dcfce7;
+    color: #16a34a;
+}
+
+.status-running {
+    background: #dbeafe;
+    color: #2563eb;
+}
+
+/* ===== ANALYTICS CARDS (Chart & KPIs) ===== */
+
+/* Unified Behavior Chart Card (Targeting column by its content) */
+[data-testid="stColumn"]:has(.card-title) {
+    background: #ffffff !important;
+    border-radius: 16px !important;
+    padding: 24px !important;
+    border: 1px solid #eef2f7 !important;
+    box-shadow: 0 1px 6px rgba(0, 0, 0, 0.04) !important;
+}
+
+/* Individual KPI Cards (for other columns) */
+.kpi-card {
+    background: #ffffff !important;
+    border-radius: 16px !important;
+    padding: 22px 24px !important;
+    border: 1px solid #eef2f7 !important;
+    box-shadow: 0 1px 6px rgba(0, 0, 0, 0.04) !important;
+    margin-bottom: 16px !important;
+    display: flex !important;
+    flex-direction: column !important;
+}
+
+.kpi-label {
+    color: #94a3b8;
+    font-size: 13px;
+    font-weight: 500;
+    margin-bottom: 8px;
+}
+
+.kpi-card .kpi-value {
+    font-size: 36px;
+    font-weight: 700;
+    line-height: 1.1;
+    color: #1e293b;
+}
+
+.kpi-card .kpi-value.blue {
+    color: #1677ff;
+}
+
+.kpi-card .kpi-value.orange {
+    color: #f59e0b;
+}
+
+.kpi-card .kpi-unit {
+    font-size: 16px;
+    font-weight: 500;
+    color: #94a3b8;
+    margin-left: 4px;
+}
+
+.kpi-card .kpi-sub {
+    font-size: 12px;
+    color: #94a3b8;
+    margin-top: 6px;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.kpi-card .kpi-sub.green {
+    color: #16a34a;
+}
+
+.kpi-card .kpi-sub.warn {
+    color: #f59e0b;
+}
+
+/* ===== CHART CARD (Phân bổ hành vi) ===== */
+.card-title {
+    font-size: 15px;
+    font-weight: 600;
+    color: #1e293b;
+    margin-bottom: 12px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.legend-list {
+    margin-top: 14px;
+}
+
+.legend-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 5px 0;
+    font-size: 14px;
+    color: #475569;
+}
+
+.legend-dot {
+    display: inline-block;
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    margin-right: 8px;
+}
+
+.legend-dot.blue {
+    background: #1677ff;
+}
+
+.legend-dot.amber {
+    background: #f59e0b;
+}
+
+.legend-dot.red {
+    background: #ef4444;
+}
+
+.legend-val {
+    font-weight: 600;
+    color: #1e293b;
+}
+
+/* ===== TABLE SECTION CARD (Targeting container by its content) ===== */
+div[data-testid="stVerticalBlock"]:has(.table-header) {
+    background: #ffffff !important;
+    border-radius: 16px !important;
+    padding: 24px !important;
+    border: 1px solid #eef2f7 !important;
+    box-shadow: 0 1px 6px rgba(0, 0, 0, 0.04) !important;
+    margin-top: 24px !important;
+}
+
+.table-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 16px;
+}
+
+.table-header .table-title {
+    font-size: 16px;
+    font-weight: 700;
+    color: #1e293b;
+}
+
+/* ===== TABLE GRID ===== */
+.tbl-head-row {
+    background: #f8fafc;
+    border-radius: 8px;
+    display: flex;
+    margin-bottom: 8px;
+}
+
+.tbl-head {
+    font-weight: 700;
+    padding: 14px 12px;
+    color: #64748b;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.8px;
+}
+
+.tbl-cell {
+    padding: 16px 12px;
+    border-bottom: 1px solid #f1f5f9;
+    font-size: 14px;
+    color: #1e293b;
+    display: flex;
+    align-items: center;
+}
+
+/* BADGES */
+.badge {
+    padding: 4px 12px;
+    border-radius: 999px;
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: 0.3px;
+}
+
+.badge-warning {
+    background: #fff7ed;
+    color: #ea580c;
+    border: 1px solid #fed7aa;
+}
+
+.badge-normal {
+    background: #f0fdf4;
+    color: #16a34a;
+    border: 1px solid #bbf7d0;
+}
+
+/* PROGRESS BAR */
+.accuracy-bar {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.accuracy-bar .bar-track {
+    flex: 1;
+    height: 7px;
+    background: #e5e7eb;
+    border-radius: 999px;
+    overflow: hidden;
+}
+
+.accuracy-bar .bar-fill {
+    height: 100%;
+    border-radius: 999px;
+    background: linear-gradient(90deg, #1677ff, #38bdf8);
+    transition: width 0.4s ease;
+}
+
+.accuracy-bar .bar-value {
+    font-weight: 600;
+    font-size: 14px;
+    color: #1e293b;
+    min-width: 48px;
+}
+
+/* sleeping count */
+.sleep-count {
+    color: #ef4444;
+    font-weight: 600;
+}
+
+.sleep-none {
+    color: #cbd5e1;
+}
+
+/* action link */
+.action-link {
+    color: #1677ff;
+    font-weight: 500;
+    font-size: 13px;
+    cursor: pointer;
+    text-decoration: none;
+    transition: color 0.2s;
+}
+
+.action-link:hover {
+    color: #0958d9;
+}
+
+/* ===== PAGINATION ===== */
+.pagination-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-top: 16px;
+    padding-top: 12px;
+    border-top: 1px solid #f1f5f9;
+}
+
+.page-info {
+    font-size: 13px;
+    color: #94a3b8;
+}
+
+.page-buttons {
+    display: flex;
+    gap: 4px;
+}
+
+.page-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 34px;
+    height: 34px;
+    border-radius: 8px;
+    font-size: 13px;
+    font-weight: 500;
+    border: 1px solid #e2e8f0;
+    background: white;
+    color: #475569;
+    cursor: pointer;
+    transition: all 0.15s;
+}
+
+.page-btn:hover {
+    background: #f1f5f9;
+}
+
+.page-btn.active {
+    background: #1677ff;
+    color: white;
+    border-color: #1677ff;
+}
+
+.page-btn.disabled {
+    opacity: 0.4;
+    pointer-events: none;
+}
+
+/* ===== FIX PLOTLY ===== */
+[data-testid="stPlotlyChart"] {
+    background: transparent !important;
+    padding: 0 !important;
+    margin: 0 !important;
+}
+
+.js-plotly-plot {
+    margin: 0 !important;
+    display: flex !important;
+    justify-content: center;
+}
+
+/* ===== FIX STREAMLIT GAPS ===== */
+div[data-testid="stVerticalBlock"]>div {
+    padding-top: 0 !important;
+}
+
+div[data-testid="stHorizontalBlock"] {
+    gap: 16px;
+}
+
+/* ===== PAGINATION row (Streamlit columns) ===== */
+div#detail-pagination-row [data-testid="stHorizontalBlock"] {
+    align-items: center;
+    background: #ffffff;
+    padding: 12px 20px;
+    border-radius: 12px;
+    border: 1px solid #eef2f7;
+    margin-top: 20px;
+    gap: 0 !important;
+}
+
+.pg-info-text {
+    font-size: 13px;
+    color: #94a3b8;
+    height: 34px;
+    display: flex;
+    align-items: center;
+}
+
+.pg-buttons-container {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    height: 34px;
+}
+
+/* Style the ‹ and › buttons to look like .page-btn */
+div#detail-pagination-row button {
+    min-width: 34px !important;
+    height: 34px !important;
+    padding: 0 !important;
+    border-radius: 8px !important;
+    border: 1px solid #e2e8f0 !important;
+    background: white !important;
+    font-size: 16px !important;
+    font-weight: 600 !important;
+    color: #475569 !important;
+    box-shadow: none !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+}
+
+div#detail-pagination-row button:hover {
+    border-color: #cbd5e1 !important;
+    background: #f8fafc !important;
+}
+
+div#detail-pagination-row button:disabled {
+    opacity: 0.35 !important;
+}
+
+/* Style the 'Xem chi ti?t' secondary button to look like a blue link */
+div[data-testid="column"]:last-child button {
+    background: transparent !important;
+    border: none !important;
+    color: #1677ff !important;
+    font-weight: 600 !important;
+    font-size: 14px !important;
+    text-decoration: none !important;
+    padding: 0 !important;
+    box-shadow: none !important;
+    height: auto !important;
+    min-height: 0 !important;
+}
+
+div[data-testid="column"]:last-child button:hover {
+    color: #0958d9 !important;
+    text-decoration: underline !important;
+}
+
+/* Filter Icon */
+.filter-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    border-radius: 8px;
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+}
+
+/* Legend Card Style */
+.legend-label {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-weight: 500;
+}
+
+.legend-item {
+    background: #f8f9fb !important;
+    padding: 10px 14px !important;
+    border-radius: 12px !important;
+    margin-bottom: 8px !important;
+    border: 1px solid #eff0f3 !important;
+}

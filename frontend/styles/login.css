@@ -1,0 +1,226 @@
+/* Hide default header */
+header[data-testid="stHeader"] {
+    display: none;
+}
+
+/* Hide sidebar on login page */
+[data-testid="stSidebar"] {
+    display: none !important;
+}
+
+/* Background of the whole page */
+[data-testid="stAppViewContainer"] {
+    background-color: #f5f7fa !important;
+}
+
+/* Card Container with Background Gradient trick */
+.block-container {
+    background-color: white !important;
+    background-image: linear-gradient(135deg, #d3e1e8 0%, #e5eef1 100%) !important;
+    background-size: 100% 190px !important;
+    /* Exactly cover the top 190px */
+    background-repeat: no-repeat !important;
+    max-width: 440px !important;
+    padding: 36px 32px 32px 32px !important;
+    border-radius: 16px !important;
+    box-shadow: 0 8px 30px rgba(0, 0, 0, 0.04) !important;
+    margin-top: 10vh !important;
+    margin-bottom: 10vh !important;
+    overflow: hidden !important;
+}
+
+/* Reset Streamlit's vertical gap to avoid unpredictable spacing */
+[data-testid="stVerticalBlock"] {
+    gap: 0 !important;
+}
+
+/* Emulate consistent gap */
+[data-testid="stVerticalBlock"]>div {
+    margin-bottom: 20px !important;
+}
+
+/* Hide empty style containers */
+[data-testid="stVerticalBlock"]>div:has(style),
+[data-testid="stVerticalBlock"]>div:has(#forgot-password-marker) {
+    display: none !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    height: 0 !important;
+}
+
+/* Banner content - sits naturally on top of the container's background */
+.login-banner {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 32px !important;
+}
+
+.logo-box {
+    background-color: #1a73e8;
+    /* Blue */
+    width: 48px;
+    height: 48px;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 16px;
+    box-shadow: 0 4px 12px rgba(26, 115, 232, 0.3);
+}
+
+.logo-text {
+    font-size: 20px;
+    font-weight: 700;
+    color: #1e293b;
+}
+
+.welcome-title {
+    font-size: 22px;
+    font-weight: 700;
+    color: #1e293b;
+    text-align: center;
+    margin-bottom: 8px !important;
+}
+
+/* Adjust spacing for password input */
+[data-testid="stVerticalBlock"]>div:has(input[type="password"]) {
+    margin-bottom: 8px !important;
+}
+
+/* Adjust spacing for Forgot Password button wrapper */
+[data-testid="stVerticalBlock"]>div:has(button[kind="secondary"]) {
+    margin-bottom: 24px !important;
+}
+
+/* Inputs styling */
+[data-testid="stTextInput"] label {
+    font-size: 13px !important;
+    color: #475569 !important;
+    font-weight: 600 !important;
+    margin-bottom: 6px !important;
+}
+
+[data-baseweb="input"] {
+    background-color: #f8fafc !important;
+    border: 1px solid #e2e8f0 !important;
+    border-radius: 8px !important;
+}
+
+[data-baseweb="input"]:focus-within {
+    border-color: #1a73e8 !important;
+    box-shadow: 0 0 0 1px #1a73e8 !important;
+}
+
+[data-baseweb="input"] input {
+    background-color: transparent !important;
+    color: #1e293b !important;
+}
+
+/* Icons inside inputs */
+input[aria-label="Email"] {
+    padding-left: 40px !important;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%2394a3b8'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z'%3E%3C/path%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: 12px center;
+    background-size: 20px;
+}
+
+input[aria-label="Mật khẩu"] {
+    padding-left: 40px !important;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%2394a3b8'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z'%3E%3C/path%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: 12px center;
+    background-size: 20px;
+}
+
+/* Forgot password link - targeting the secondary button */
+button[kind="secondary"] {
+    background: transparent !important;
+    border: none !important;
+    color: #1a73e8 !important;
+    padding: 0 !important;
+    min-height: auto !important;
+    height: auto !important;
+    font-size: 13px !important;
+    font-weight: 600 !important;
+    box-shadow: none !important;
+    justify-content: flex-start !important;
+}
+
+button[kind="secondary"]:hover {
+    text-decoration: underline !important;
+    background: transparent !important;
+    color: #1557b0 !important;
+}
+
+button[kind="secondary"] p {
+    color: #1a73e8 !important;
+    font-size: 13px !important;
+}
+
+/* Primary Login Button */
+button[kind="primary"] {
+    background-color: #1a73e8 !important;
+    color: white !important;
+    border: none !important;
+    border-radius: 8px !important;
+    height: 48px !important;
+    font-weight: 600 !important;
+    font-size: 15px !important;
+    width: 100% !important;
+    margin-bottom: 8px !important;
+}
+
+button[kind="primary"]:hover {
+    background-color: #1557b0 !important;
+}
+
+button[kind="primary"] p {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+}
+
+button[kind="primary"] p::after {
+    content: "";
+    display: inline-block;
+    width: 18px;
+    height: 18px;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='white'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M11 16l-4-4m0 0l4-4m-4 4h14m-5 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h7a3 3 0 013 3v1'%3E%3C/path%3E%3C/svg%3E");
+    background-size: contain;
+    background-repeat: no-repeat;
+}
+
+/* Footer Link */
+[data-testid="stVerticalBlock"]>div:has(.register-footer) {
+    margin-bottom: 0 !important;
+}
+
+.register-footer {
+    text-align: center;
+    font-size: 13px;
+    margin-top: 16px;
+}
+
+.register-footer .text-muted {
+    color: #64748b;
+}
+
+.register-footer .register-link {
+    color: #1a73e8;
+    font-weight: 600;
+    text-decoration: none;
+    margin-left: 4px;
+}
+
+.register-footer .register-link:hover {
+    text-decoration: underline;
+}
+
+/* Ensure no dividers or other unexpected margins break the design */
+hr {
+    display: none !important;
+}

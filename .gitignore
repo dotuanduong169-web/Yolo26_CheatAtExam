@@ -35,6 +35,7 @@ env/
 .env.*.local
 *.key
 *.pem
+.env.example
 
 # ── IDE & Editor ────────────────────────────────────────────
 .vscode/
@@ -95,6 +96,18 @@ htmlcov/
 *.temp
 *.bak
 *.orig
-.venv/
 
 *.jpg
+
+# ── YOLO exam-cheat: dữ liệu nặng không commit ────────────────
+runs/
+training/runs/
+*.pt
+!backend/ai_model/weights/best.pt
+training/dataset_seg/
+training/realworld_data/
+training/dataset_seg_v4/
+videos/*.mp4
+!videos/test_exam.mp4
+!videos/test_exam_2.mp4
+train*.log

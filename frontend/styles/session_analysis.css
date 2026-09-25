@@ -1,0 +1,292 @@
+/* ===== GLOBAL ===== */
+body {
+    background: #f0f4fa;
+}
+
+.block-container {
+    padding: 1.2rem 2rem 2rem;
+    max-width: 100%;
+}
+
+/* ===== HEADER ===== */
+.page-title {
+    font-size: 28px;
+    font-weight: 800;
+    color: #1e293b;
+    margin-bottom: 6px;
+}
+
+.header-meta {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 18px;
+    flex-wrap: wrap;
+}
+
+.tag {
+    display: inline-block;
+    padding: 4px 14px;
+    border-radius: 999px;
+    font-size: 12px;
+    font-weight: 700;
+}
+
+.tag-blue {
+    background: #dbeafe;
+    color: #1d4ed8;
+}
+
+.tag-text {
+    font-size: 14px;
+    color: #64748b;
+    font-weight: 500;
+}
+
+.section-title {
+    font-size: 18px;
+    font-weight: 700;
+    color: #1e293b;
+    margin-top: 4px;
+    margin-bottom: 16px;
+}
+
+/* ===== FRAME CARD ===== */
+.frame-card {
+    background: #ffffff;
+    border-radius: 18px;
+    padding: 14px;
+    border: 1px solid #eef2f7;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+    margin-bottom: 18px;
+    transition: transform 0.2s, box-shadow 0.2s;
+    position: relative;
+    overflow: hidden;
+}
+
+.frame-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.08);
+}
+
+/* Alert card — left orange border */
+.frame-card.alert {
+    border-left: 4px solid #f59e0b;
+}
+
+/* ===== IMAGE CONTAINER ===== */
+.img-container {
+    position: relative;
+    border-radius: 14px;
+    overflow: hidden;
+    margin-bottom: 12px;
+}
+
+.img-container img {
+    border-radius: 14px;
+    width: 100%;
+    display: block;
+}
+
+/* Time overlay */
+.time-overlay {
+    position: absolute;
+    top: 10px;
+    left: 10px;
+    background: rgba(0, 0, 0, 0.65);
+    color: white;
+    font-size: 11px;
+    font-weight: 600;
+    padding: 4px 10px;
+    border-radius: 8px;
+    backdrop-filter: blur(4px);
+}
+
+/* Status overlay */
+.status-overlay {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    font-size: 10px;
+    font-weight: 700;
+    padding: 4px 10px;
+    border-radius: 8px;
+    letter-spacing: 0.3px;
+}
+
+.status-overlay.active {
+    background: rgba(22, 163, 74, 0.9);
+    color: white;
+}
+
+.status-overlay.warning {
+    background: rgba(234, 88, 12, 0.9);
+    color: white;
+}
+
+/* ===== CARD INFO ===== */
+.card-info-title {
+    font-size: 16px;
+    font-weight: 700;
+    color: #1e293b;
+    margin-bottom: 3px;
+}
+
+.card-info-time {
+    font-size: 12px;
+    color: #94a3b8;
+    margin-bottom: 12px;
+}
+
+/* ===== STAT BOXES ===== */
+.stats-row {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 12px;
+}
+
+.stat-box {
+    flex: 1;
+    background: #f8fafc;
+    border: 1px solid #eef2f7;
+    border-radius: 12px;
+    padding: 10px 8px;
+    text-align: center;
+}
+
+.stat-box.alert-box {
+    background: #fff7ed;
+    border-color: #fed7aa;
+}
+
+.stat-label {
+    font-size: 10px;
+    font-weight: 700;
+    color: #94a3b8;
+    letter-spacing: 0.5px;
+    margin-bottom: 4px;
+    text-transform: uppercase;
+}
+
+.stat-value {
+    font-size: 28px;
+    font-weight: 800;
+    line-height: 1;
+}
+
+.stat-value.blue {
+    color: #1677ff;
+}
+
+.stat-value.red {
+    color: #ef4444;
+}
+
+/* ===== PAGINATION ===== */
+.pagination-bar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-top: 20px;
+    padding-top: 14px;
+}
+
+.page-info {
+    font-size: 13px;
+    color: #94a3b8;
+}
+
+.page-btns {
+    display: flex;
+    gap: 4px;
+}
+
+.pg-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 36px;
+    height: 36px;
+    border-radius: 10px;
+    font-size: 14px;
+    font-weight: 500;
+    border: 1px solid #e2e8f0;
+    background: white;
+    color: #475569;
+    cursor: pointer;
+    transition: all 0.15s;
+    user-select: none;
+}
+
+.pg-btn:hover {
+    background: #f1f5f9;
+}
+
+.pg-btn.active {
+    background: #1677ff;
+    color: white;
+    border-color: #1677ff;
+}
+
+.pg-btn.disabled {
+    opacity: 0.35;
+    cursor: not-allowed;
+}
+
+/* ===== FIX STREAMLIT GAPS ===== */
+div[data-testid="stVerticalBlock"] > div {
+    padding-top: 0 !important;
+}
+
+/* ===== PAGINATION row (Streamlit columns) ===== */
+div#analysis-pagination-row [data-testid="stHorizontalBlock"] {
+    align-items: center;
+    background: #ffffff;
+    padding: 12px 20px;
+    border-radius: 12px;
+    border: 1px solid #eef2f7;
+    margin-top: 20px;
+    gap: 12px !important;
+}
+
+.pg-info-label {
+    font-size: 13px;
+    color: #94a3b8;
+    height: 34px;
+    display: flex;
+    align-items: center;
+}
+
+.pg-nums-bar {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    height: 34px;
+}
+
+/* Style the ‹ and › buttons to look like .pg-btn */
+div#analysis-pagination-row button {
+    min-width: 34px !important;
+    height: 34px !important;
+    padding: 0 !important;
+    border-radius: 8px !important;
+    border: 1px solid #e2e8f0 !important;
+    background: white !important;
+    font-size: 16px !important;
+    font-weight: 600 !important;
+    color: #475569 !important;
+    box-shadow: none !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+}
+
+div#analysis-pagination-row button:hover {
+    border-color: #cbd5e1 !important;
+    background: #f8fafc !important;
+}
+
+div#analysis-pagination-row button:disabled {
+    opacity: 0.35 !important;
+}

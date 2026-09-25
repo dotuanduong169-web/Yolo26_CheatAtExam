@@ -1,0 +1,215 @@
+/* ===== PAGE LAYOUT ===== */
+.block-container {
+    padding-top: 1rem;
+    padding-left: 1.5rem;
+    padding-right: 1.5rem;
+    max-width: 100%;
+}
+
+header[data-testid="stHeader"] {
+    display: none !important;
+}
+
+[data-testid="stAppViewContainer"] {
+    background-color: #f0f2f5 !important;
+}
+
+/* ===== PAGE TITLE ===== */
+.page-title {
+    font-size: 26px;
+    font-weight: 800;
+    color: #1a1a2e;
+    margin-bottom: 20px;
+    letter-spacing: -0.3px;
+}
+
+/* ===== KPI CARDS ===== */
+.kpi-card {
+    background: white;
+    border: 1px solid #e8eaed;
+    border-radius: 14px;
+    padding: 20px 24px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+}
+
+.kpi-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 8px;
+}
+
+.kpi-label {
+    font-size: 13px;
+    font-weight: 500;
+    color: #64748b;
+}
+
+.kpi-change {
+    font-size: 13px;
+    font-weight: 600;
+}
+
+.change-up {
+    color: #22c55e;
+}
+
+.change-down {
+    color: #ef4444;
+}
+
+.change-neutral {
+    color: #94a3b8;
+}
+
+.kpi-value {
+    font-size: 32px;
+    font-weight: 800;
+    color: #0f172a;
+    line-height: 1.2;
+    margin-bottom: 12px;
+}
+
+.kpi-bar-track {
+    height: 5px;
+    border-radius: 10px;
+    background: #f1f5f9;
+}
+
+.kpi-bar {
+    height: 5px;
+    border-radius: 10px;
+    transition: width 0.4s ease;
+}
+
+.bar-blue {
+    background: linear-gradient(90deg, #3b82f6, #60a5fa);
+}
+
+.bar-green {
+    background: linear-gradient(90deg, #22c55e, #4ade80);
+}
+
+.bar-red {
+    background: linear-gradient(90deg, #ef4444, #f87171);
+}
+
+/* ===== ALERT BANNER ===== */
+.alert-banner {
+    background: linear-gradient(135deg, #fef2f2 0%, #fff1f2 100%);
+    border: 1px solid #fecdd3;
+    border-radius: 14px;
+    padding: 18px 24px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 16px;
+    margin-bottom: 8px;
+}
+
+.alert-content {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+}
+
+.alert-icon {
+    font-size: 24px;
+    background: white;
+    width: 44px;
+    height: 44px;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+}
+
+.alert-title {
+    font-size: 15px;
+    font-weight: 700;
+    color: #991b1b;
+}
+
+.alert-desc {
+    font-size: 13px;
+    color: #b91c1c;
+    margin-top: 2px;
+}
+
+.alert-btn {
+    background: #ef4444;
+    color: white;
+    padding: 10px 20px;
+    border-radius: 10px;
+    font-size: 13px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: background 0.15s;
+    white-space: nowrap;
+}
+
+.alert-btn:hover {
+    background: #dc2626;
+}
+
+/* ===== CHART CARD ===== */
+.chart-card {
+    background: white;
+    border: 1px solid #e8eaed;
+    border-radius: 14px;
+    padding: 24px 28px 0 28px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+    margin-top: 8px;
+}
+
+.chart-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 8px;
+}
+
+.chart-title {
+    font-size: 17px;
+    font-weight: 700;
+    color: #0f172a;
+}
+
+.chart-subtitle {
+    font-size: 13px;
+    color: #94a3b8;
+    margin-top: 2px;
+}
+
+.chart-legend {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 13px;
+    color: #64748b;
+    font-weight: 500;
+    background: #fef2f2;
+    padding: 4px 12px;
+    border-radius: 20px;
+}
+
+.legend-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: #fb7185;
+    display: inline-block;
+}
+
+/* Plotly chart container inside the card */
+[data-testid="stPlotlyChart"] {
+    background: white !important;
+    border-radius: 0 0 14px 14px;
+}
+
+/* ===== STREAMLIT OVERRIDES ===== */
+/* Remove default Streamlit spacing that breaks the card layout */
+[data-testid="stHorizontalBlock"] {
+    gap: 16px !important;
+}

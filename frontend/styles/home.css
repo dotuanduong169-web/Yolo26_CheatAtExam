@@ -1,0 +1,280 @@
+/* ===== PAGE LAYOUT ===== */
+.block-container {
+    padding-top: 1rem;
+    padding-left: 1.5rem;
+    padding-right: 1.5rem;
+    max-width: 100%;
+}
+
+/* Global header styles are now in styles/header.css */
+
+/* ===== CONTROL BAR ===== */
+.control-bar {
+    background: white;
+    border: 1px solid #e8eaed;
+    border-radius: 14px;
+    padding: 14px 20px;
+    margin-bottom: 16px;
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+}
+
+/* ===== MAIN LAYOUT CARDS ===== */
+/* Targeting the main content columns (after the control bar) */
+.main [data-testid="stVerticalBlock"] > div:nth-of-type(4) [data-testid="stColumn"] {
+    background: white;
+    border: 1px solid #e8eaed;
+    border-radius: 16px;
+    padding: 20px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+}
+
+/* ===== CAMERA FEED CONTAINER ===== */
+.camera-feed-wrapper {
+    width: 100%;
+    max-height: 460px;
+    background: #0a0a0a;
+    border-radius: 12px;
+    overflow: hidden;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+}
+
+.camera-feed-wrapper img {
+    width: 100%;
+    height: 100%;
+    max-height: 460px;
+    object-fit: contain;
+}
+
+/* ===== RECORDING INDICATOR ===== */
+.rec-indicator {
+    position: absolute;
+    bottom: 12px;
+    right: 14px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    background: rgba(0,0,0,0.55);
+    backdrop-filter: blur(6px);
+    padding: 5px 12px;
+    border-radius: 8px;
+    color: #fff;
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: 0.3px;
+}
+
+.rec-dot {
+    width: 8px;
+    height: 8px;
+    background: #ff3b3b;
+    border-radius: 50%;
+    animation: blink 1s infinite;
+}
+
+@keyframes blink {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.3; }
+}
+
+/* ===== FRAME ITEM ===== */
+.frame-item {
+    background: #f8f9fb;
+    border: 1px solid #eff0f3;
+    border-radius: 12px;
+    padding: 10px;
+    margin-bottom: 10px;
+    transition: box-shadow 0.2s ease, border-color 0.2s ease;
+}
+
+.frame-item:hover {
+    border-color: #c5d1e0;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+}
+
+.frame-item img {
+    border-radius: 8px;
+}
+
+/* ===== BUTTONS ===== */
+.stButton > button {
+    border-radius: 10px;
+    height: 40px;
+    font-weight: 600;
+    font-size: 13px;
+    transition: all 0.2s ease;
+}
+
+.stButton > button:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 3px 10px rgba(0,0,0,0.1);
+}
+
+/* START BUTTON (Primary) */
+div[data-testid="stColumn"]:nth-of-type(3) .stButton > button {
+    background-color: #10b981 !important; /* Emerald 500 */
+    color: white !important;
+    border: none !important;
+    transition: all 0.2s ease;
+}
+div[data-testid="stColumn"]:nth-of-type(3) .stButton > button:hover {
+    background-color: #059669 !important; /* Emerald 600 */
+    box-shadow: 0 4px 12px rgba(16, 185, 129, 0.35) !important;
+}
+
+/* STOP BUTTON (Secondary) */
+div[data-testid="stColumn"]:nth-of-type(4) .stButton > button {
+    background-color: #f43f5e !important; /* Rose 500 */
+    color: white !important;
+    border: none !important;
+    transition: all 0.2s ease;
+}
+div[data-testid="stColumn"]:nth-of-type(4) .stButton > button:hover {
+    background-color: #e11d48 !important; /* Rose 600 */
+    box-shadow: 0 4px 12px rgba(244, 63, 94, 0.35) !important;
+}
+
+/* ===== CAPTURE COUNTDOWN BAR ===== */
+.capture-countdown {
+    margin-top: 14px;
+    background: #e9f5ff;
+    border: 1px solid #cce5ff;
+    border-radius: 10px;
+    padding: 10px 16px;
+}
+
+.countdown-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 8px;
+}
+
+.countdown-icon {
+    color: #3b82f6;
+    font-size: 10px;
+    animation: pulse-icon 2s ease-in-out infinite;
+}
+
+@keyframes pulse-icon {
+    0%, 100% { opacity: 1; transform: scale(1); }
+    50% { opacity: 0.5; transform: scale(0.85); }
+}
+
+.countdown-label {
+    font-size: 13px;
+    font-weight: 600;
+    color: #007bff;
+    flex: 1;
+}
+
+.countdown-timer {
+    font-size: 13px;
+    font-weight: 600;
+    color: #007bff;
+    text-align: right;
+}
+
+.countdown-track {
+    width: 100%;
+    height: 4px;
+    background: #cce5ff;
+    border-radius: 4px;
+    overflow: hidden;
+    margin-top: 4px;
+}
+
+.countdown-fill {
+    height: 100%;
+    background: #007bff;
+    transition: width 0.4s linear;
+}
+
+@keyframes shimmer {
+    0% { background-position: 200% 0; }
+    100% { background-position: -200% 0; }
+}
+
+/* ===== CAMERA PLACEHOLDER ===== */
+.camera-placeholder {
+    width: 100%;
+    height: 380px;
+    background: linear-gradient(135deg, #f0f2f5 0%, #e4e8ec 100%);
+    border-radius: 12px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    color: #9ca3af;
+    gap: 10px;
+}
+
+.camera-placeholder .icon {
+    font-size: 48px;
+    opacity: 0.5;
+}
+
+.camera-placeholder .text {
+    font-size: 14px;
+    font-weight: 500;
+}
+
+/* ===== STATUS BADGE ===== */
+.status-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 12px;
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: 600;
+}
+
+.status-badge.active {
+    background: #dcfce7;
+    color: #166534;
+}
+
+.status-badge.inactive {
+    background: #f3f4f6;
+    color: #6b7280;
+}
+
+/* ===== VIEW ALL BUTTON ===== */
+.view-all-btn button {
+    background: linear-gradient(135deg, #3b82f6, #2563eb) !important;
+    color: white !important;
+    border: none !important;
+    font-weight: 700 !important;
+    letter-spacing: 0.5px;
+}
+
+.view-all-btn button:hover {
+    background: linear-gradient(135deg, #2563eb, #1d4ed8) !important;
+}
+
+/* ===== SECTION HEADER ===== */
+.section-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 12px;
+}
+
+.section-header h3 {
+    font-size: 15px;
+    font-weight: 700;
+    color: #1a1a2e;
+    margin: 0;
+}
+
+.section-header .refresh-label {
+    font-size: 11px;
+    color: #9ca3af;
+    font-weight: 500;
+}

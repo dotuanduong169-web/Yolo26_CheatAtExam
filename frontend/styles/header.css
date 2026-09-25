@@ -1,0 +1,141 @@
+/* ===== GLOBAL TOP BAR & SIDEBAR (FIGMA PRECISION) ===== */
+
+/* 1. APP RESET */
+.stApp {
+    background-color: #f8f9fa !important;
+}
+
+header[data-testid="stHeader"] {
+    display: none !important;
+}
+
+/* Hide Sidebar Collapse Button & Header */
+[data-testid="stSidebarCollapseButton"], 
+[data-testid="stSidebarHeader"],
+button[kind="header"] {
+    display: none !important;
+}
+
+/* 2. TOP HEADER */
+.global-top-bar {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 60px;
+    background-color: #ffffff;
+    border-bottom: 1px solid #f0f0f0;
+    z-index: 1000000;
+    display: flex;
+    align-items: center;
+    padding: 0 24px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.02);
+}
+
+.top-logo-section {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    min-width: 260px;
+}
+
+.top-logo-box {
+    width: 36px;
+    height: 36px;
+    background: #1677ff;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+}
+
+.top-logo-main {
+    font-weight: 700;
+    font-size: 16px;
+    color: #1a1a2e;
+}
+
+.top-logo-sub {
+    font-size: 11px;
+    color: #8c8c8c;
+}
+
+.top-page-title {
+    font-size: 16px;
+    font-weight: 600;
+    color: #262626;
+    margin-left: 20px;
+    padding-left: 20px;
+    border-left: 1px solid #f0f0f0;
+}
+
+/* 3. SIDEBAR */
+section[data-testid="stSidebar"] {
+    top: 60px !important;
+    height: calc(100vh - 60px) !important;
+    background-color: white !important;
+    border-right: 1px solid #f0f0f0 !important;
+    z-index: 999999 !important;
+}
+
+/* Force flex column on sidebar user content to push footer to bottom */
+[data-testid="stSidebarUserContent"] {
+    display: flex !important;
+    flex-direction: column !important;
+    min-height: calc(100vh - 80px) !important;
+}
+
+[data-testid="stSidebarUserContent"] > [data-testid="stVerticalBlock"] {
+    display: flex !important;
+    flex-direction: column !important;
+    flex: 1 !important;
+    height: 100% !important;
+}
+
+/* Sidebar Buttons - Left Aligned & Flat */
+[data-testid="stSidebar"] button {
+    text-align: left !important;
+    justify-content: flex-start !important;
+    padding-left: 16px !important;
+    height: 48px !important;
+    width: 100% !important;
+    margin-bottom: 6px !important;
+    border-radius: 10px !important;
+    border: none !important;
+    background: transparent !important;
+    color: #595959 !important;
+    font-size: 14px !important;
+    font-weight: 500 !important;
+    box-shadow: none !important;
+    transition: all 0.2s ease !important;
+}
+
+[data-testid="stSidebar"] button:hover {
+    background: #f5f5f5 !important;
+    color: #1677ff !important;
+}
+
+/* 4. LOGOUT FOOTER */
+/* The last button in the vertical block is the Logout button */
+[data-testid="stSidebarUserContent"] [data-testid="stVerticalBlock"] > div:last-child {
+    margin-top: auto !important;
+    padding-bottom: 20px;
+    padding-top: 15px;
+    border-top: 1px solid #f0f0f0;
+}
+
+[data-testid="stSidebarUserContent"] [data-testid="stVerticalBlock"] > div:last-child button {
+    color: #ff4d4f !important;
+    font-weight: 600 !important;
+}
+
+[data-testid="stSidebarUserContent"] [data-testid="stVerticalBlock"] > div:last-child button:hover {
+    background: #fff1f0 !important;
+    color: #f5222d !important;
+}
+
+/* 5. MAIN CONTENT OFFSET */
+.main .block-container {
+    padding-top: 85px !important;
+}

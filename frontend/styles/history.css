@@ -1,0 +1,338 @@
+/* ===== PAGE LAYOUT ===== */
+.block-container {
+    padding-top: 1rem;
+    padding-left: 1.5rem;
+    padding-right: 1.5rem;
+    max-width: 100%;
+}
+
+/* ===== PAGE TITLE ===== */
+.page-title {
+    font-size: 26px;
+    font-weight: 800;
+    color: #1a1a2e;
+    margin-bottom: 16px;
+    letter-spacing: -0.3px;
+}
+
+/* ===== SUMMARY CARDS ===== */
+.summary-card {
+    background: white;
+    border: 1px solid #e8eaed;
+    border-radius: 14px;
+    padding: 20px 24px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+    transition: box-shadow 0.2s ease, transform 0.2s ease;
+}
+
+.summary-card:hover {
+    box-shadow: 0 4px 16px rgba(0,0,0,0.08);
+    transform: translateY(-2px);
+}
+
+.summary-card .label {
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.8px;
+    color: #6b7280;
+    margin-bottom: 6px;
+}
+
+.summary-card .value {
+    font-size: 32px;
+    font-weight: 800;
+    color: #1a1a2e;
+    line-height: 1.1;
+}
+
+.summary-card .trend {
+    font-size: 12px;
+    font-weight: 600;
+    margin-top: 4px;
+}
+
+.summary-card .trend.up {
+    color: #16a34a;
+}
+
+.summary-card .trend.neutral {
+    color: #6b7280;
+}
+
+/* ===== SEARCH BOX ===== */
+.search-box {
+    background: white;
+    border: 1px solid #e8eaed;
+    border-radius: 12px;
+    padding: 4px 0;
+    margin-bottom: 16px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+}
+
+/* ===== TABLE CARD ===== */
+.table-card {
+    background: white;
+    border: 1px solid #e8eaed;
+    border-radius: 16px;
+    padding: 0;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+    overflow: hidden;
+}
+
+/* ===== TABLE HEADER ===== */
+.table-header-row {
+    display: grid;
+    grid-template-columns: 1.2fr 2fr 1.5fr 1.2fr 1.2fr;
+    padding: 14px 24px;
+    background: #f8fafc;
+    border-bottom: 1px solid #e8eaed;
+    font-size: 12px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: #6b7280;
+}
+
+/* ===== TABLE ROW ===== */
+.table-data-row {
+    display: grid;
+    grid-template-columns: 1.2fr 2fr 1.5fr 1.2fr 1.2fr;
+    padding: 16px 24px;
+    border-bottom: 1px solid #f1f3f5;
+    align-items: center;
+    transition: background 0.15s ease;
+    font-size: 14px;
+    color: #374151;
+}
+
+.table-data-row:last-child {
+    border-bottom: none;
+}
+
+.table-data-row:hover {
+    background: #f8fafc;
+}
+
+/* ===== CELL STYLES ===== */
+.cell-session-id {
+    font-weight: 700;
+    color: #2563eb;
+    font-size: 13px;
+}
+
+.cell-class {
+    font-weight: 500;
+}
+
+.cell-date {
+    color: #6b7280;
+    font-size: 13px;
+}
+
+.cell-count {
+    font-weight: 600;
+    color: #374151;
+    text-align: center;
+}
+
+/* ===== POPOVER TRIGGER (3-DOT MENU) ===== */
+[data-testid="stPopoverButton"] > button {
+    background: transparent !important;
+    border: 1px solid #e8eaed !important;
+    border-radius: 8px !important;
+    width: 36px !important;
+    height: 36px !important;
+    min-width: 36px !important;
+    padding: 0 !important;
+    font-size: 18px !important;
+    font-weight: 700 !important;
+    color: #6b7280 !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    cursor: pointer;
+    transition: all 0.15s ease;
+}
+
+[data-testid="stPopoverButton"] > button:hover {
+    background: #f3f4f6 !important;
+    border-color: #d1d5db !important;
+    color: #374151 !important;
+}
+
+/* ===== POPOVER MENU ITEMS ===== */
+[data-testid="stPopover"] [data-testid="stVerticalBlock"] {
+    gap: 4px !important;
+}
+
+[data-testid="stPopover"] .stButton > button {
+    background: transparent !important;
+    border: none !important;
+    border-radius: 8px !important;
+    font-size: 13px !important;
+    font-weight: 500 !important;
+    color: #374151 !important;
+    padding: 8px 16px !important;
+    height: auto !important;
+    text-align: left !important;
+    justify-content: flex-start !important;
+    transition: background 0.15s ease;
+}
+
+[data-testid="stPopover"] .stButton > button:hover {
+    background: #f3f4f6 !important;
+    transform: none !important;
+    box-shadow: none !important;
+}
+
+/* ===== PAGINATION ===== */
+.pagination-bar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 14px 24px;
+    border-top: 1px solid #e8eaed;
+    background: #fafbfc;
+}
+
+.pagination-info {
+    font-size: 13px;
+    color: #6b7280;
+    font-weight: 500;
+}
+
+.pagination-controls {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.page-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 34px;
+    height: 34px;
+    border-radius: 8px;
+    border: 1px solid #e8eaed;
+    background: white;
+    font-size: 13px;
+    font-weight: 600;
+    color: #374151;
+    cursor: pointer;
+    transition: all 0.15s ease;
+    text-decoration: none;
+    padding: 0 8px;
+    user-select: none;
+}
+
+.page-btn:hover {
+    background: #f3f4f6;
+    border-color: #d1d5db;
+}
+
+.page-btn.active {
+    background: #2563eb;
+    color: white;
+    border-color: #2563eb;
+}
+
+.page-btn.disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+}
+
+.page-ellipsis {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 34px;
+    height: 34px;
+    font-size: 13px;
+    color: #9ca3af;
+}
+
+/* ===== STREAMLIT OVERRIDES ===== */
+.stTextInput > div > div > input {
+    border-radius: 10px !important;
+    border: 1px solid #e8eaed !important;
+    padding: 10px 14px !important;
+    font-size: 14px !important;
+}
+
+.stTextInput > div > div > input:focus {
+    border-color: #2563eb !important;
+    box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.12) !important;
+}
+
+.stButton > button {
+    border-radius: 10px;
+    font-weight: 600;
+    font-size: 13px;
+    transition: all 0.2s ease;
+}
+
+.stButton > button:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 3px 10px rgba(0,0,0,0.1);
+}
+
+/* ===== STREAMLIT PAGINATION PREV/NEXT BUTTONS ===== */
+/* Style the ‹ and › Streamlit buttons to look like the HTML page-btn */
+div#hist-pagination-row [data-testid="stHorizontalBlock"] {
+    align-items: center;
+    padding: 10px 24px;
+    border-top: 1px solid #e8eaed;
+    background: #fafbfc;
+    margin: 0;
+    gap: 12px !important;
+}
+
+/* Target the buttons inside the pagination row */
+div#hist-pagination-row button {
+    min-width: 34px !important;
+    height: 34px !important;
+    padding: 0 !important;
+    border-radius: 8px !important;
+    border: 1px solid #e8eaed !important;
+    background: white !important;
+    font-size: 15px !important;
+    font-weight: 600 !important;
+    color: #374151 !important;
+    box-shadow: none !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+}
+
+div#hist-pagination-row button:hover {
+    border-color: #d1d5db !important;
+    background: #f8fafc !important;
+}
+
+div#hist-pagination-row button:disabled {
+    opacity: 0.4 !important;
+}
+
+
+/* pagination-info inside Streamlit column */
+.pagination-info {
+    display: flex;
+    align-items: center;
+    height: 34px;
+    font-size: 13px;
+    color: #6b7280;
+    font-weight: 500;
+    padding: 0;
+    margin: 0;
+}
+
+/* pagination-controls inside Streamlit column */
+.pagination-controls {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    height: 34px;
+    gap: 4px;
+}

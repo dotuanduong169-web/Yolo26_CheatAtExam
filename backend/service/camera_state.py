@@ -54,6 +54,11 @@ class CameraState:
         self.loop_video = False
         self.device_id = None
         self.cheat_window.clear()
+        try:
+            from ai_model.ai_pipeline import reset_tracker
+            reset_tracker()
+        except Exception:
+            pass
 
     def note_frame_cheat(self, has_cheat: bool) -> None:
         """Ghi nhận frame hiện tại có/không có gian lận vào cửa sổ debounce."""

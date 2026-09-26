@@ -27,6 +27,14 @@ CHEAT_LABELS = {"Cheat_Paper", "cellphone"}
 CONF_THRESHOLD = float(os.getenv("MODEL_CONF", "0.25"))
 IMGSZ = int(os.getenv("MODEL_IMGSZ", "512"))
 
+# Tối ưu đã đo A/B trên videos/test_exam_*.mp4: ByteTrack + giữ box + stride.
+# track: cheat_frames +18%, phủ frame +18%; stride 2: tốc độ CPU 3,5→6,8 fps.
+# imgsz giữ 512 (đúng cỡ train — 640 làm mất Cheat_Paper đã yếu).
+TRACK_ENABLED = os.getenv("MODEL_TRACK", "1") == "1"
+TRACK_STRIDE = max(1, int(os.getenv("MODEL_STRIDE", "2")))
+TRACK_KEEP = max(1, int(os.getenv("MODEL_KEEP", "5")))
+_track_alive: dict[int, list] = {}  # track_id -> [label, conf, bbox, ttl]
+
 # Màu vẽ khung: bài làm xanh lá, phao đỏ, điện thoại cam
 COLORS = {
     "Answer_paper": (0, 255, 0),
@@ -45,6 +53,28 @@ except Exception as exc:
     _yolo_model = None
 
 
+def reset_tracker() -> None:
+    """Xóa trạng thái track (gọi khi đổi nguồn video/camera)."""
+    _track_alive.clear()
+    try:
+        # Đặt predictor về None để lần track sau dựng mới hoàn toàn;
+        # gán trackers=[] làm track() trả rỗng (đã gặp thực tế).
+        if _yolo_model is not None and getattr(_yolo_model, "predictor", None) is not None:
+            _yolo_model.predictor = None
+    except Exception:
+        pass
+
+
+def _draw_detection(frame, label, conf, bbox, track_id=None) -> None:
+    """Vẽ một khung + nhãn lên frame."""
+    x1, y1, x2, y2 = bbox
+    color = COLORS.get(label, (255, 255, 255))
+    cv2.rectangle(frame, (x1, y1), (x2, y2), color, 2)
+    tag = f"{label} {conf:.2f}" + (f" #{track_id}" if track_id is not None else "")
+    cv2.putText(
+        frame, tag, (x1, max(0, y1 - 8)),
+        cv2.FONT_HERSHEY_SIMPLEX, 0.6, color, 2,
+    )
 def process_frame(
     frame: np.ndarray,
     frame_count: int = 0,
@@ -62,6 +92,9 @@ def process_frame(
     results_data: list[dict] = []
     if _yolo_model is None or frame is None or frame.size == 0:
         return frame, results_data
+
+    if TRACK_ENABLED:
+        return _process_frame_tracked(frame, frame_count)
 
     try:
         res = _yolo_model(frame, imgsz=IMGSZ, conf=CONF_THRESHOLD, verbose=False)[0]
@@ -119,6 +152,57 @@ def process_frame(
             "is_cheat": label in CHEAT_LABELS,
         })
 
+    return frame, results_data
+
+
+def _process_frame_tracked(
+    frame: np.ndarray, frame_count: int = 0
+) -> tuple[np.ndarray, list[dict]]:
+    """Bản tối ưu: ByteTrack + infer cách frame + giữ box khi flicker.
+    Điểm logic: frame lẻ tái dùng box frame chẵn (giảm nửa infer);
+    box mất dấu được giữ TRACK_KEEP frame trước khi xóa."""
+    results_data: list[dict] = []
+    if frame_count % TRACK_STRIDE == 0:
+        try:
+            res = _yolo_model.track(
+                frame, persist=True, tracker="bytetrack.yaml",
+                imgsz=IMGSZ, conf=CONF_THRESHOLD, verbose=False,
+            )[0]
+        except Exception as exc:
+            logger.debug(f"Track inference failed: {exc}")
+            return frame, results_data
+        names = res.names if hasattr(res, "names") else {
+            i: n for i, n in enumerate(LABELS)}
+        seen: set[int] = set()
+        if res.boxes is not None and res.boxes.id is not None:
+            for box, tid in zip(res.boxes, res.boxes.id):
+                try:
+                    track_id = int(tid.item())
+                    cls_id = int(box.cls[0].item())
+                    conf = float(box.conf[0].item())
+                    bbox = list(map(int, box.xyxy[0].tolist()))
+                except Exception:
+                    continue
+                label = names.get(
+                    cls_id, LABELS[cls_id] if cls_id < len(LABELS) else str(cls_id))
+                _track_alive[track_id] = [label, conf, bbox, TRACK_KEEP]
+                seen.add(track_id)
+        for track_id in list(_track_alive):
+            if track_id not in seen:
+                _track_alive[track_id][3] -= 1
+                if _track_alive[track_id][3] <= 0:
+                    del _track_alive[track_id]
+
+    for track_id, (label, conf, bbox, _ttl) in _track_alive.items():
+        _draw_detection(frame, label, conf, bbox, track_id)
+        results_data.append({
+            "bbox": bbox,
+            "mask": None,
+            "label": label,
+            "confidence": round(conf, 4),
+            "is_cheat": label in CHEAT_LABELS,
+            "track_id": track_id,
+        })
     return frame, results_data
 
 

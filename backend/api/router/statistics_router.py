@@ -30,7 +30,7 @@ def stats_daily(
 ):
     """Lấy thống kê gom theo ngày. Phạm vi N ngày gần nhất, lọc theo quyền admin hay user."""
     try:
-        user_id_filter = None if user.role == "admin" else user.user_id
+        user_id_filter = None if user.VaiTro == "admin" else user.PK_MaNguoiDung
         return get_daily_stats(db, user_id_filter, days)
     except Exception as exc:
         logger.error(f"Error fetching daily stats: {exc}", exc_info=True)
@@ -45,7 +45,7 @@ def stats_by_date(
 ):
     """Lấy số vật gian lận theo từng ngày. Dùng vẽ biểu đồ cảnh báo N ngày gần nhất."""
     try:
-        user_id_filter = None if user.role == "admin" else user.user_id
+        user_id_filter = None if user.VaiTro == "admin" else user.PK_MaNguoiDung
         return get_stats_by_date(db, user_id_filter, days)
     except Exception as exc:
         logger.error(f"Error fetching by-date stats: {exc}", exc_info=True)
@@ -60,7 +60,7 @@ def stats_weekly(
 ):
     """Lấy thống kê gom theo tuần. Dùng cho biểu đồ xu hướng N tuần gần nhất."""
     try:
-        user_id_filter = None if user.role == "admin" else user.user_id
+        user_id_filter = None if user.VaiTro == "admin" else user.PK_MaNguoiDung
         return get_weekly_stats(db, user_id_filter, weeks)
     except Exception as exc:
         logger.error(f"Error fetching weekly stats: {exc}", exc_info=True)
@@ -74,7 +74,7 @@ def stats_summary(
 ):
     """Lấy tổng hợp toàn hệ thống. Gồm tổng lượt phát hiện và tỉ lệ bài sạch trung bình."""
     try:
-        user_id_filter = None if user.role == "admin" else user.user_id
+        user_id_filter = None if user.VaiTro == "admin" else user.PK_MaNguoiDung
         return get_stats_summary(db, user_id_filter)
     except Exception as exc:
         logger.error(f"Error fetching summary: {exc}", exc_info=True)

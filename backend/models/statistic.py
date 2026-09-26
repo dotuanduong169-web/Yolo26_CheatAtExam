@@ -2,7 +2,7 @@
 
 from datetime import datetime, timezone
 
-from sqlalchemy import Column, Float, ForeignKey, Integer, TIMESTAMP
+from sqlalchemy import BigInteger, Column, Float, ForeignKey, Integer, TIMESTAMP
 from sqlalchemy.orm import relationship
 
 from database.database import Base
@@ -16,10 +16,13 @@ class Statistic(Base):
     total_students = Column(Integer, nullable=False)
     sleeping_count = Column(Integer, nullable=False)
     focus_rate = Column(Float, nullable=False)
-    session_id = Column(Integer, ForeignKey("sessions.session_id", ondelete="CASCADE"))
+    session_id = Column(
+        BigInteger,
+        ForeignKey("tbl_monitoring_sessions.PK_MaPhienGiamSat", ondelete="CASCADE"),
+    )
 
     # Quan hệ
-    session = relationship("Session", back_populates="statistics")
+    session = relationship("MonitoringSession", back_populates="statistics")
 
     def __repr__(self) -> str:
         """Trả chuỗi nhận diện thống kê theo id và tỉ lệ tập trung."""

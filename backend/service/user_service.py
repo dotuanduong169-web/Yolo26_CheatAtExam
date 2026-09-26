@@ -22,8 +22,8 @@ from core.security import get_cookie_settings, hash_password, verify_password
 from core.token_blacklist import TokenBlacklist
 from crud.user_crud import (
     create_user,
-    get_user_by_email,
     get_user_by_id,
+    get_user_by_username,
     update_user_password,
     update_user_profile,
 )
@@ -38,12 +38,12 @@ logger = get_logger(__name__)
 
 def register_user(db: DBSession, user_data: UserCreate, client_ip: str) -> User:
     """Đăng ký người dùng mới, chặn spam theo IP.
-    Điểm logic: vượt ngưỡng thử thì chặn; email trùng thì ghi nhận 1 lượt;
+    Điểm logic: vượt ngưỡng thử thì chặn; tên đăng nhập trùng thì ghi nhận 1 lượt;
     thành công thì xóa đếm rate-limit.
 
     Raises:
         RateLimitError: Quá nhiều lượt đăng ký từ IP này.
-        ConflictError: Email đã được đăng ký.
+        ConflictError: Tên đăng nhập đã được đăng ký.
     """
     rate_limiter = RateLimiter()
     reg_key = f"reg:{client_ip}"
@@ -55,22 +55,22 @@ def register_user(db: DBSession, user_data: UserCreate, client_ip: str) -> User:
             detail=f"Too many registration attempts. Try again in {minutes} minutes."
         )
 
-    if get_user_by_email(db, user_data.email):
+    if get_user_by_username(db, user_data.TenDangNhap):
         rate_limiter.record_attempt(reg_key)
-        logger.warning(f"Registration with existing email: {user_data.email}")
-        raise ConflictError(detail="Email already exists")
+        logger.warning(f"Registration with existing username: {user_data.TenDangNhap}")
+        raise ConflictError(detail="TenDangNhap already exists")
 
-    logger.info(f"Registering user: {user_data.email} from {client_ip}")
+    logger.info(f"Registering user: {user_data.TenDangNhap} from {client_ip}")
 
     try:
         created_user = create_user(db, user_data)
     except IntegrityError:
         db.rollback()
         logger.error("Database integrity error during registration", exc_info=True)
-        raise ConflictError(detail="Failed to create user — duplicate email")
+        raise ConflictError(detail="Failed to create user — duplicate username")
 
     rate_limiter.reset_for_ip(reg_key)
-    logger.info(f"User registered: {user_data.email}")
+    logger.info(f"User registered: {user_data.TenDangNhap}")
     return created_user
 
 
@@ -79,20 +79,21 @@ def register_user(db: DBSession, user_data: UserCreate, client_ip: str) -> User:
 
 def login_user(
     db: DBSession,
-    email: str,
+    username: str,
     password: str,
     client_ip: str,
 ) -> dict:
     """
     Xác thực đăng nhập và cấp cặp JWT access/refresh.
-    Điểm logic: sai quá ngưỡng theo IP thì chặn; đúng thì xóa đếm và cấp token mới.
+    Điểm logic: sai quá ngưỡng theo IP thì chặn; tài khoản khóa thì từ chối;
+    đúng thì xóa đếm và cấp token mới.
 
     Returns:
-        Dict gồm ``user_id``, ``access_token``, ``refresh_token``.
+        Dict gồm ``user_id``, ``vai_tro``, ``access_token``, ``refresh_token``.
 
     Raises:
         RateLimitError: Quá nhiều lượt đăng nhập từ IP này.
-        AuthenticationError: Email hoặc mật khẩu sai.
+        AuthenticationError: Tên đăng nhập hoặc mật khẩu sai, hoặc tài khoản khóa.
     """
     rate_limiter = RateLimiter()
 
@@ -103,25 +104,29 @@ def login_user(
             detail=f"Too many login attempts. Try again in {minutes} minutes."
         )
 
-    logger.info(f"Login attempt: {email} from {client_ip}")
+    logger.info(f"Login attempt: {username} from {client_ip}")
 
-    db_user = get_user_by_email(db, email)
-    if not db_user or not verify_password(password, db_user.password):
+    db_user = get_user_by_username(db, username)
+    if not db_user or not verify_password(password, db_user.MatKhau):
         rate_limiter.record_attempt(client_ip)
-        logger.warning(f"Login failed for: {email} from {client_ip}")
-        raise AuthenticationError(detail="Invalid email or password")
+        logger.warning(f"Login failed for: {username} from {client_ip}")
+        raise AuthenticationError(detail="Invalid username or password")
+
+    if db_user.TrangThai != "hoat_dong":
+        logger.warning(f"Login blocked for locked account: {username}")
+        raise AuthenticationError(detail="Account is locked")
 
     # Thành công — xóa đếm rate-limit của IP
     rate_limiter.reset_for_ip(client_ip)
 
-    access_token, _ = create_access_token(data={"user_id": db_user.user_id})
-    refresh_token, _ = create_refresh_token(data={"user_id": db_user.user_id})
+    access_token, _ = create_access_token(data={"user_id": db_user.PK_MaNguoiDung})
+    refresh_token, _ = create_refresh_token(data={"user_id": db_user.PK_MaNguoiDung})
 
-    logger.info(f"Login successful: {email}")
+    logger.info(f"Login successful: {username}")
 
     return {
-        "user_id": db_user.user_id,
-        "role": db_user.role,
+        "user_id": db_user.PK_MaNguoiDung,
+        "vai_tro": db_user.VaiTro,
         "access_token": access_token,
         "refresh_token": refresh_token,
     }
@@ -145,22 +150,16 @@ def get_profile(db: DBSession, user_id: int) -> User:
 
 def update_profile(db: DBSession, user_id: int, data: UserUpdate) -> User:
     """
-    Cập nhật tên hiển thị và email người dùng.
-    Điểm logic: email trùng do ràng buộc duy nhất trong DB thì báo xung đột.
+    Cập nhật họ tên người dùng.
 
     Raises:
         NotFoundError: Người dùng không tồn tại.
-        ConflictError: Email đã bị người khác dùng.
     """
-    try:
-        user = update_user_profile(db, user_id, data.full_name, data.email)
-        if not user:
-            raise NotFoundError(detail="User not found")
-        logger.info(f"Profile updated for user: {user_id}")
-        return user
-    except IntegrityError:
-        db.rollback()
-        raise ConflictError(detail="Email already in use")
+    user = update_user_profile(db, user_id, data.HoVaTen)
+    if not user:
+        raise NotFoundError(detail="User not found")
+    logger.info(f"Profile updated for user: {user_id}")
+    return user
 
 
 def change_user_password(
@@ -181,7 +180,7 @@ def change_user_password(
     if not user:
         raise NotFoundError(detail="User not found")
 
-    if not verify_password(old_password, user.password):
+    if not verify_password(old_password, user.MatKhau):
         raise ValidationError(detail="Old password is incorrect")
 
     update_user_password(db, user_id, hash_password(new_password))
@@ -211,7 +210,7 @@ def refresh_access_token(refresh_token: Optional[str]) -> dict:
     Điểm logic: thiếu token, bị thu hồi, sai loại hoặc mất user_id đều từ chối.
 
     Returns:
-        Dict gồm ``access_token`` và ``user_id``.
+        Dict gồm ``access_token``, ``user_id`` và ``vai_tro``.
 
     Raises:
         AuthenticationError: Refresh token thiếu, bị thu hồi hoặc không hợp lệ.
@@ -234,12 +233,12 @@ def refresh_access_token(refresh_token: Optional[str]) -> dict:
         db_user = get_user_by_id(db, user_id)
         if not db_user:
             raise AuthenticationError(detail="User not found")
-        role = db_user.role
+        role = db_user.VaiTro
 
     access_token, _ = create_access_token(data={"user_id": user_id})
     logger.info(f"Access token refreshed for user: {user_id}")
 
-    return {"access_token": access_token, "user_id": user_id, "role": role}
+    return {"access_token": access_token, "user_id": user_id, "vai_tro": role}
 
 
 # ── Helpers (private) ───────────────────────────────────────

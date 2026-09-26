@@ -3,9 +3,18 @@
 from database.database import Base
 
 from models.user import User
-from models.session import Session
-from models.frame import Frame
+from models.edgedevice import EdgeDevice
+from models.monitoring_session import MonitoringSession
+from models.detected_event import DetectedEvent
+from models.evidence import Evidence
 from models.statistic import Statistic
-from models.ai_result import AIResult
 
-__all__ = ["Base", "User", "Session", "Frame", "Statistic", "AIResult"]
+__all__ = [
+    "Base",
+    "User",
+    "EdgeDevice",
+    "MonitoringSession",
+    "DetectedEvent",
+    "Evidence",
+    "Statistic",
+]

@@ -10,11 +10,11 @@ YOLO26 instance segmentation phát hiện `Answer_paper / Cheat_Paper / cellphon
   xem luồng MJPEG trực tiếp trên dashboard.
 * Phát hiện gian lận: vẽ khung + polygon lên từng vật (giấy thi sạch màu xanh,
   tài liệu gian lận và điện thoại màu đỏ/cam), phân biệt gian lận/không gian lận.
-* Lưu lịch sử: mỗi 30 giây lưu 1 ảnh + kết quả AI + thống kê vào PostgreSQL.
-* Sửa nhãn thủ công: click vào khung trên ảnh để đổi nhãn khi AI sai,
+* Lưu lịch sử: mỗi 30 giây lưu 1 ảnh + sự kiện gian lận đã debounce (≥3/5 frame) + thống kê vào PostgreSQL.
+* Sửa nhãn thủ công: xác minh sự kiện đúng/sai kèm nhãn sửa khi AI sai,
   thống kê tự tính lại theo nhãn đã sửa.
 * Thống kê: xem theo phiên thi, theo ngày/tuần, tỉ lệ bài sạch.
-* Quản trị: đăng ký/đăng nhập (JWT), phân quyền, tạo admin.
+* Quản trị: đăng ký/đăng nhập bằng tên đăng nhập (JWT), phân quyền admin/teacher, quản lý thiết bị biên RTSP, tạo admin.
 
 ## Yêu cầu
 
@@ -48,7 +48,7 @@ python3 -m venv .venv
 | `SECRET_KEY` | — | **Bắt buộc đổi** trước khi dùng thật |
 | `API_HOST` / `API_PORT` | `0.0.0.0` / `8000` | Địa chỉ backend |
 | `MODEL_PATH` | `backend/ai_model/weights/best.pt` | Weights YOLO26-seg |
-| `MODEL_CONF` | `0.5` | Ngưỡng tin cậy |
+| `MODEL_CONF` | `0.25` | Ngưỡng tin cậy
 | `MODEL_IMGSZ` | `512` | Kích thước ảnh inference |
 
 ## Chạy
@@ -70,8 +70,9 @@ Mở trình duyệt: API `http://localhost:8000/docs`, giao diện `http://local
 
 1. Đăng nhập trên giao diện web.
 2. Mở phiên giám sát mới:
-   * Camera trực tiếp: `POST /camera/start?class_id=P101&camera_index=0`
-   * Video có sẵn: `POST /camera/start?class_id=P101&video_path=videos/test_exam.mp4`
+   * Đăng ký thiết bị trước: `POST /devices {"TenThietBi": "Cam P101", "DuongDanRTSP": "0"}`
+   * Camera trực tiếp: `POST /camera/start?device_id=1&phong_thi=P101&mon_thi=Toan`
+   * Video có sẵn: `POST /camera/start?device_id=1&phong_thi=P101&video_path=videos/test_exam.mp4`
 3. Xem luồng trực tiếp: `GET /camera/video_feed` (hoặc ngay trên trang chủ).
 4. Hệ thống tự lưu ảnh + kết quả mỗi 30 giây. Vào trang phân tích phiên để xem
    lưới ảnh, trang chi tiết ảnh để click sửa nhãn từng vật.
@@ -82,14 +83,16 @@ Mở trình duyệt: API `http://localhost:8000/docs`, giao diện `http://local
 
 | Method | Endpoint | Mô tả |
 |---|---|---|
-| POST | `/users/register`, `/users/login` | Tài khoản |
-| POST | `/camera/start` | Bắt đầu giám sát (camera/video) |
+| POST | `/users/register`, `/users/login` | Tài khoản (tên đăng nhập) |
+| POST | `/devices`, GET `/devices` | Đăng ký / liệt kê thiết bị biên |
+| PUT, DELETE | `/devices/{id}` | Sửa / xóa thiết bị (admin) |
+| POST | `/camera/start?device_id=&phong_thi=&mon_thi=` | Bắt đầu giám sát theo thiết bị |
 | POST | `/camera/stop` | Dừng, chốt phiên |
 | GET | `/camera/video_feed` | Luồng MJPEG trực tiếp |
 | GET | `/camera/status`, `/camera/list` | Trạng thái, danh sách nguồn |
-| GET | `/frames/{session_id}` | Ảnh của phiên (phân trang) |
-| GET | `/frames/detail/{frame_id}` | Chi tiết ảnh + detections |
-| PATCH | `/ai-result/{result_id}` | Sửa nhãn (`{"status": "Cheat_Paper"}`) |
+| GET | `/events/session/{id}` | Sự kiện gian lận của phiên (lọc trạng thái) |
+| GET | `/events/{id}` | Chi tiết sự kiện + bằng chứng + tọa độ |
+| PATCH | `/events/{id}` | Xác minh (`{"TrangThaiKiemTra": "dung"/"sai"}`) |
 | GET | `/history/sessions`, `/history/summary` | Lịch sử phiên |
 | GET | `/stats/daily`, `/stats/weekly`, `/stats/summary` | Thống kê |
 
@@ -126,10 +129,10 @@ backend/
   main.py               # Khởi tạo FastAPI, gắn router
   core/                 # Cấu hình, JWT, bảo mật, rate-limit, logger
   database/             # Engine + session PostgreSQL
-  models/               # sessions, frames, ai_results, statistics, users
+   models/               # tbl_user, tbl_edgedevice, tbl_monitoring_sessions, tbl_detected_events, tbl_evidences, statistics
   schemas/              # Pydantic request/response
   crud/                 # Truy vấn DB
-  api/router/           # users, camera, frames, history, statistics, ai-result
+   api/router/           # users, camera, devices, events, history, statistics
   service/              # Nghiệp vụ: camera, capture loop, stream MJPEG...
   ai_model/             # ai_pipeline.py (YOLO26-seg) + weights/best.pt
   scripts/              # create_admin.py, migrate_dataset.py

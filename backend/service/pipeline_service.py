@@ -1,5 +1,5 @@
 """Vòng lặp capture: đọc camera hoặc video file, chạy YOLO26-seg, lưu DB.
-Luồng chính: đọc frame → infer → lưu snapshot mỗi 30 giây."""
+Luồng chính: đọc frame → infer → mỗi 30 giây lưu 1 ảnh + 1 sự kiện cho mỗi cheat đã debounce."""
 
 import time
 from datetime import datetime
@@ -10,17 +10,16 @@ import cv2
 from ai_model.ai_pipeline import is_cheat_label, process_frame
 from core.config import settings
 from core.logger import get_logger
-from crud.ai_result_crud import create_ai_result
-from crud.frame_crud import create_frame
+from crud.event_crud import create_event, create_evidence
 from crud.statistics_crud import create_statistics
 from database.database import SessionLocal
 from service.camera_state import CameraState
 
 logger = get_logger(__name__)
 
-# Chu kỳ lưu snapshot: 30 giây một ảnh kèm kết quả và thống kê
+# Chu kỳ lưu snapshot: 30 giây một ảnh kèm sự kiện và thống kê
 SAVE_INTERVAL_SECONDS = 30
-# Debounce gian lận: cheat chỉ ghi snapshot khi có >=3 frame gian lận trong 5 frame gần nhất
+# Debounce gian lận: cheat chỉ ghi sự kiện khi có >=3 frame gian lận trong 5 frame gần nhất
 CHEAT_WINDOW = 5
 CHEAT_MIN_HITS = 3
 
@@ -88,7 +87,7 @@ def capture_loop() -> None:
                         if not r.get("is_cheat")
                         or state.is_cheat_confirmed(CHEAT_WINDOW, CHEAT_MIN_HITS)
                     ]
-                    _save_snapshot(db, state, frame, confirmed, image_dir, frame_count)
+                    _save_snapshot(db, state, processed_frame, confirmed, image_dir, frame_count)
                     last_save_time = time.time()
 
                 time.sleep(0.05)  # Nghỉ 0,05 giây để trần tốc độ khoảng 20 FPS
@@ -115,8 +114,9 @@ def _save_snapshot(
     image_dir: Path,
     frame_count: int,
 ) -> None:
-    """Lưu một snapshot gồm ảnh frame, kết quả AI và thống kê vào DB.
-    Điểm logic: thiếu ca hiện tại thì bỏ qua; lỗi thì rollback để không ghi dở."""
+    """Lưu một snapshot: 1 ảnh + 1 sự kiện cho mỗi cheat + thống kê kỳ.
+    Điểm logic: vật sạch (Answer_paper) không tạo sự kiện; nhiều sự kiện chung 1 ảnh;
+    thiếu phiên hiện tại thì bỏ qua; lỗi thì rollback để không ghi dở."""
     filename = datetime.now().strftime("%Y%m%d_%H%M%S") + ".jpg"
     image_path = image_dir / filename
 
@@ -130,16 +130,24 @@ def _save_snapshot(
         return
 
     try:
-        frame_obj = create_frame(db, str(image_path), state.current_session_id)
-
         for r in results:
-            create_ai_result(db, r, frame_obj.frame_id)
+            if not r.get("is_cheat"):
+                continue
+            event = create_event(
+                db,
+                session_id=state.current_session_id,
+                loai_hanh_vi=r.get("label", ""),
+                nhan_ai=r.get("label", ""),
+                toa_do=r.get("bbox", []),
+                do_tin_cay=float(r.get("confidence", 0.0)),
+            )
+            create_evidence(db, event.PK_MaSuKien, "anh", str(image_path))
 
         stats_data = calculate_stats(results)
         create_statistics(db, stats_data, state.current_session_id)
 
         db.commit()
-        logger.info(f"Snapshot saved — frames: {frame_count}, detections: {len(results)}")
+        logger.info(f"Snapshot saved — frames: {frame_count}, events: {len([r for r in results if r.get('is_cheat')])}")
 
     except Exception as exc:
         db.rollback()

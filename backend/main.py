@@ -8,9 +8,9 @@ from database.database import engine
 import models
 
 from api.router import (
-    ai_result_router,
     camera_router,
-    frame_router,
+    device_router,
+    event_router,
     history_router,
     statistics_router,
     user_router,
@@ -44,10 +44,10 @@ app.add_middleware(
 # ── Khai báo router ─────────────────────────────────────────────────
 app.include_router(user_router.router)
 app.include_router(camera_router.router)
-app.include_router(frame_router.router)
+app.include_router(device_router.router)
+app.include_router(event_router.router)
 app.include_router(statistics_router.router)
 app.include_router(history_router.router)
-app.include_router(ai_result_router.router)
 
 
 # ── Kiểm tra sức khỏe ────────────────────────────────────────────

@@ -9,7 +9,7 @@ from datetime import datetime
 
 # Cấu hình địa chỉ API và tài khoản kiểm thử
 API_URL = "http://localhost:8000"
-TEST_EMAIL = f"test_{int(time.time())}@example.com"
+TEST_USERNAME = f"test_{int(time.time())}"
 TEST_PASSWORD = "Password123"
 TEST_NAME = "Security Test User"
 
@@ -29,27 +29,27 @@ class SecurityTester:
         self.results.append({"test": test_name, "status": status, "message": message})
 
     def test_registration(self):
-        """Kiểm thử đăng ký và chặn email trùng.
-        Điểm logic: đăng ký đúng trả 200, đăng ký lại email cũ phải trả 409."""
+        """Kiểm thử đăng ký và chặn tên đăng nhập trùng.
+        Điểm logic: đăng ký đúng trả 200, đăng ký lại tên cũ phải trả 409."""
         print("\n📝 Testing Registration Endpoint...")
 
         # Trường hợp 1: đăng ký hợp lệ
         payload = {
-            "email": TEST_EMAIL,
-            "password": TEST_PASSWORD,
-            "full_name": TEST_NAME
+            "TenDangNhap": TEST_USERNAME,
+            "MatKhau": TEST_PASSWORD,
+            "HoVaTen": TEST_NAME
         }
         response = self.session.post(f"{self.base_url}/users/register", json=payload)
 
         if response.status_code == 200:
-            self.log("Registration", "PASS", f"User created: {TEST_EMAIL}")
+            self.log("Registration", "PASS", f"User created: {TEST_USERNAME}")
         else:
             self.log("Registration", "FAIL", f"Status {response.status_code}: {response.text}")
 
-        # Trường hợp 2: đăng ký trùng email
+        # Trường hợp 2: đăng ký trùng tên đăng nhập
         response = self.session.post(f"{self.base_url}/users/register", json=payload)
         if response.status_code == 409:  # Conflict
-            self.log("Duplicate Registration", "PASS", "Correctly rejected duplicate email")
+            self.log("Duplicate Registration", "PASS", "Correctly rejected duplicate username")
         else:
             self.log("Duplicate Registration", "FAIL", f"Expected 409, got {response.status_code}")
 
@@ -60,7 +60,7 @@ class SecurityTester:
 
         # Đăng nhập sai 6 lần: 5 lần cho qua, lần 6 phải bị chặn
         for attempt in range(1, 7):
-            payload = {"email": TEST_EMAIL, "password": "WrongPassword"}
+            payload = {"TenDangNhap": TEST_USERNAME, "MatKhau": "WrongPassword"}
             response = self.session.post(f"{self.base_url}/users/login", json=payload)
 
             if attempt < 5:
@@ -96,25 +96,25 @@ class SecurityTester:
         self.session = requests.Session()
 
         # Đăng ký tài khoản mới để có lượt đăng nhập sạch
-        test_email = f"clean_{int(time.time())}@example.com"
+        test_username = f"clean_{int(time.time())}"
         register_payload = {
-            "email": test_email,
-            "password": TEST_PASSWORD,
-            "full_name": "Clean Test"
+            "TenDangNhap": test_username,
+            "MatKhau": TEST_PASSWORD,
+            "HoVaTen": "Clean Test"
         }
         self.session.post(f"{self.base_url}/users/register", json=register_payload)
 
         # Đăng nhập bằng tài khoản vừa tạo
-        login_payload = {"email": test_email, "password": TEST_PASSWORD}
+        login_payload = {"TenDangNhap": test_username, "MatKhau": TEST_PASSWORD}
         response = self.session.post(f"{self.base_url}/users/login", json=login_payload)
 
         if response.status_code == 200:
             data = response.json()
             if "access_token" in data and "refresh_token" in data:
-                self.log("Successful Login", "PASS", f"Tokens generated for {test_email}")
+                self.log("Successful Login", "PASS", f"Tokens generated for {test_username}")
                 self.access_token = data["access_token"]
                 self.refresh_token = data["refresh_token"]
-                self.test_email = test_email
+                self.test_username = test_username
                 return True
         else:
             self.log("Successful Login", "FAIL", f"Status {response.status_code}: {response.text}")

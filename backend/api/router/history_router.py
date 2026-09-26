@@ -32,7 +32,7 @@ def get_sessions(
 ):
     """Liệt kê ca thi. Có phân trang và tìm theo mã phòng, admin xem hết còn user lọc theo mình."""
     try:
-        user_id_filter = None if user.role == "admin" else user.user_id
+        user_id_filter = None if user.VaiTro == "admin" else user.PK_MaNguoiDung
         return get_session_list(db, user_id_filter, skip, limit, search or None)
     except Exception as exc:
         logger.error(f"Error fetching sessions: {exc}", exc_info=True)
@@ -46,7 +46,7 @@ def get_summary(
 ):
     """Lấy tổng số ca thi và số ca trong tháng. Phạm vi lọc theo quyền admin hay user thường."""
     try:
-        user_id_filter = None if user.role == "admin" else user.user_id
+        user_id_filter = None if user.VaiTro == "admin" else user.PK_MaNguoiDung
         return get_session_summary(db, user_id_filter)
     except Exception as exc:
         logger.error(f"Error fetching summary: {exc}", exc_info=True)
@@ -78,7 +78,7 @@ def delete_session_endpoint(
     """Xóa session và toàn bộ dữ liệu liên quan. Chặn xóa ca đang chạy, lỗi thì rollback."""
     try:
         # Xóa theo quyền: admin xóa mọi session, user thường chỉ xóa session của mình
-        user_id_check = None if user.role == "admin" else user.user_id
+        user_id_check = None if user.VaiTro == "admin" else user.PK_MaNguoiDung
         return delete_session(db, session_id, user_id_check)
     except HTTPException:
         raise

@@ -1,22 +1,21 @@
-"""Quản lý ca giám sát: liệt kê, chi tiết, tóm tắt, xóa.
-Luồng chính: đọc ca thi → gom frame và kết quả AI → tính cheat-rate → trả về."""
+"""Quản lý phiên giám sát: liệt kê, chi tiết, tóm tắt, xóa.
+Luồng chính: đọc phiên → gom sự kiện gian lận → tính tỉ lệ sạch → trả về."""
 
 from typing import Optional
 from sqlalchemy.orm import Session as DBSession
 
-from core.config import settings
-from core.exceptions import NotFoundError, ValidationError
+from core.exceptions import AuthorizationError, NotFoundError, ValidationError
 from core.logger import get_logger
-from ai_model.ai_pipeline import is_cheat_label
-from crud.ai_result_crud import get_ai_results_by_frames
-from crud.frame_crud import get_frames_by_session
+from crud.event_crud import list_events_by_session
 from crud.session_crud import (
     delete_session_cascade,
-    get_monthly_session_count_by_user,
     get_session_by_id,
     get_session_count_by_user,
-    get_sessions_with_frame_count,
+    get_sessions_with_event_count,
 )
+from models.detected_event import DetectedEvent
+from models.monitoring_session import MonitoringSession
+from schemas.event import EventResponse
 from service.camera_state import CameraState
 from utils.label_utils import get_final_label
 
@@ -30,129 +29,103 @@ def get_session_list(
     limit: int = 20,
     search: str | None = None,
 ) -> list[dict]:
-    """Trả danh sách ca gọn nhẹ kèm số frame, ngày theo định dạng ngày/tháng/năm."""
-    sessions = get_sessions_with_frame_count(db, user_id, skip, limit, search)
-
+    """Liệt kê phiên kèm số sự kiện gian lận. Mới nhất trước."""
+    rows = get_sessions_with_event_count(db, user_id, skip, limit, search)
     return [
         {
-            "session_id": s.session_id,
-            "class_id": s.class_id,
-            "date": s.start_time.strftime("%d/%m/%Y") if s.start_time else "",
-            "frame_count": s.frame_count,
+            "PK_MaPhienGiamSat": s.PK_MaPhienGiamSat,
+            "PhongThi": s.PhongThi,
+            "MonThi": s.MonThi,
+            "ThoiGianBatDau": s.ThoiGianBatDau,
+            "ThoiGianKetThuc": s.ThoiGianKetThuc,
+            "TrangThai": s.TrangThai,
+            "so_su_kien": n,
         }
-        for s in sessions
+        for s, n in rows
     ]
 
 
 def get_session_summary(db: DBSession, user_id: Optional[int]) -> dict:
-    """Trả tóm tắt dashboard: tổng số ca và số ca trong tháng."""
+    """Tóm tắt toàn hệ thống: tổng phiên, phiên đang chạy, tổng sự kiện, sự kiện chờ kiểm tra."""
+    total = get_session_count_by_user(db, user_id)
+
+    q_running = db.query(MonitoringSession).filter(
+        MonitoringSession.TrangThai == "dang_giam_sat"
+    )
+    q_events = db.query(DetectedEvent)
+    q_pending = db.query(DetectedEvent).filter(
+        DetectedEvent.TrangThaiKiemTra == "cho_kiem_tra"
+    )
+    if user_id is not None:
+        q_running = q_running.filter(MonitoringSession.FK_MaNguoiDung == user_id)
+        join_cond = (
+            DetectedEvent.FK_MaPhienGiamSat == MonitoringSession.PK_MaPhienGiamSat
+        )
+        q_events = q_events.join(MonitoringSession, join_cond).filter(
+            MonitoringSession.FK_MaNguoiDung == user_id
+        )
+        q_pending = q_pending.join(MonitoringSession, join_cond).filter(
+            MonitoringSession.FK_MaNguoiDung == user_id
+        )
+
     return {
-        "total_sessions": get_session_count_by_user(db, user_id),
-        "month_sessions": get_monthly_session_count_by_user(db, user_id),
+        "tong_phien": total,
+        "dang_giam_sat": q_running.count(),
+        "tong_su_kien": q_events.count(),
+        "cho_kiem_tra": q_pending.count(),
     }
 
 
 def get_session_detail(db: DBSession, session_id: int) -> dict:
-    """
-    Trả chi tiết ca thi kèm thống kê từng frame.
-    Điểm logic: đếm gian lận trực tiếp từ kết quả AI theo nhãn cuối cùng
-    (đã gồm nhãn người dùng sửa) nên sửa nhãn là số liệu đổi ngay;
-    cheat-rate = 1 - gian lận/tổng.
-
-    Raises:
-        NotFoundError: Ca thi không tồn tại.
-    """
+    """Chi tiết phiên gồm thống kê sự kiện và danh sách sự kiện.
+    Điểm logic: nhãn cuối (người sửa ưu tiên) quyết định phân loại đúng/sai."""
     session = get_session_by_id(db, session_id)
     if not session:
         raise NotFoundError(detail="Session not found")
 
-    frames = get_frames_by_session(db, session_id, skip=0, limit=10_000)
-
-    # Lấy gộp toàn bộ kết quả AI một lần để tránh truy vấn lặp theo từng frame
-    frame_ids = [frame.frame_id for frame in frames]
-    all_ai_results = get_ai_results_by_frames(db, frame_ids)
-
-    # Gom kết quả theo frame_id để tra cứu nhanh
-    results_by_frame = {frame_id: [] for frame_id in frame_ids}
-    for r in all_ai_results:
-        results_by_frame[r.frame_id].append(r)
-
-    # Dựng danh sách frame — tính số liệu trực tiếp từ kết quả AI
-    frame_list: list[dict] = []
-    total_students = 0
-    total_cheat_count = 0
-    total_clean = 0.0
-
-    for frame in frames:
-        results = results_by_frame.get(frame.frame_id, [])
-
-        students = len(results)
-        # Đếm gian lận theo nhãn cuối (Cheat_Paper/cellphone, giữ cả nhãn "Sleeping" cũ)
-        cheat_count = sum(
-            1 for r in results
-            if is_cheat_label(label := get_final_label(r) or "") or "Sleeping" in label
-        )
-        clean_rate = 1 - (cheat_count / students) if students else 0.0
-
-        total_students += students
-        total_cheat_count += cheat_count
-        total_clean += clean_rate
-
-        frame_list.append({
-            "frame_id": frame.frame_id,
-            "time": frame.extracted_at.strftime("%H:%M:%S"),
-            "status": "Sleeping detected" if cheat_count > 0 else "Normal",
-            "students": students,
-            "accuracy": round(clean_rate * 100, 1),
-            "sleeping": cheat_count,
-        })
-
-    # Tính trung bình trên toàn ca
-    count = len(frame_list)
-    avg_students = round(total_students / count) if count else 0
-    avg_clean_rate = round(total_clean / count, 3) if count else 0.0
-
-    # Thời lượng ca tính theo phút
-    duration = 0
-    if session.start_time and session.end_time:
-        duration = int((session.end_time - session.start_time).total_seconds() / 60)
+    events = list_events_by_session(db, session_id, limit=200)
+    total = len(events)
+    confirmed = sum(1 for e in events if (get_final_label(e) or "") in ("Cheat_Paper", "cellphone"))
+    pending = sum(1 for e in events if e.TrangThaiKiemTra == "cho_kiem_tra")
 
     return {
-        "session_id": session_id,
-        "class_id": session.class_id,
-        "total_students": avg_students,
-        "sleeping": total_cheat_count,
-        "focus_rate": avg_clean_rate,
-        "alerts": total_cheat_count,
-        "duration": duration,
-        "is_active": session.end_time is None,
-        "frames": frame_list,
+        "session": {
+            "PK_MaPhienGiamSat": session.PK_MaPhienGiamSat,
+            "ThoiGianBatDau": session.ThoiGianBatDau,
+            "ThoiGianKetThuc": session.ThoiGianKetThuc,
+            "TrangThai": session.TrangThai,
+            "PhongThi": session.PhongThi,
+            "MonThi": session.MonThi,
+            "FK_MaNguoiDung": session.FK_MaNguoiDung,
+            "FK_MaThietBi": session.FK_MaThietBi,
+            "ThoiGianTao": session.ThoiGianTao,
+        },
+        "tong_su_kien": total,
+        "da_xac_minh": total - pending,
+        "cho_kiem_tra": pending,
+        "ty_le_sach": round(1 - confirmed / total, 3) if total else 1.0,
+        "events": [EventResponse.model_validate(e).model_dump() for e in events],
     }
 
 
 def delete_session(
     db: DBSession,
     session_id: int,
-    user_id: Optional[int],
+    user_id_check: Optional[int] = None,
 ) -> dict:
-    """
-    Xóa ca thi cùng toàn bộ dữ liệu liên quan.
-    Điểm logic: đang chạy giám sát thì cấm xóa để không mất snapshot giữa chừng.
-
-    Raises:
-        ValidationError: Ca thi đang chạy.
-        NotFoundError: Ca thi không tồn tại.
-    """
+    """Xóa phiên và toàn bộ dữ liệu liên quan.
+    Điểm logic: chặn xóa phiên đang chạy; user thường chỉ xóa phiên của mình."""
     state = CameraState()
-    if state.running and state.current_session_id == session_id:
+    if state.is_running() and state.current_session_id == session_id:
         raise ValidationError(detail="Cannot delete a running session")
 
-    success = delete_session_cascade(
-        db, session_id, user_id, str(settings.BASE_DIR)
-    )
-
-    if not success:
+    session = get_session_by_id(db, session_id)
+    if not session:
         raise NotFoundError(detail="Session not found")
 
-    return {"message": "Session deleted successfully", "session_id": session_id}
+    if user_id_check is not None and session.FK_MaNguoiDung != user_id_check:
+        raise AuthorizationError(detail="Not allowed to delete this session")
 
+    delete_session_cascade(db, session_id)
+    logger.info(f"Session deleted: {session_id}")
+    return {"message": "Session deleted successfully"}

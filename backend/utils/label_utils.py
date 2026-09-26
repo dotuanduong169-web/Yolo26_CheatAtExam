@@ -1,12 +1,12 @@
 """Tiện ích chốt nhãn hiển thị. Logic: ưu tiên nhãn người sửa trước nhãn AI."""
 
-from models.ai_result import AIResult
+from models.detected_event import DetectedEvent
 
 
-def get_final_label(record: AIResult) -> str | None:
+def get_final_label(record: DetectedEvent) -> str | None:
     """
-    Lấy nhãn cuối cho một kết quả.
+    Lấy nhãn cuối cho một sự kiện.
 
     Logic: có nhãn người sửa thì dùng, không thì lấy nhãn AI.
     """
-    return record.user_label if record.user_label is not None else record.ai_label
+    return record.NhanNguoiDung if record.NhanNguoiDung is not None else record.NhanAI

@@ -1,40 +1,34 @@
-"""
-Schemas package — Pydantic models for request/response validation.
-
-Re-exports all schemas for convenient imports::
-
-    from schemas import UserCreate, SessionResponse
-"""
+"""Gói schema Pydantic. Logic: re-export để import gọn từ schemas."""
 
 from schemas.common import MessageResponse, TokenResponse
 
 from schemas.user import (
     ChangePassword,
+    UserAdminUpdate,
     UserCreate,
     UserLogin,
     UserResponse,
     UserUpdate,
 )
 
+from schemas.device import (
+    DeviceCreate,
+    DeviceResponse,
+    DeviceUpdate,
+)
+
 from schemas.session import (
+    SessionCreate,
     SessionDetailResponse,
-    SessionFrameItem,
     SessionListItem,
     SessionResponse,
     SessionSummaryResponse,
 )
 
-from schemas.frame import (
-    DetectionItem,
-    FrameAnalysisItem,
-    FrameDetailResponse,
-    FrameResponse,
-)
-
-from schemas.ai_result import (
-    AIResultResponse,
-    AIResultUpdate,
-    AIResultUpdateResponse,
+from schemas.event import (
+    EventResponse,
+    EventVerify,
+    EvidenceResponse,
 )
 
 from schemas.statistics import (
@@ -60,25 +54,25 @@ __all__ = [
     "TokenResponse",
     # User
     "ChangePassword",
+    "UserAdminUpdate",
     "UserCreate",
     "UserLogin",
     "UserResponse",
     "UserUpdate",
+    # Device
+    "DeviceCreate",
+    "DeviceResponse",
+    "DeviceUpdate",
     # Session
+    "SessionCreate",
     "SessionDetailResponse",
-    "SessionFrameItem",
     "SessionListItem",
     "SessionResponse",
     "SessionSummaryResponse",
-    # Frame
-    "DetectionItem",
-    "FrameAnalysisItem",
-    "FrameDetailResponse",
-    "FrameResponse",
-    # AI Result
-    "AIResultResponse",
-    "AIResultUpdate",
-    "AIResultUpdateResponse",
+    # Event
+    "EventResponse",
+    "EventVerify",
+    "EvidenceResponse",
     # Statistics
     "DailyStatItem",
     "DateStatItem",

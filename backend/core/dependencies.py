@@ -77,12 +77,18 @@ def get_current_user(
 
         logger.debug(f"User authenticated: {user_id}")
         
-        user = db.query(User).filter(User.user_id == user_id).first()
+        user = db.query(User).filter(User.PK_MaNguoiDung == user_id).first()
         if not user:
              logger.warning(f"Unauthorized: user {user_id} not found in DB")
              raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="User not found",
+                 status_code=status.HTTP_401_UNAUTHORIZED,
+                 detail="User not found",
+             )
+        if user.TrangThai != "hoat_dong":
+            logger.warning(f"Forbidden: locked account {user_id}")
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Account is locked",
             )
         return user
 

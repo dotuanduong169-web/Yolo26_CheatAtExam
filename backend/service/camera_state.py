@@ -37,6 +37,7 @@ class CameraState:
         self.frame_count: int = 0
         self.source: str | None = None
         self.loop_video: bool = False
+        self.device_id: int | None = None
         # True/False gian lận từng frame gần nhất; snapshot chỉ ghi cheat đã xác nhận
         self.cheat_window: deque[bool] = deque(maxlen=CHEAT_WINDOW_MAXLEN)
         self._initialized = True
@@ -51,6 +52,7 @@ class CameraState:
         self.frame_count = 0
         self.source = None
         self.loop_video = False
+        self.device_id = None
         self.cheat_window.clear()
 
     def note_frame_cheat(self, has_cheat: bool) -> None:

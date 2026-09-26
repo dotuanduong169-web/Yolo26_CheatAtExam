@@ -1,5 +1,5 @@
 """Endpoint camera cho mở luồng, dừng luồng và xem video trực tiếp.
-Logic chính: hỗ trợ camera live và file video offline, mỗi lần mở tạo một session mới.
+Logic chính: mở theo thiết bị biên đã đăng ký; video_path test offline đè lên RTSP; mỗi lần mở tạo một phiên mới.
 """
 
 import cv2
@@ -8,7 +8,6 @@ from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
 
 from core.dependencies import get_current_user
-from core.exceptions import ValidationError
 from core.logger import get_logger
 from database.database import get_db
 from models.user import User
@@ -42,32 +41,28 @@ def video_feed():
 
 @router.post("/start", response_model=CameraStartResponse)
 def start(
-    camera_index: int = Query(0, ge=-1, description="Camera index (bỏ qua nếu dùng video_path)"),
-    class_id: str = Query(..., min_length=1, max_length=100, description="Mã phòng thi"),
+    device_id: int = Query(..., description="ID thiết bị biên đã đăng ký"),
+    phong_thi: str | None = Query(None, max_length=50, description="Mã phòng thi"),
+    mon_thi: str | None = Query(None, max_length=255, description="Tên môn thi"),
     video_path: str | None = Query(None, description="File video offline, VD: videos/test_exam.mp4"),
     user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    """Mở camera live hoặc file video offline. Tạo session mới gắn với mã phòng thi và user."""
-    if not class_id.strip():
-        raise ValidationError(detail="class_id is required")
-
+    """Mở thiết bị biên để giám sát. Tạo phiên mới gắn thiết bị, phòng/môn thi và user."""
     try:
         session_id = start_camera(
-            user_id=user.user_id,
-            camera_index=camera_index,
-            class_id=class_id,
+            user_id=user.PK_MaNguoiDung,
+            device_id=device_id,
+            phong_thi=phong_thi,
+            mon_thi=mon_thi,
             video_path=video_path,
         )
-        src = video_path if video_path else f"Camera {camera_index}"
         return {
-            "message": f"{src} started",
+            "message": f"Device {device_id} started",
             "session_id": session_id,
             "status": "running",
-            "user_id": user.user_id,
+            "user_id": user.PK_MaNguoiDung,
         }
-    except ValidationError:
-        raise
     except Exception as exc:
         logger.error(f"Failed to start camera: {exc}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Failed to start camera: {exc}")
@@ -75,10 +70,10 @@ def start(
 
 @router.post("/stop", response_model=CameraStopResponse)
 def stop(user: User = Depends(get_current_user)):
-    """Dừng camera đang chạy. Chốt session hiện tại để ghi end_time."""
+    """Dừng camera đang chạy. Chốt phiên hiện tại để ghi giờ kết thúc."""
     try:
         stop_camera()
-        return {"message": "Camera stopped", "status": "stopped", "user_id": user.user_id}
+        return {"message": "Camera stopped", "status": "stopped", "user_id": user.PK_MaNguoiDung}
     except Exception as exc:
         logger.error(f"Failed to stop camera: {exc}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Failed to stop camera: {exc}")
@@ -111,6 +106,6 @@ def camera_info():
 
 @router.get("/status", response_model=CameraStatusResponse)
 def camera_status():
-    """Lấy trạng thái camera hiện tại. Kèm session_id của ca đang chạy nếu có."""
+    """Lấy trạng thái camera hiện tại. Kèm session_id của phiên đang chạy nếu có."""
     state = CameraState()
     return {"running": state.running, "session_id": state.current_session_id}

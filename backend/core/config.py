@@ -17,7 +17,7 @@ class Settings:
 
     # --- Mô hình AI (giữ nguyên weights YOLO26-seg của dự án) ---
     MODEL_PATH: str = os.getenv("MODEL_PATH", str(BASE_DIR / "ai_model" / "weights" / "best.pt"))
-    MODEL_CONF: float = float(os.getenv("MODEL_CONF", "0.5"))
+    MODEL_CONF: float = float(os.getenv("MODEL_CONF", "0.25"))
     MODEL_IMGSZ: int = int(os.getenv("MODEL_IMGSZ", "512"))
 
     # --- Cơ sở dữ liệu ---

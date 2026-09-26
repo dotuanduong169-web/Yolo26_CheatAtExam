@@ -36,7 +36,7 @@ def get_analysis_data(
     for frame in frames:
         results = results_by_frame.get(frame.frame_id, [])
 
-        sleeping = sum(
+        cheat_count = sum(
             1 for r in results if is_cheat_label(get_final_label(r) or "")
         )
         total = len(results)
@@ -45,8 +45,8 @@ def get_analysis_data(
             "frame_id": frame.frame_id,
             "image_path": frame.image_path,
             "extracted_at": frame.extracted_at,
-            "focus_count": total - sleeping,
-            "sleeping_count": sleeping,
+            "focus_count": total - cheat_count,
+            "sleeping_count": cheat_count,
             "total_students": total,
         })
 
@@ -69,7 +69,7 @@ def get_frame_detail(db: DBSession, frame_id: int) -> dict:
     rows = get_ai_results_by_frame(db, frame_id)
     total = len(rows)
     # Dùng nhãn cuối để tôn trọng phần người dùng đã sửa
-    sleeping = sum(1 for r in rows if is_cheat_label(get_final_label(r) or ""))
+    cheat_count = sum(1 for r in rows if is_cheat_label(get_final_label(r) or ""))
     avg_conf = round(sum(r.confidence for r in rows) / total, 2) if total else 0.0
 
     detections = []
@@ -95,8 +95,8 @@ def get_frame_detail(db: DBSession, frame_id: int) -> dict:
         "session_id": frame.session_id,
         "image_path": frame.image_path,
         "total_students": total,
-        "sleeping_count": sleeping,
-        "focus_count": total - sleeping,
+        "sleeping_count": cheat_count,
+        "focus_count": total - cheat_count,
         "avg_confidence": avg_conf,
         "detections": detections,
     }

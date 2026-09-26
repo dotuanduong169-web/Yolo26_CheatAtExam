@@ -1,5 +1,6 @@
 """Schema thống kê cho tổng hợp ngày, tuần và dashboard.
 Logic chính: sleeping là số vật gian lận (Cheat_Paper và cellphone), focus_rate là tỉ lệ bài sạch.
+Lưu ý: tên key sleeping/focus_rate là lịch sử, giữ nguyên để tương thích DB và API.
 """
 
 from datetime import datetime

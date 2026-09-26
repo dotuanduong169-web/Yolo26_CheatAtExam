@@ -7,6 +7,7 @@ from sqlalchemy.orm import Session as DBSession
 from core.config import settings
 from core.exceptions import NotFoundError, ValidationError
 from core.logger import get_logger
+from ai_model.ai_pipeline import is_cheat_label
 from crud.ai_result_crud import get_ai_results_by_frames
 from crud.frame_crud import get_frames_by_session
 from crud.session_crud import (
@@ -79,35 +80,37 @@ def get_session_detail(db: DBSession, session_id: int) -> dict:
     # Dựng danh sách frame — tính số liệu trực tiếp từ kết quả AI
     frame_list: list[dict] = []
     total_students = 0
-    total_sleeping = 0
-    total_focus = 0.0
+    total_cheat_count = 0
+    total_clean = 0.0
 
     for frame in frames:
         results = results_by_frame.get(frame.frame_id, [])
 
         students = len(results)
-        sleeping = sum(
-            1 for r in results if "Sleeping" in (get_final_label(r) or "")
+        # Đếm gian lận theo nhãn cuối (Cheat_Paper/cellphone, giữ cả nhãn "Sleeping" cũ)
+        cheat_count = sum(
+            1 for r in results
+            if is_cheat_label(label := get_final_label(r) or "") or "Sleeping" in label
         )
-        focus = 1 - (sleeping / students) if students else 0.0
+        clean_rate = 1 - (cheat_count / students) if students else 0.0
 
         total_students += students
-        total_sleeping += sleeping
-        total_focus += focus
+        total_cheat_count += cheat_count
+        total_clean += clean_rate
 
         frame_list.append({
             "frame_id": frame.frame_id,
             "time": frame.extracted_at.strftime("%H:%M:%S"),
-            "status": "Sleeping detected" if sleeping > 0 else "Normal",
+            "status": "Sleeping detected" if cheat_count > 0 else "Normal",
             "students": students,
-            "accuracy": round(focus * 100, 1),
-            "sleeping": sleeping,
+            "accuracy": round(clean_rate * 100, 1),
+            "sleeping": cheat_count,
         })
 
     # Tính trung bình trên toàn ca
     count = len(frame_list)
     avg_students = round(total_students / count) if count else 0
-    avg_focus = round(total_focus / count, 3) if count else 0.0
+    avg_clean_rate = round(total_clean / count, 3) if count else 0.0
 
     # Thời lượng ca tính theo phút
     duration = 0
@@ -118,9 +121,9 @@ def get_session_detail(db: DBSession, session_id: int) -> dict:
         "session_id": session_id,
         "class_id": session.class_id,
         "total_students": avg_students,
-        "sleeping": total_sleeping,
-        "focus_rate": avg_focus,
-        "alerts": total_sleeping,
+        "sleeping": total_cheat_count,
+        "focus_rate": avg_clean_rate,
+        "alerts": total_cheat_count,
         "duration": duration,
         "is_active": session.end_time is None,
         "frames": frame_list,

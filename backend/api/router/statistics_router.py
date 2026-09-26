@@ -1,5 +1,6 @@
 """Endpoint thống kê cho tổng hợp ngày, tuần và toàn hệ thống.
 Logic chính: sleeping là số vật gian lận (Cheat_Paper và cellphone), admin xem hết còn user lọc theo mình.
+Lưu ý: tên key sleeping là lịch sử, giữ nguyên để tương thích DB và API.
 """
 
 from fastapi import APIRouter, Depends, HTTPException, Query

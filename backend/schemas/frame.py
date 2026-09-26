@@ -1,5 +1,6 @@
 """Schema frame và kết quả phân tích từng frame.
 Logic chính: sleeping_count là số vật gian lận (Cheat_Paper và cellphone), user_label sửa tay ưu tiên hơn nhãn AI.
+Lưu ý: tên key sleeping_count là lịch sử, giữ nguyên để tương thích DB và API.
 """
 
 from datetime import datetime

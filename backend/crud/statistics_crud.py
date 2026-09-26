@@ -1,5 +1,6 @@
 """Quản lý snapshot thống kê theo ca thi.
 Logic chính: sleeping_count là số vật gian lận (Cheat_Paper và cellphone), focus_rate là tỉ lệ bài sạch.
+Lưu ý: tên cột sleeping_count/focus_rate là lịch sử, giữ nguyên để tương thích DB và API.
 """
 
 from datetime import datetime, timezone
@@ -56,10 +57,10 @@ def recalculate_statistics_for_frame(
         return None
 
     total = len(results)
-    sleeping = sum(
+    cheat_count = sum(
         1 for r in results if is_cheat_label(get_final_label(r) or "")
     )
-    focus_rate = 1 - (sleeping / total) if total else 1.0
+    clean_rate = 1 - (cheat_count / total) if total else 1.0
 
     # Tìm frame để lấy thời điểm trích xuất
     frame = db.query(Frame).filter(Frame.frame_id == frame_id).first()
@@ -95,8 +96,8 @@ def recalculate_statistics_for_frame(
     if target_idx is not None and target_idx < len(stats):
         stat = stats[target_idx]
         stat.total_students = total
-        stat.sleeping_count = sleeping
-        stat.focus_rate = focus_rate
+        stat.sleeping_count = cheat_count
+        stat.focus_rate = clean_rate
         db.commit()
         db.refresh(stat)
         return stat

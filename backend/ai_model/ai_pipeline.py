@@ -22,8 +22,9 @@ _MODEL_PATH = Path(os.getenv("MODEL_PATH", str(_DEFAULT_WEIGHTS)))
 LABELS = ["Answer_paper", "Cheat_Paper", "cellphone"]
 # Hai nhãn gian lận: Cheat_Paper và cellphone
 CHEAT_LABELS = {"Cheat_Paper", "cellphone"}
-# Ngưỡng tin cậy 0,5 và kích thước ảnh infer 512, chỉnh qua biến môi trường
-CONF_THRESHOLD = float(os.getenv("MODEL_CONF", "0.5"))
+# Ngưỡng tin cậy 0,25 và kích thước ảnh infer 512, chỉnh qua biến môi trường.
+# 0,25 khớp ngưỡng đã đo kiểm (conf trung bình model ~0,5; 0,5 sẽ lọc mất ~nửa phát hiện đúng)
+CONF_THRESHOLD = float(os.getenv("MODEL_CONF", "0.25"))
 IMGSZ = int(os.getenv("MODEL_IMGSZ", "512"))
 
 # Màu vẽ khung: bài làm xanh lá, phao đỏ, điện thoại cam

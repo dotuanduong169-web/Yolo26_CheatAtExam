@@ -20,6 +20,9 @@ logger = get_logger(__name__)
 
 # Chu kỳ lưu snapshot: 30 giây một ảnh kèm kết quả và thống kê
 SAVE_INTERVAL_SECONDS = 30
+# Debounce gian lận: cheat chỉ ghi snapshot khi có >=3 frame gian lận trong 5 frame gần nhất
+CHEAT_WINDOW = 5
+CHEAT_MIN_HITS = 3
 
 
 def capture_loop() -> None:
@@ -75,9 +78,17 @@ def capture_loop() -> None:
                 processed_frame, results = process_frame(frame, state.frame_count)
                 state.latest_frame = processed_frame
 
-                # Đủ 30 giây thì lưu snapshot một lần
+                # Ghi nhận gian lận frame này để debounce ở snapshot
+                state.note_frame_cheat(any(r.get("is_cheat") for r in results))
+
+                # Đủ 30 giây thì lưu snapshot một lần, chỉ giữ cheat đã xác nhận
                 if time.time() - last_save_time > SAVE_INTERVAL_SECONDS:
-                    _save_snapshot(db, state, frame, results, image_dir, frame_count)
+                    confirmed = [
+                        r for r in results
+                        if not r.get("is_cheat")
+                        or state.is_cheat_confirmed(CHEAT_WINDOW, CHEAT_MIN_HITS)
+                    ]
+                    _save_snapshot(db, state, frame, confirmed, image_dir, frame_count)
                     last_save_time = time.time()
 
                 time.sleep(0.05)  # Nghỉ 0,05 giây để trần tốc độ khoảng 20 FPS
@@ -137,12 +148,13 @@ def _save_snapshot(
 
 def calculate_stats(results: list[dict]) -> dict:
     """
-    Thống kê gian lận của một snapshot, giữ key cũ để hợp schema DB mẫu.
+    Thống kê gian lận của một snapshot.
     Điểm logic: gian lận là Cheat_Paper và cellphone;
-    cheat-rate = 1 - gian lận/tổng, frame trắng thì coi như sạch hoàn toàn.
+    clean_rate = 1 - gian lận/tổng, frame trắng thì coi như sạch hoàn toàn.
+    Key dict giữ nguyên (total/sleeping/focus_rate) để hợp schema DB và API cũ.
     """
     total = len(results)
-    sleeping = sum(1 for r in results if is_cheat_label(r.get("label", "")))
-    focus_rate = 1 - (sleeping / total) if total else 1.0
+    cheat_count = sum(1 for r in results if is_cheat_label(r.get("label", "")))
+    clean_rate = 1 - (cheat_count / total) if total else 1.0
 
-    return {"total": total, "sleeping": sleeping, "focus_rate": focus_rate}
+    return {"total": total, "sleeping": cheat_count, "focus_rate": clean_rate}

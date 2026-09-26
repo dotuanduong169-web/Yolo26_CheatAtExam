@@ -1,5 +1,6 @@
 """Schema ca thi cho lịch sử, chi tiết và tổng hợp dashboard.
 Logic chính: sleeping là số vật gian lận (Cheat_Paper và cellphone), focus_rate là tỉ lệ bài sạch.
+Lưu ý: tên key sleeping/focus_rate là lịch sử, giữ nguyên để tương thích DB và API.
 """
 
 from datetime import datetime

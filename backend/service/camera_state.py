@@ -2,9 +2,13 @@
 Luồng chính: giữ một thể hiện duy nhất → API đọc/ghi cờ chạy, frame mới nhất, ca hiện tại."""
 
 import threading
+from collections import deque
 from typing import Optional
 
 import numpy as np
+
+# Cửa sổ debounce gian lận: giữ tối đa 10 frame gần nhất để pipeline_service đối chiếu
+CHEAT_WINDOW_MAXLEN = 10
 
 
 class CameraState:
@@ -33,6 +37,8 @@ class CameraState:
         self.frame_count: int = 0
         self.source: str | None = None
         self.loop_video: bool = False
+        # True/False gian lận từng frame gần nhất; snapshot chỉ ghi cheat đã xác nhận
+        self.cheat_window: deque[bool] = deque(maxlen=CHEAT_WINDOW_MAXLEN)
         self._initialized = True
 
     def reset(self) -> None:
@@ -45,6 +51,17 @@ class CameraState:
         self.frame_count = 0
         self.source = None
         self.loop_video = False
+        self.cheat_window.clear()
+
+    def note_frame_cheat(self, has_cheat: bool) -> None:
+        """Ghi nhận frame hiện tại có/không có gian lận vào cửa sổ debounce."""
+        self.cheat_window.append(bool(has_cheat))
+
+    def is_cheat_confirmed(self, window: int = 5, min_hits: int = 3) -> bool:
+        """True khi có ít nhất min_hits frame gian lận trong window frame gần nhất.
+        Lọc phát hiện thoáng qua (false positive đơn lẻ) khỏi bản ghi snapshot."""
+        recent = list(self.cheat_window)[-window:]
+        return len(recent) >= min_hits and sum(recent) >= min_hits
 
     def is_running(self) -> bool:
         """Trả True khi capture loop đang chạy."""

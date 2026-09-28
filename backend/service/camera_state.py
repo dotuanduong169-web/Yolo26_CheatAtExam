@@ -41,6 +41,8 @@ class CameraState:
         # Luồng live: capture ghi raw_frame liên tục, worker infer ghi annotated + results
         self.raw_frame: Optional[np.ndarray] = None
         self.latest_results: list = []
+        # Vài cặp (frame, results) gần nhất để snapshot chọn frame có cheat
+        self.recent: deque = deque(maxlen=CHEAT_WINDOW_MAXLEN)
         self.lock = threading.Lock()
         # True/False gian lận từng frame gần nhất; snapshot chỉ ghi cheat đã xác nhận
         self.cheat_window: deque[bool] = deque(maxlen=CHEAT_WINDOW_MAXLEN)
@@ -59,6 +61,7 @@ class CameraState:
         self.device_id = None
         self.raw_frame = None
         self.latest_results = []
+        self.recent.clear()
         self.cheat_window.clear()
         try:
             from ai_model.ai_pipeline import reset_tracker

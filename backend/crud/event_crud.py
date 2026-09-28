@@ -62,6 +62,13 @@ def get_event_by_id(db: DBSession, event_id: int) -> Optional[DetectedEvent]:
     )
 
 
+def get_evidence_by_id(db: DBSession, evidence_id: int) -> Optional[Evidence]:
+    """Lấy một bằng chứng theo khóa chính."""
+    return (
+        db.query(Evidence)
+        .filter(Evidence.PK_MaBangChung == evidence_id)
+        .first()
+    )
 def list_events_by_session(
     db: DBSession,
     session_id: int,

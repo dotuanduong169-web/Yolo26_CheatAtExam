@@ -1,5 +1,4 @@
-"""Trang giám sát camera trực tiếp và khung hình trích xuất.
-Luồng chính: đồng bộ trạng thái /camera/status -> điều khiển bắt đầu/dừng -> hiện luồng MJPEG -> liệt kê khung hình."""
+"""Trang chủ: giám sát camera trực tiếp và sự kiện mới nhất."""
 
 import time
 
@@ -8,33 +7,34 @@ from streamlit_autorefresh import st_autorefresh
 
 from components.app_sidebar import render_sidebar
 from config import API_BASE_URL
-from services.frame_api import get_frames_by_session
+from services.device_api import list_devices
+from services.event_api import list_session_events
 from utils.auth_guard import require_auth
 from utils.hide_streamlit_sidebar import hide_sidebar
 from utils.http import init_session_state, safe_get, safe_post
 from utils.load_css import load_css
 
-# ── Cấu hình trang ────────────────────────────────────────
+# ── Config ──────────────────────────────────────────────────
 st.set_page_config(layout="wide", page_title="Giám sát")
 
 CAMERA_URL = f"{API_BASE_URL}/camera"
 
-# ── Nạp CSS ───────────────────────────────────────────────
+# ── Styles ──────────────────────────────────────────────────
 st.markdown(load_css("styles/sidebar.css"), unsafe_allow_html=True)
 st.markdown(load_css("styles/home.css"), unsafe_allow_html=True)
 
-# ── Khởi tạo session ──────────────────────────────────────
+# ── Session State ───────────────────────────────────────────
 init_session_state()
 
-# ── Chặn trang khi chưa đăng nhập ─────────────────────────
+# ── Auth ────────────────────────────────────────────────────
 require_auth()
 
-# ── Đánh dấu lần vào trang để tránh chạy lại ──────────────
+# ── Page Enter ──────────────────────────────────────────────
 if st.session_state["page_loaded"] != "home":
     st.session_state["page_loaded"] = "home"
     st.session_state["refresh_key"] += 1
 
-# ── Đồng bộ trạng thái chạy với backend ───────────────────
+# ── Sync with Backend ──────────────────────────────────────
 status_res = safe_get(f"{CAMERA_URL}/status")
 
 if status_res and status_res.status_code == 200:
@@ -56,53 +56,49 @@ if status_res and status_res.status_code == 200:
     except Exception:
         pass
 
-# ── Thanh bên ─────────────────────────────────────────────
+# ── Sidebar ─────────────────────────────────────────────────
 hide_sidebar()
 render_sidebar(active="home")
 
-# ── Tiêu đề trang ─────────────────────────────────────────
+# ── Header ──────────────────────────────────────────────────
 from utils.render_header import render_page_header
 render_page_header("Giám sát thời gian thực")
 
-# ── Danh sách camera khả dụng ─────────────────────────────
-cams = []
-cams_res = safe_get(f"{CAMERA_URL}/list")
+# ── Device List ─────────────────────────────────────────────
+devices = list_devices(st.session_state.client)
 
-if cams_res:
-    if cams_res.status_code == 200:
-        cams = cams_res.json().get("cameras", [])
-    elif cams_res.status_code == 401:
-        st.error("Phiên đăng nhập hết hạn")
-        if st.button("Đăng nhập lại"):
-            st.session_state.clear()
-            st.switch_page("pages/login.py")
-        st.stop()
-
-# ── Cụm điều khiển mã lớp và camera ───────────────────────
-col_input, col_cam, col_start, col_stop = st.columns([1.5, 1.5, 1, 1])
+# ── Controls ────────────────────────────────────────────────
+col_input, col_sub, col_cam, col_start, col_stop = st.columns([1.2, 1.2, 1.5, 1, 1])
 
 with col_input:
-    class_id = st.text_input("Nhập mã lớp", placeholder="VD: 10A1", label_visibility="collapsed")
+    phong_thi = st.text_input("Phòng thi", placeholder="VD: P101", label_visibility="collapsed")
+
+with col_sub:
+    mon_thi = st.text_input("Môn thi", placeholder="VD: Toán", label_visibility="collapsed")
 
 with col_cam:
-    if cams:
-        selected_cam = st.selectbox(
-            "Chọn camera", cams,
-            format_func=lambda x: x.get("name", "Unknown"),
+    if devices:
+        selected = st.selectbox(
+            "Chọn thiết bị", devices,
+            format_func=lambda x: f"{x.get('TenThietBi')} ({x.get('MoTaViTri') or '—'})",
             label_visibility="collapsed",
         )
-        camera_index = selected_cam["index"]
+        device_id = selected["PK_MaThietBi"]
     else:
-        st.warning("Không có camera")
-        camera_index = None
+        st.warning("Chưa có thiết bị (vào trang Thiết bị)")
+        device_id = None
 
 with col_start:
     if not st.session_state["running"]:
-        disabled = not class_id.strip() or camera_index is None
+        disabled = not (phong_thi or "").strip() or device_id is None
         if st.button("▷ Bắt đầu phân tích", use_container_width=True, disabled=disabled, type="primary"):
             res = safe_post(
                 f"{CAMERA_URL}/start",
-                params={"camera_index": camera_index, "class_id": class_id.strip()},
+                params={
+                    "device_id": device_id,
+                    "phong_thi": (phong_thi or "").strip() or None,
+                    "mon_thi": (mon_thi or "").strip() or None,
+                },
             )
             if res and res.status_code == 200:
                 data = res.json()
@@ -124,13 +120,11 @@ with col_stop:
             st.session_state["refresh_key"] += 1
             st.rerun()
 
-# ── Bố cục chính 2 cột ────────────────────────────────────
+# ── Main Layout ─────────────────────────────────────────────
 left_col, right_col = st.columns([2.5, 1.5])
 
-# Cột trái — luồng camera trực tiếp
+# Left panel — camera feed
 with left_col:
-
-    # Tiêu đề khối kèm trạng thái camera
     is_running = st.session_state["running"]
     status_class = "active" if is_running else "inactive"
     status_text = "Đang phát" if is_running else "Chờ kết nối"
@@ -142,8 +136,6 @@ with left_col:
     """, unsafe_allow_html=True)
 
     if is_running:
-        # Đồng hồ đã quay — tính phía client bằng JS cho mượt
-        # để không phải chạy lại toàn trang Streamlit
         start_time = st.session_state["capture_start_time"]
         elapsed_str = "00:00:00"
         if start_time:
@@ -151,8 +143,6 @@ with left_col:
             h, m, s = elapsed // 3600, (elapsed % 3600) // 60, elapsed % 60
             elapsed_str = f"{h:02d}:{m:02d}:{s:02d}"
 
-        # Thêm tham số thời gian để trình duyệt không dùng lại
-        # kết nối MJPEG cũ đã ngắt khi trang chạy lại.
         cache_bust = int(time.time())
         st.markdown(f"""
         <div class="camera-feed-wrapper">
@@ -182,15 +172,13 @@ with left_col:
         </script>
         """, unsafe_allow_html=True)
 
-        # Đếm ngược chụp khung hình — chạy hoàn toàn phía client bằng CSS + JS
-        # nên vẫn mượt dù Streamlit có chạy lại theo chu kỳ
         if start_time:
             elapsed_total = time.time() - start_time
             cycle_offset = elapsed_total % 30
             st.markdown(f"""
             <div class="capture-countdown">
                 <div class="countdown-header">
-                    <span class="countdown-label">🔄 Đang trích xuất khung hình...</span>
+                    <span class="countdown-label">🔄 Đang trích xuất sự kiện...</span>
                     <span class="countdown-timer">Mỗi 30 giây</span>
                 </div>
                 <div class="countdown-track">
@@ -221,66 +209,52 @@ with left_col:
         </div>
         """, unsafe_allow_html=True)
 
-    # Kết thúc cột trái
-
-# Cột phải — khung hình đã trích xuất
+# Right panel — latest events
 with right_col:
-
     st.markdown("""
     <div class="section-header">
-        <h3>🖼 Khung hình trích xuất</h3>
-        <span class="refresh-label">Mỗi 30s</span>
+        <h3>🚨 Sự kiện gian lận</h3>
+        <span class="refresh-label">Mới nhất</span>
     </div>
     """, unsafe_allow_html=True)
 
     if st.session_state["running"] and st.session_state["session_id"]:
         sid = st.session_state["session_id"]
-        frames = get_frames_by_session(st.session_state.client, sid)
+        events = list_session_events(st.session_state.client, sid, limit=10)
 
-        if not frames:
-            st.info("Chưa có khung hình nào được trích xuất")
+        if not events:
+            st.info("Chưa ghi nhận gian lận")
         else:
             box = st.container(height=500, border=False)
             with box:
-                for frame in frames:
-                    img_path = frame.get("image_path")
-                    if not img_path:
-                        continue
-
+                for ev in events:
+                    label = ev.get("LoaiHanhVi", "?")
+                    conf = round(float(ev.get("DoTinCay", 0)) * 100, 1)
+                    stt = ev.get("TrangThaiKiemTra", "cho_kiem_tra")
                     st.markdown('<div class="frame-item">', unsafe_allow_html=True)
-                    st.image(img_path, use_container_width=True)
-
                     fc1, fc2 = st.columns([2, 1])
                     with fc1:
-                        st.caption(f"Nhận diện: {frame.get('total_students', '?')} HS")
-                        st.caption(frame.get("extracted_at", ""))
+                        st.caption(f"{label} · {conf}% · {stt}")
+                        st.caption(str(ev.get("ThoiGianPhatHien", ""))[:19])
                     with fc2:
                         if st.button(
-                            "XEM CHI TIẾT",
-                            key=f"detail_{frame['frame_id']}",
+                            "XEM",
+                            key=f"ev_{ev['PK_MaSuKien']}",
                             use_container_width=True,
                         ):
-                            st.session_state["frame_id"] = frame["frame_id"]
-                            st.switch_page("pages/frame_detail.py")
-
+                            st.session_state["event_id"] = ev["PK_MaSuKien"]
+                            st.switch_page("pages/event_detail.py")
                     st.markdown("</div>", unsafe_allow_html=True)
     else:
         st.info("Chưa bắt đầu phiên giám sát")
 
-
     if st.session_state["running"]:
         st.markdown('<div class="view-all-btn">', unsafe_allow_html=True)
         if st.button("📊 XEM TẤT CẢ", use_container_width=True):
-            st.switch_page("pages/session_analysis.py")
+            st.switch_page("pages/events.py")
         st.markdown("</div>", unsafe_allow_html=True)
 
-    # Kết thúc cột phải
-
-# ── Tự động làm mới ───────────────────────────────────────
-# Làm mới mỗi 10 giây (không phải 1 giây!) — thẻ <img> MJPEG tự cập nhật
-# độc lập; Streamlit chỉ cần chạy lại để nạp danh sách khung hình
-# và đồng bộ trạng thái backend. Chạy lại mỗi 1 giây gây xung đột click
-# nút và gọi API dư thừa.
+# ── Auto Refresh ────────────────────────────────────────────
 if st.session_state["running"]:
     st_autorefresh(
         interval=10000,

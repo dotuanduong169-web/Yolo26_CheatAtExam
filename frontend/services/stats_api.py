@@ -1,5 +1,4 @@
-"""Lớp gọi API thống kê: số liệu theo ngày.
-Luồng chính: trang thống kê gọi hàm này rồi vẽ biểu đồ."""
+"""Gọi API thống kê: theo ngày."""
 
 import logging
 
@@ -12,7 +11,7 @@ logger = logging.getLogger(__name__)
 
 
 def get_daily_stats(session: requests.Session) -> list:
-    """Lấy thống kê hằng ngày từ backend. Lỗi thì trả [] ."""
+    """Lấy thống kê theo ngày. Lỗi trả []."""
     try:
         res = session.get(
             f"{API_BASE_URL}/stats/daily",

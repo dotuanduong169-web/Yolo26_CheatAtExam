@@ -79,11 +79,18 @@ def capture_loop() -> None:
                 # Chỉ giao frame mới nhất cho worker, không chờ infer xong
                 state.raw_frame = frame
 
-                # Đủ 30 giây thì lưu snapshot một lần từ kết quả infer mới nhất
+                # Đủ 30 giây thì lưu snapshot: chọn frame gần nhất CÓ cheat trong cửa sổ
                 if time.time() - last_save_time > SAVE_INTERVAL_SECONDS:
                     with state.lock:
+                        pairs = list(state.recent)
                         annotated = state.latest_frame
                         results = list(state.latest_results)
+                    for frm, res in reversed(pairs):
+                        if any(r.get("is_cheat") for r in res):
+                            annotated, results = frm, list(res)
+                            break
+                    if annotated is None:
+                        annotated = frame
                     confirmed = [
                         r for r in results
                         if not r.get("is_cheat")
@@ -91,7 +98,7 @@ def capture_loop() -> None:
                     ]
                     _save_snapshot(
                         db, state,
-                        annotated if annotated is not None else frame,
+                        annotated,
                         confirmed, image_dir, frame_count,
                     )
                     last_save_time = time.time()
@@ -127,6 +134,7 @@ def _infer_worker(state: CameraState) -> None:
             with state.lock:
                 state.latest_frame = annotated
                 state.latest_results = results
+                state.recent.append((annotated, results))
             state.note_frame_cheat(any(r.get("is_cheat") for r in results))
         except Exception as exc:
             logger.debug(f"Infer worker failed: {exc}")

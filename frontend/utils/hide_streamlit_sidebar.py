@@ -1,5 +1,4 @@
-"""Ẩn thanh điều hướng mặc định của Streamlit để dùng sidebar riêng.
-Luồng chính: bơm CSS ẩn khối stSidebarNav -> gọi ở đầu mỗi trang."""
+"""Ẩn thanh điều hướng mặc định của Streamlit."""
 
 import streamlit as st
 
@@ -11,5 +10,5 @@ _HIDE_CSS = """
 
 
 def hide_sidebar() -> None:
-    """Bơm CSS để ẩn thanh điều hướng mặc định của Streamlit."""
+    """Tiêm CSS ẩn điều hướng sidebar mặc định."""
     st.markdown(_HIDE_CSS, unsafe_allow_html=True)

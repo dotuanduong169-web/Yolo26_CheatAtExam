@@ -35,6 +35,7 @@ from crud.event_crud import (
     create_event,
     create_evidence,
     get_event_by_id,
+    get_evidence_by_id,
     list_events_by_session,
     verify_event,
 )
@@ -70,6 +71,7 @@ __all__ = [
     "create_event",
     "create_evidence",
     "get_event_by_id",
+    "get_evidence_by_id",
     "list_events_by_session",
     "verify_event",
     "create_statistics",

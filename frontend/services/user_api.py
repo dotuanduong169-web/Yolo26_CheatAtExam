@@ -1,5 +1,4 @@
-"""Lớp gọi API hồ sơ người dùng: xem, cập nhật, đổi mật khẩu.
-Luồng chính: trang cài đặt gọi hàm này kèm token xác thực."""
+"""Gọi API hồ sơ: xem, cập nhật họ tên, đổi mật khẩu."""
 
 import logging
 
@@ -12,7 +11,7 @@ logger = logging.getLogger(__name__)
 
 
 def get_user(session: requests.Session) -> dict | None:
-    """Lấy hồ sơ người dùng hiện tại. Lỗi thì trả None."""
+    """Lấy hồ sơ hiện tại. Lỗi trả None."""
     try:
         res = session.get(
             f"{API_BASE_URL}/users/profile",
@@ -29,31 +28,25 @@ def get_user(session: requests.Session) -> dict | None:
         return None
 
 
-def update_user(
-    session: requests.Session,
-    full_name: str,
-    email: str,
-) -> tuple[bool, str | dict]:
-    """Cập nhật hồ sơ. Trả về (thành công, dữ liệu hoặc thông báo lỗi)."""
+def update_user(session: requests.Session, full_name: str) -> tuple[bool, str | dict]:
+    """Cập nhật họ tên. Trả (thành công, dữ liệu hoặc lỗi)."""
     try:
         res = session.put(
             f"{API_BASE_URL}/users/update",
-            json={"full_name": full_name, "email": email},
+            json={"HoVaTen": full_name},
             headers=get_auth_headers(),
         )
 
         if res.status_code == 200:
             return True, res.json()
         if res.status_code == 401:
-            return False, "Session expired. Please log in again"
-        if res.status_code == 409:
-            return False, "Email is already in use"
+            return False, "Phiên hết hạn. Vui lòng đăng nhập lại"
 
-        detail = res.json().get("detail", "Server error") if res.text else "Server error"
+        detail = res.json().get("detail", "Lỗi server") if res.text else "Lỗi server"
         return False, detail
 
     except requests.RequestException as exc:
-        return False, f"Connection error: {exc}"
+        return False, f"Lỗi kết nối: {exc}"
 
 
 def change_password(
@@ -61,24 +54,24 @@ def change_password(
     old_password: str,
     new_password: str,
 ) -> tuple[bool, str | dict]:
-    """Đổi mật khẩu. Trả về (thành công, dữ liệu hoặc thông báo lỗi)."""
+    """Đổi mật khẩu. Trả (thành công, dữ liệu hoặc lỗi)."""
     try:
         res = session.put(
             f"{API_BASE_URL}/users/change-password",
-            json={"old_password": old_password, "new_password": new_password},
+            json={"MatKhauCu": old_password, "MatKhauMoi": new_password},
             headers=get_auth_headers(),
         )
 
         if res.status_code == 200:
             return True, res.json()
         if res.status_code == 401:
-            return False, "Session expired. Please log in again"
+            return False, "Phiên hết hạn. Vui lòng đăng nhập lại"
         if res.status_code == 422:
-            detail = res.json().get("detail", "Old password is incorrect") if res.text else "Old password is incorrect"
+            detail = res.json().get("detail", "Mật khẩu cũ không đúng") if res.text else "Mật khẩu cũ không đúng"
             return False, detail
 
-        detail = res.json().get("detail", "Server error") if res.text else "Server error"
+        detail = res.json().get("detail", "Lỗi server") if res.text else "Lỗi server"
         return False, detail
 
     except requests.RequestException as exc:
-        return False, f"Connection error: {exc}"
+        return False, f"Lỗi kết nối: {exc}"

@@ -1,47 +1,33 @@
-"""Chặn trang khi chưa đăng nhập: đưa người dùng về trang login.
-Luồng chính: khôi phục token từ cookie -> gắn vào client -> kiểm tra /users/profile."""
+"""Bảo vệ trang: chưa đăng nhập thì chuyển về login."""
 
 import requests
 import streamlit as st
-from streamlit_cookies_manager import EncryptedCookieManager
 
-from config import API_BASE_URL, COOKIE_PASSWORD
+from config import API_BASE_URL
 
 
 def require_auth() -> None:
-    """Kiểm tra đã đăng nhập chưa.
-    Khôi phục token từ cookie vào HTTP client rồi đối chiếu với backend.
-    Thất bại thì chuyển về trang đăng nhập."""
-    cookies = EncryptedCookieManager(password=COOKIE_PASSWORD)
-    if not cookies.ready():
-        st.stop()
-
+    """Kiểm tra token còn hiệu lực qua /users/profile. Hết hạn thì về login."""
     if "client" not in st.session_state:
         st.session_state.client = requests.Session()
 
-    client = st.session_state.client
-
-    access_token = cookies.get("access_token")
-    refresh_token = cookies.get("refresh_token")
-
-    if access_token:
-        client.cookies.set("access_token", access_token)
-    if refresh_token:
-        client.cookies.set("refresh_token", refresh_token)
-
-    if not access_token:
-        st.error("Please log in to continue")
+    if not st.session_state.get("access_token_value"):
         st.switch_page("pages/login.py")
         st.stop()
 
     try:
-        res = client.get(f"{API_BASE_URL}/users/profile", timeout=5)
+        from utils.http import get_auth_headers
+
+        res = st.session_state.client.get(
+            f"{API_BASE_URL}/users/profile",
+            headers=get_auth_headers(),
+            timeout=5,
+        )
         if res.status_code != 200:
-            cookies.clear()
-            st.error("Session expired")
+            st.error("Phiên đăng nhập hết hạn")
             st.switch_page("pages/login.py")
             st.stop()
     except requests.RequestException:
-        st.error("Connection error")
+        st.error("Lỗi kết nối server")
         st.switch_page("pages/login.py")
         st.stop()

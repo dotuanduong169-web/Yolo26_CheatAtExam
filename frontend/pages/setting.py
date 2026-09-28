@@ -1,5 +1,4 @@
-"""Trang cài đặt tài khoản: sửa hồ sơ và đổi mật khẩu.
-Luồng chính: tải hồ sơ -> cập nhật tên/email -> đổi mật khẩu có kiểm tra xác nhận."""
+"""Trang cài đặt tài khoản: sửa hồ sơ và đổi mật khẩu."""
 
 import streamlit as st
 
@@ -11,21 +10,21 @@ from utils.http import init_session_state
 from utils.load_css import load_css
 from utils.render_header import render_page_header
 
-# ── Cấu hình trang ────────────────────────────────────────
+# ── Config ──────────────────────────────────────────────────
 st.set_page_config(layout="wide")
 
 init_session_state()
 require_auth()
 
-# ── Thanh bên ─────────────────────────────────────────────
+# ── Sidebar ─────────────────────────────────────────────────
 hide_sidebar()
 st.markdown(load_css("styles/sidebar.css"), unsafe_allow_html=True)
 render_sidebar(active="setting")
 
-# ── Nạp CSS ───────────────────────────────────────────────
+# ── Styles ──────────────────────────────────────────────────
 st.markdown(load_css("styles/setting.css"), unsafe_allow_html=True)
 
-# ── Tải hồ sơ người dùng ──────────────────────────────────
+# ── Load User ───────────────────────────────────────────────
 client = st.session_state.client
 user = get_user(client)
 
@@ -36,62 +35,56 @@ if not user:
         st.switch_page("pages/login.py")
     st.stop()
 
-full_name = user.get("full_name") or user.get("name", "")
-email = user.get("email", "")
+full_name = user.get("HoVaTen", "")
+username = user.get("TenDangNhap", "")
 
-# ── Thông báo thành công sau cập nhật ─────────────────────
+# ── Success Flash ───────────────────────────────────────────
 if st.session_state.get("update_success"):
     st.success("✅ Cập nhật thành công!")
     st.session_state.update_success = False
 
-# ── Tiêu đề trang ─────────────────────────────────────────
+# ── Header ──────────────────────────────────────────────────
 render_page_header("Cài đặt tài khoản")
 
-# ── Thẻ thông tin tài khoản ───────────────────────────────
+# ── Account Info Card ───────────────────────────────────────
 with st.container():
     st.markdown("""
     <div id="account-card-marker"></div>
     <div class="card-title">Thông tin tài khoản</div>
     """, unsafe_allow_html=True)
-    
+
     col1, col2 = st.columns([1, 6])
     with col1:
         st.image("https://i.pravatar.cc/150", width=80)
     with col2:
-        role_label = "Quản trị viên" if user.get("role") == "admin" else "Giáo viên"
+        role_label = "Quản trị viên" if user.get("VaiTro") == "admin" else "Giáo viên"
         st.markdown(f'<div class="profile-name">{full_name} <span style="font-size: 12px; font-weight: 400; background: #e6f7ff; color: #1890ff; padding: 2px 8px; border-radius: 4px; margin-left: 8px;">{role_label}</span></div>', unsafe_allow_html=True)
-        st.markdown(f'<div class="profile-email">{email}</div>', unsafe_allow_html=True)
+        st.markdown(f'<div class="profile-email">@{username}</div>', unsafe_allow_html=True)
         st.button("Thay đổi ảnh")
-        
 
-    
-    c1, c2 = st.columns(2)
-    with c1:
-        name_input = st.text_input("Họ và Tên", value=full_name)
-    with c2:
-        email_input = st.text_input("Email", value=email)
-        
+    name_input = st.text_input("Họ và Tên", value=full_name)
+
     col_empty, col_btn = st.columns([4, 1])
     with col_btn:
         if st.button("Lưu thay đổi", type="primary", use_container_width=True):
-            if not name_input or not email_input:
-                st.warning("⚠️ Vui lòng nhập đầy đủ thông tin")
+            if not name_input:
+                st.warning("⚠️ Vui lòng nhập họ tên")
             else:
                 with st.spinner("Đang cập nhật..."):
-                    success, res = update_user(client, name_input, email_input)
+                    success, res = update_user(client, name_input)
                 if success:
                     st.toast("✅ Cập nhật thành công!")
                     st.rerun()
                 else:
                     st.error(f"❌ {res}")
 
-# ── Thẻ bảo mật đổi mật khẩu ──────────────────────────────
+# ── Security Card ───────────────────────────────────────────
 with st.container():
     st.markdown("""
     <div id="security-card-marker"></div>
     <div class="card-title">Bảo mật</div>
     """, unsafe_allow_html=True)
-    
+
     col_icon, col_text, col_btn = st.columns([0.5, 4, 1])
     with col_icon:
         st.markdown("""
@@ -109,10 +102,10 @@ with st.container():
     with col_btn:
         if st.button("Thay đổi", use_container_width=True):
             st.session_state.show_pw_change = not st.session_state.get("show_pw_change", False)
-            
+
     if st.session_state.get("show_pw_change", False):
         st.markdown('<hr class="section-divider">', unsafe_allow_html=True)
-        
+
         show_pass = st.checkbox("Hiển thị mật khẩu")
         pw_type = "text" if show_pass else "password"
 

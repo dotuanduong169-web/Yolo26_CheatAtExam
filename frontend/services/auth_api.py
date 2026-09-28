@@ -1,5 +1,4 @@
-"""Lớp gọi API xác thực: đăng nhập, đăng ký, đăng xuất, làm mới token.
-Luồng chính: trang Streamlit gọi hàm này -> chuyển tiếp tới FastAPI /users/*."""
+"""Gọi API xác thực: đăng nhập, đăng ký, đăng xuất, làm mới token."""
 
 import logging
 
@@ -11,24 +10,24 @@ from utils.http import get_auth_headers
 logger = logging.getLogger(__name__)
 
 
-def login(session: requests.Session, email: str, password: str):
-    """Đăng nhập và trả về response (token nằm trong JSON)."""
+def login(session: requests.Session, username: str, password: str):
+    """Đăng nhập bằng tên đăng nhập, token nằm trong body JSON."""
     return session.post(
         f"{API_BASE_URL}/users/login",
-        json={"email": email, "password": password},
+        json={"TenDangNhap": username, "MatKhau": password},
     )
 
 
-def register(session: requests.Session, full_name: str, email: str, password: str):
-    """Đăng ký tài khoản người dùng mới."""
+def register(session: requests.Session, username: str, full_name: str, password: str):
+    """Đăng ký tài khoản mới."""
     return session.post(
         f"{API_BASE_URL}/users/register",
-        json={"email": email, "password": password, "full_name": full_name},
+        json={"TenDangNhap": username, "HoVaTen": full_name, "MatKhau": password},
     )
 
 
 def logout(session: requests.Session):
-    """Đăng xuất — vô hiệu hóa token đang dùng."""
+    """Đăng xuất, thu hồi token."""
     try:
         return session.post(
             f"{API_BASE_URL}/users/logout",
@@ -40,7 +39,7 @@ def logout(session: requests.Session):
 
 
 def refresh_token(session: requests.Session):
-    """Làm mới access token bằng refresh token trong cookie."""
+    """Làm mới access token bằng refresh token cookie."""
     try:
         return session.post(
             f"{API_BASE_URL}/users/refresh",

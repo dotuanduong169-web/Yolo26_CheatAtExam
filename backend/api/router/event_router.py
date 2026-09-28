@@ -3,12 +3,13 @@ Logic chính: user_label do người sửa ưu tiên hơn nhãn AI; xác minh gh
 """
 
 from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi.responses import FileResponse
 from sqlalchemy.orm import Session
 
 from core.dependencies import get_current_user
 from core.exceptions import NotFoundError
 from core.logger import get_logger
-from crud.event_crud import get_event_by_id, list_events_by_session, verify_event
+from crud.event_crud import get_event_by_id, get_evidence_by_id, list_events_by_session, verify_event
 from database.database import get_db
 from models.user import User
 from schemas.event import EventResponse, EventVerify
@@ -65,3 +66,21 @@ def verify_event_endpoint(
     if not event:
         raise NotFoundError(detail="Event not found")
     return event
+
+
+@router.get("/evidences/{evidence_id}/file")
+def get_evidence_file(
+    evidence_id: int,
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Tải file ảnh/video bằng chứng. Yêu cầu đăng nhập."""
+    from pathlib import Path
+
+    evidence = get_evidence_by_id(db, evidence_id)
+    if not evidence:
+        raise NotFoundError(detail="Evidence not found")
+    path = Path(evidence.DuongDanTep)
+    if not path.is_file():
+        raise NotFoundError(detail="Evidence file missing")
+    return FileResponse(path)

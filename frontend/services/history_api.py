@@ -1,5 +1,4 @@
-"""Lớp gọi API lịch sử: danh sách phiên, tóm tắt, chi tiết, xóa phiên.
-Luồng chính: trang lịch sử/chi tiết phiên gọi hàm này để lấy dữ liệu phân trang."""
+"""Gọi API lịch sử: danh sách phiên, tóm tắt, chi tiết, xóa phiên."""
 
 import logging
 
@@ -17,7 +16,7 @@ def get_history(
     skip: int = 0,
     limit: int = 5,
 ) -> list:
-    """Lấy danh sách phiên có phân trang. Lỗi thì trả [] ."""
+    """Lấy danh sách phiên phân trang. Lỗi trả []."""
     try:
         params = {"skip": skip, "limit": limit}
         if search.strip():
@@ -38,7 +37,7 @@ def get_history(
 
 
 def get_history_summary(session: requests.Session) -> dict:
-    """Lấy tổng số phiên và số phiên trong tháng. Lỗi thì trả {}."""
+    """Tóm tắt phiên và sự kiện. Lỗi trả {}."""
     try:
         res = session.get(
             f"{API_BASE_URL}/history/summary",
@@ -54,7 +53,7 @@ def get_history_summary(session: requests.Session) -> dict:
 
 
 def get_session_detail(session: requests.Session, session_id: int) -> dict | None:
-    """Lấy đầy đủ chi tiết một phiên kèm khung hình. Lỗi thì trả None."""
+    """Chi tiết phiên kèm sự kiện. Lỗi trả None."""
     try:
         res = session.get(
             f"{API_BASE_URL}/history/session/{session_id}",
@@ -70,11 +69,12 @@ def get_session_detail(session: requests.Session, session_id: int) -> dict | Non
 
 
 def get_all_sessions(session: requests.Session) -> list:
-    """Lấy toàn bộ phiên (không phân trang). Lỗi thì trả [] ."""
+    """Lấy toàn bộ phiên (không phân trang). Lỗi trả []."""
     try:
         res = session.get(
             f"{API_BASE_URL}/history/sessions",
             headers=get_auth_headers(),
+            params={"skip": 0, "limit": 100},
         )
         if res.status_code == 200:
             return res.json()
@@ -86,7 +86,7 @@ def get_all_sessions(session: requests.Session) -> list:
 
 
 def delete_session(session: requests.Session, session_id: int):
-    """Xóa một phiên theo mã. Mất kết nối thì trả None."""
+    """Xóa phiên. Trả response thô, lỗi kết nối trả None."""
     try:
         return session.delete(
             f"{API_BASE_URL}/history/session/{session_id}",

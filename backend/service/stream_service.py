@@ -33,15 +33,20 @@ def gen_frames():
         if elapsed < _FRAME_INTERVAL:
             time.sleep(_FRAME_INTERVAL - elapsed)
 
+        # Đọc một lần vào biến cục bộ (stop giữa chừng có thể reset về None)
+        frame = state.latest_frame
+        if frame is None:
+            time.sleep(0.05)
+            continue
+
         # Frame chưa đổi thì bỏ qua để khỏi mã hóa thừa
-        current_id = id(state.latest_frame)
+        current_id = id(frame)
         if current_id == prev_frame_id:
             time.sleep(0.01)
             continue
         prev_frame_id = current_id
 
         # Co nhỏ frame về ngang tối đa 720px cho nhẹ luồng phát
-        frame = state.latest_frame
         h, w = frame.shape[:2]
         if w > 720:
             scale = 720 / w

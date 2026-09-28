@@ -1,5 +1,4 @@
-"""Hàm HTTP dùng chung cho các gọi API.
-Luồng chính: khởi tạo session -> gắn token xác thực -> gọi GET/POST an toàn."""
+"""Helper HTTP dùng chung: header auth, wrapper an toàn, khởi tạo session state."""
 
 import requests
 import streamlit as st
@@ -7,7 +6,7 @@ import streamlit as st
 from config import API_BASE_URL
 
 
-# ── Giá trị mặc định cho session ──────────────────────────
+# ── Session State Defaults ──────────────────────────────────
 
 _DEFAULTS = {
     "is_login": False,
@@ -15,7 +14,8 @@ _DEFAULTS = {
     "refresh_token_value": None,
     "running": False,
     "session_id": None,
-    "frame_id": None,
+    "event_id": None,
+    "selected_session": None,
     "capture_start_time": None,
     "refresh_key": 0,
     "page_loaded": "",
@@ -24,7 +24,7 @@ _DEFAULTS = {
 
 
 def init_session_state() -> None:
-    """Tạo đủ khóa session còn thiếu với giá trị mặc định."""
+    """Đảm bảo mọi key session state tồn tại với giá trị mặc định."""
     for key, value in _DEFAULTS.items():
         if key not in st.session_state:
             st.session_state[key] = value
@@ -33,25 +33,22 @@ def init_session_state() -> None:
         st.session_state.client = requests.Session()
 
 
-# ── Tiêu đề xác thực ──────────────────────────────────────
+# ── Auth Headers ────────────────────────────────────────────
 
 
 def get_auth_headers() -> dict:
-    """Dựng tiêu đề Authorization từ token đã lưu."""
-    token = (
-        st.session_state.get("access_token_value")
-        or st.session_state.get("token")
-    )
+    """Dựng header Authorization từ token đã lưu."""
+    token = st.session_state.get("access_token_value")
     if token:
         return {"Authorization": f"Bearer {token}"}
     return {}
 
 
-# ── Hàm GET/POST an toàn ──────────────────────────────────
+# ── Safe HTTP Wrappers ──────────────────────────────────────
 
 
 def safe_get(url: str, timeout: int = 5):
-    """Gọi GET kèm token. Mất kết nối thì trả None."""
+    """GET kèm auth. Lỗi kết nối trả None."""
     try:
         return st.session_state.client.get(
             url, headers=get_auth_headers(), timeout=timeout
@@ -61,11 +58,41 @@ def safe_get(url: str, timeout: int = 5):
 
 
 def safe_post(url: str, params: dict = None, json: dict = None, timeout: int = 10):
-    """Gọi POST kèm token. Mất kết nối thì trả None."""
+    """POST kèm auth. Lỗi kết nối trả None."""
     try:
         return st.session_state.client.post(
             url, params=params, json=json,
             headers=get_auth_headers(), timeout=timeout,
+        )
+    except requests.RequestException:
+        return None
+
+
+def safe_put(url: str, json: dict = None, timeout: int = 10):
+    """PUT kèm auth. Lỗi kết nối trả None."""
+    try:
+        return st.session_state.client.put(
+            url, json=json, headers=get_auth_headers(), timeout=timeout,
+        )
+    except requests.RequestException:
+        return None
+
+
+def safe_patch(url: str, json: dict = None, timeout: int = 10):
+    """PATCH kèm auth. Lỗi kết nối trả None."""
+    try:
+        return st.session_state.client.patch(
+            url, json=json, headers=get_auth_headers(), timeout=timeout,
+        )
+    except requests.RequestException:
+        return None
+
+
+def safe_delete(url: str, timeout: int = 10):
+    """DELETE kèm auth. Lỗi kết nối trả None."""
+    try:
+        return st.session_state.client.delete(
+            url, headers=get_auth_headers(), timeout=timeout,
         )
     except requests.RequestException:
         return None

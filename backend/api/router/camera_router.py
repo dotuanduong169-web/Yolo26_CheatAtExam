@@ -4,7 +4,7 @@ Logic chính: mở theo thiết bị biên đã đăng ký; video_path test offl
 
 import cv2
 from fastapi import APIRouter, Depends, HTTPException, Query
-from fastapi.responses import StreamingResponse
+from fastapi.responses import Response, StreamingResponse
 from sqlalchemy.orm import Session
 
 from core.dependencies import get_current_user
@@ -109,3 +109,15 @@ def camera_status():
     """Lấy trạng thái camera hiện tại. Kèm session_id của phiên đang chạy nếu có."""
     state = CameraState()
     return {"running": state.running, "session_id": state.current_session_id}
+
+
+@router.get("/snapshot")
+def camera_snapshot(user: User = Depends(get_current_user)):
+    """Chụp frame mới nhất đã vẽ AI, trả ảnh JPEG. Chưa có frame thì báo 404."""
+    state = CameraState()
+    if state.latest_frame is None:
+        raise HTTPException(status_code=404, detail="No frame yet")
+    ok, buf = cv2.imencode(".jpg", state.latest_frame, [int(cv2.IMWRITE_JPEG_QUALITY), 85])
+    if not ok:
+        raise HTTPException(status_code=500, detail="Encode failed")
+    return Response(content=buf.tobytes(), media_type="image/jpeg")

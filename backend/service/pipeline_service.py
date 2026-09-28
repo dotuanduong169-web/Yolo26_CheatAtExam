@@ -1,6 +1,7 @@
 """Vòng lặp capture: đọc camera hoặc video file, chạy YOLO26-seg, lưu DB.
-Luồng chính: đọc frame → infer → mỗi 30 giây lưu 1 ảnh + 1 sự kiện cho mỗi cheat đã debounce."""
+Luồng chính: capture đọc liên tục → worker infer riêng vẽ box live → mỗi 30 giây lưu 1 ảnh + sự kiện."""
 
+import threading
 import time
 from datetime import datetime
 from pathlib import Path
@@ -27,8 +28,8 @@ CHEAT_MIN_HITS = 3
 def capture_loop() -> None:
     """
     Vòng lặp capture chính, chạy trong luồng nền.
-    Điểm logic: đọc frame → infer YOLO26-seg → lưu DB mỗi 30 giây;
-    video hết thì tua lại từ đầu, camera mất thì chờ 0,2 giây rồi đọc tiếp.
+    Điểm logic: đọc frame liên tục (không chờ infer) → worker infer riêng vẽ box;
+    lưu DB mỗi 30 giây; video hết thì tua lại, camera mất thì chờ 0,2 giây.
     """
     state = CameraState()
 
@@ -51,6 +52,9 @@ def capture_loop() -> None:
 
     logger.info("Capture loop started")
 
+    worker = threading.Thread(target=_infer_worker, args=(state,), daemon=True)
+    worker.start()
+
     try:
         while state.running:
             try:
@@ -72,25 +76,25 @@ def capture_loop() -> None:
 
                 state.frame_count += 1
                 frame_count += 1
+                # Chỉ giao frame mới nhất cho worker, không chờ infer xong
+                state.raw_frame = frame
 
-                # Chạy infer AI trên frame hiện tại
-                processed_frame, results = process_frame(frame, state.frame_count)
-                state.latest_frame = processed_frame
-
-                # Ghi nhận gian lận frame này để debounce ở snapshot
-                state.note_frame_cheat(any(r.get("is_cheat") for r in results))
-
-                # Đủ 30 giây thì lưu snapshot một lần, chỉ giữ cheat đã xác nhận
+                # Đủ 30 giây thì lưu snapshot một lần từ kết quả infer mới nhất
                 if time.time() - last_save_time > SAVE_INTERVAL_SECONDS:
+                    with state.lock:
+                        annotated = state.latest_frame
+                        results = list(state.latest_results)
                     confirmed = [
                         r for r in results
                         if not r.get("is_cheat")
                         or state.is_cheat_confirmed(CHEAT_WINDOW, CHEAT_MIN_HITS)
                     ]
-                    _save_snapshot(db, state, processed_frame, confirmed, image_dir, frame_count)
+                    _save_snapshot(
+                        db, state,
+                        annotated if annotated is not None else frame,
+                        confirmed, image_dir, frame_count,
+                    )
                     last_save_time = time.time()
-
-                time.sleep(0.05)  # Nghỉ 0,05 giây để trần tốc độ khoảng 20 FPS
 
             except KeyboardInterrupt:
                 logger.info("Capture loop interrupted by user")
@@ -104,6 +108,29 @@ def capture_loop() -> None:
     finally:
         db.close()
         logger.info("Capture loop stopped")
+
+
+def _infer_worker(state: CameraState) -> None:
+    """Worker infer liên tục frame mới nhất.
+    Điểm logic: luôn lấy raw_frame hiện tại (bỏ frame cũ nếu infer chậm);
+    vẽ box xong cập nhật latest_frame để stream hiển thị ngay."""
+    last_id = None
+    while state.running:
+        try:
+            raw = state.raw_frame
+            if raw is None or id(raw) == last_id:
+                time.sleep(0.02)
+                continue
+            last_id = id(raw)
+
+            annotated, results = process_frame(raw.copy(), state.frame_count)
+            with state.lock:
+                state.latest_frame = annotated
+                state.latest_results = results
+            state.note_frame_cheat(any(r.get("is_cheat") for r in results))
+        except Exception as exc:
+            logger.debug(f"Infer worker failed: {exc}")
+            time.sleep(0.05)
 
 
 def _save_snapshot(

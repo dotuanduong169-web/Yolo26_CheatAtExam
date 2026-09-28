@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Test camera + AI nhận diện</title>
+<style>
+  body { font-family: sans-serif; max-width: 900px; margin: 20px auto; padding: 0 12px; }
+  .row { display: flex; gap: 8px; flex-wrap: wrap; margin: 8px 0; align-items: center; }
+  input, select, button { padding: 8px; font-size: 14px; }
+  button { cursor: pointer; }
+  img { max-width: 100%; border: 1px solid #ccc; }
+  #log { background: #f4f4f4; padding: 8px; height: 140px; overflow-y: auto; font-size: 13px; white-space: pre-wrap; }
+  .col { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  h3 { margin-bottom: 4px; }
+</style>
+</head>
+<body>
+<h2>Test camera máy + AI nhận diện vật thể</h2>
+
+<div class="row">
+  <input id="username" placeholder="Tên đăng nhập" value="admin">
+  <input id="password" type="password" placeholder="Mật khẩu" value="Admin123">
+  <button onclick="login()">Đăng nhập</button>
+  <span id="who"></span>
+</div>
+
+<div class="row">
+  <button onclick="useMachineCamera()">1. Dùng camera máy</button>
+  <button onclick="start()">2. Bắt đầu giám sát</button>
+  <button onclick="stop()">Dừng</button>
+  <button onclick="snapshot()">3. Chụp + xem kết quả AI</button>
+  <span id="status"></span>
+</div>
+
+<div class="col">
+  <div>
+    <h3>Luồng trực tiếp (đã vẽ AI)</h3>
+    <img id="stream" alt="chua co luong">
+  </div>
+  <div>
+    <h3>Ảnh chụp mới nhất</h3>
+    <img id="shot" alt="chua chup">
+    <h3>Sự kiện AI vừa ghi</h3>
+    <div id="events">chưa có</div>
+  </div>
+</div>
+
+<h3>Log</h3>
+<div id="log"></div>
+
+<script>
+let token = null, deviceId = null, sessionId = null;
+const log = m => { document.getElementById('log').textContent += m + '\n'; };
+const auth = () => ({ 'Authorization': 'Bearer ' + token });
+
+async function login() {
+  const r = await fetch('/users/login', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      TenDangNhap: document.getElementById('username').value,
+      MatKhau: document.getElementById('password').value
+    })
+  });
+  const d = await r.json();
+  if (!r.ok) { log('Login lỗi: ' + JSON.stringify(d)); return; }
+  token = d.access_token;
+  document.getElementById('who').textContent = 'Xin chào ' + d.user_id;
+  log('Đăng nhập OK');
+}
+
+async function useMachineCamera() {
+  if (!token) { log('Đăng nhập trước'); return; }
+  // tìm thiết bị camera máy đã có, chưa có thì đăng ký mới (RTSP "0" = webcam)
+  let r = await fetch('/devices', { headers: auth() });
+  let devs = await r.json();
+  let dev = devs.find(x => x.DuongDanRTSP === '0');
+  if (!dev) {
+    r = await fetch('/devices', {
+      method: 'POST', headers: { ...auth(), 'Content-Type': 'application/json' },
+      body: JSON.stringify({ TenThietBi: 'Camera may', DuongDanRTSP: '0', MoTaViTri: 'webcam' })
+    });
+    dev = await r.json();
+  }
+  deviceId = dev.PK_MaThietBi;
+  log('Dùng thiết bị #' + deviceId + ' (' + dev.TenThietBi + ')');
+}
+
+async function start() {
+  if (!token || !deviceId) { log('Đăng nhập + chọn camera trước'); return; }
+  const r = await fetch(
+    `/camera/start?device_id=${deviceId}&phong_thi=TEST&mon_thi=Demo`, { method: 'POST', headers: auth() });
+  const d = await r.json();
+  if (!r.ok) { log('Start lỗi: ' + JSON.stringify(d)); return; }
+  sessionId = d.session_id;
+  document.getElementById('stream').src = '/camera/video_feed?' + Date.now();
+  document.getElementById('status').textContent = 'Đang chạy - phiên #' + sessionId;
+  log('Bắt đầu phiên #' + sessionId + '. Đưa điện thoại/giấy vào trước camera.');
+}
+
+async function stop() {
+  if (!token) return;
+  await fetch('/camera/stop', { method: 'POST', headers: auth() });
+  document.getElementById('stream').removeAttribute('src');
+  document.getElementById('status').textContent = 'Đã dừng';
+  log('Đã dừng');
+}
+
+async function snapshot() {
+  if (!token) return;
+  const r = await fetch('/camera/snapshot', { headers: auth() });
+  if (!r.ok) { log('Chưa có frame'); return; }
+  document.getElementById('shot').src = URL.createObjectURL(await r.blob());
+  if (!sessionId) return;
+  const e = await (await fetch(`/events/session/${sessionId}?limit=5`, { headers: auth() })).json();
+  document.getElementById('events').innerHTML = e.length
+    ? e.map(x => `<div>#${x.PK_MaSuKien} <b>${x.LoaiHanhVi}</b> conf=${x.DoTinCay} (${x.TrangThaiKiemTra})</div>`).join('')
+    : 'chưa ghi sự kiện nào (giơ vật rõ hơn / gần hơn rồi chụp lại)';
+  log('Đã chụp, sự kiện mới nhất: ' + e.length);
+}
+</script>
+</body>
+</html>

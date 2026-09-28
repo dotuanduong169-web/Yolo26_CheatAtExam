@@ -95,6 +95,12 @@ def start_camera(
     if not state.cap or not state.cap.isOpened():
         raise RuntimeError(f"Cannot open source for device {device_name}")
 
+    try:
+        # Buffer 1 frame: luôn đọc frame mới nhất, box bám vật thể đang di chuyển
+        state.cap.set(cv2.CAP_PROP_BUFFERSIZE, 1)
+    except Exception:
+        pass
+
     state.running = True
     update_device_status(device_id, "dang_chay")
 

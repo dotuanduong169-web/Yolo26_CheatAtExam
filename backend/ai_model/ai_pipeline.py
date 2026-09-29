@@ -13,10 +13,12 @@ from core.logger import get_logger
 
 logger = get_logger(__name__)
 
-# Đường dẫn trọng số, cho phép ghi đè qua biến môi trường MODEL_PATH
+# Đường dẫn trọng số, cho phép ghi đè qua biến môi trường MODEL_PATH.
+# Ưu tiên bản OpenVINO (nhanh ~2.6x trên CPU), fallback về .pt nếu thiếu.
 _AI_MODEL_DIR = Path(__file__).resolve().parent
 _DEFAULT_WEIGHTS = _AI_MODEL_DIR / "weights" / "best.pt"
-_MODEL_PATH = Path(os.getenv("MODEL_PATH", str(_DEFAULT_WEIGHTS)))
+_OV_WEIGHTS = _AI_MODEL_DIR / "weights" / "best_openvino_model"
+_MODEL_PATH = Path(os.getenv("MODEL_PATH", str(_OV_WEIGHTS if _OV_WEIGHTS.exists() else _DEFAULT_WEIGHTS)))
 
 # Thứ tự nhãn phải khớp đúng dataset huấn luyện dataset_seg_v4
 LABELS = ["Answer_paper", "Cheat_Paper", "cellphone"]
@@ -45,8 +47,15 @@ COLORS = {
 # Nạp model an toàn: thiếu weights thì trả rỗng thay vì crash lúc import
 logger.info(f"Loading YOLO26-seg model from: {_MODEL_PATH}")
 try:
-    _yolo_model = YOLO(str(_MODEL_PATH)) if _MODEL_PATH.exists() else None
-    if _yolo_model is None:
+    if _MODEL_PATH.exists():
+        # Thư mục OpenVINO cần chỉ rõ task, file .pt tự nhận diện
+        _yolo_model = (
+            YOLO(str(_MODEL_PATH), task="segment")
+            if _MODEL_PATH.is_dir()
+            else YOLO(str(_MODEL_PATH))
+        )
+    else:
+        _yolo_model = None
         logger.warning(f"Weights not found: {_MODEL_PATH} — inference trả rỗng")
 except Exception as exc:
     logger.error(f"Failed to load model: {exc}", exc_info=True)
@@ -106,7 +115,11 @@ def process_frame(
         return frame, results_data
 
     names = res.names if hasattr(res, "names") else {i: n for i, n in enumerate(LABELS)}
-    masks = res.masks.data.cpu().numpy() if res.masks is not None else None
+    # Mask OV model đã là numpy, .pt là torch — xử lý cả hai
+    masks = None
+    if res.masks is not None:
+        md = res.masks.data
+        masks = md.cpu().numpy() if hasattr(md, "cpu") else np.asarray(md)
     h, w = frame.shape[:2]
 
     for i, box in enumerate(res.boxes):
@@ -120,16 +133,21 @@ def process_frame(
         label = names.get(cls_id, LABELS[cls_id] if cls_id < len(LABELS) else str(cls_id))
         polygon: list[list[int]] | None = None
 
-        # Đổi mask seg thành polygon để vẽ và cho frontend phủ hình
+        # Đổi mask seg thành polygon để vẽ và cho frontend phủ hình.
+        # Contour trên mask gốc nhỏ rồi scale điểm (nhanh hơn resize full-res)
         if masks is not None and i < len(masks):
             try:
                 m = (masks[i] > 0.5).astype(np.uint8)
-                m = cv2.resize(m, (w, h))
+                mh, mw = m.shape
                 contours, _ = cv2.findContours(m, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
                 if contours:
                     c = max(contours, key=cv2.contourArea)
-                    if cv2.contourArea(c) > 100:
-                        polygon = c.squeeze(1).tolist()
+                    pts = c.squeeze(1).astype(float)
+                    pts[:, 0] *= w / mw
+                    pts[:, 1] *= h / mh
+                    pts = pts.astype(np.int32)
+                    if cv2.contourArea(pts) > 100:
+                        polygon = pts.tolist()
                         if isinstance(polygon[0], int):
                             polygon = [polygon]
                         pts = np.array(polygon, dtype=np.int32)

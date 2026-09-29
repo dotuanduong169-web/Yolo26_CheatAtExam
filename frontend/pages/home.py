@@ -77,16 +77,23 @@ with col_sub:
     mon_thi = st.text_input("Môn thi", placeholder="VD: Toán", label_visibility="collapsed")
 
 with col_cam:
-    if devices:
-        selected = st.selectbox(
-            "Chọn thiết bị", devices,
-            format_func=lambda x: f"{x.get('TenThietBi')} ({x.get('MoTaViTri') or '—'})",
-            label_visibility="collapsed",
-        )
-        device_id = selected["PK_MaThietBi"]
+    options = [{"_machine": True, "TenThietBi": "📷 Camera máy", "MoTaViTri": "webcam"}] + devices
+    selected = st.selectbox(
+        "Chọn thiết bị", options,
+        format_func=lambda x: f"{x.get('TenThietBi')} ({x.get('MoTaViTri') or '—'})"
+        if not x.get("_machine") else "📷 Camera máy (webcam)",
+        label_visibility="collapsed",
+    )
+    if selected.get("_machine"):
+        from services.device_api import ensure_machine_camera
+        machine_dev = ensure_machine_camera(st.session_state.client)
+        if machine_dev:
+            device_id = machine_dev["PK_MaThietBi"]
+        else:
+            st.warning("Không mở được camera máy")
+            device_id = None
     else:
-        st.warning("Chưa có thiết bị (vào trang Thiết bị)")
-        device_id = None
+        device_id = selected["PK_MaThietBi"]
 
 with col_start:
     if not st.session_state["running"]:

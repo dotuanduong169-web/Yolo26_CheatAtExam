@@ -62,3 +62,15 @@ def delete_device(session: requests.Session, device_id: int):
     except requests.RequestException as exc:
         logger.warning(f"delete_device error: {exc}")
         return None
+
+
+def ensure_machine_camera(session: requests.Session) -> dict | None:
+    """Tìm thiết bị webcam của máy (RTSP '0'), chưa có thì tự đăng ký. Lỗi trả None."""
+    for dev in list_devices(session):
+        if dev.get("DuongDanRTSP") == "0":
+            return dev
+    res = create_device(session, "Camera may", "0", "webcam cua may chu")
+    if res is not None and res.status_code == 200:
+        return res.json()
+    logger.warning("ensure_machine_camera failed")
+    return None

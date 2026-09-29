@@ -12,7 +12,7 @@ class DetectedEvent(Base):
     __tablename__ = "tbl_detected_events"
 
     __table_args__ = (
-        CheckConstraint("\"LoaiHanhVi\" IN ('Cheat_Paper', 'cellphone')", name="ck_event_loai"),
+        CheckConstraint("\"LoaiHanhVi\" IN ('Cheat_Paper', 'cellphone', 'quay_dau', 'quay_sau', 'cui_xuong')", name="ck_event_loai"),
         CheckConstraint('"DoTinCay" >= 0 AND "DoTinCay" <= 1', name="ck_event_dotincay"),
         CheckConstraint(
             "\"TrangThaiKiemTra\" IN ('cho_kiem_tra', 'dung', 'sai')",

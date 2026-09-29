@@ -186,7 +186,7 @@ with right_col:
             st.session_state["show_fix_label"] = True
 
     if st.session_state.get("show_fix_label"):
-        fix_label = st.selectbox("Nhãn đúng là", ["Answer_paper", "Cheat_Paper", "cellphone"])
+        fix_label = st.selectbox("Nhãn đúng là", ["Answer_paper", "Cheat_Paper", "cellphone", "quay_dau", "quay_sau", "cui_xuong", "nhin_thang"])
         if st.button("Lưu xác minh sai", use_container_width=True):
             res = verify_event(st.session_state.client, event_id, "sai", fix_label)
             if res is not None and res.status_code == 200:

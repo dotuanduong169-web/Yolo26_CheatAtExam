@@ -46,6 +46,7 @@ class CameraState:
         self.lock = threading.Lock()
         # True/False gian lận từng frame gần nhất; snapshot chỉ ghi cheat đã xác nhận
         self.cheat_window: deque[bool] = deque(maxlen=CHEAT_WINDOW_MAXLEN)
+        self.behavior_window: deque[bool] = deque(maxlen=CHEAT_WINDOW_MAXLEN)
         self._initialized = True
 
     def reset(self) -> None:
@@ -63,6 +64,7 @@ class CameraState:
         self.latest_results = []
         self.recent.clear()
         self.cheat_window.clear()
+        self.behavior_window.clear()
         try:
             from ai_model.ai_pipeline import reset_tracker
             reset_tracker()
@@ -77,6 +79,15 @@ class CameraState:
         """True khi có ít nhất min_hits frame gian lận trong window frame gần nhất.
         Lọc phát hiện thoáng qua (false positive đơn lẻ) khỏi bản ghi snapshot."""
         recent = list(self.cheat_window)[-window:]
+        return len(recent) >= min_hits and sum(recent) >= min_hits
+
+    def note_frame_behavior(self, has_behavior: bool) -> None:
+        """Ghi nhận frame có/không có hành vi gian lận (quay/cúi) để debounce riêng."""
+        self.behavior_window.append(bool(has_behavior))
+
+    def is_behavior_confirmed(self, window: int = 5, min_hits: int = 3) -> bool:
+        """True khi hành vi gian lận lặp lại đủ trong cửa sổ (chống FP pose)."""
+        recent = list(self.behavior_window)[-window:]
         return len(recent) >= min_hits and sum(recent) >= min_hits
 
     def is_running(self) -> bool:

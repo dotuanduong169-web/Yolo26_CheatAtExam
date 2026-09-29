@@ -10,15 +10,30 @@ from ultralytics import YOLO
 
 from core.config import settings
 from core.logger import get_logger
+from ai_model.behavior import CHEAT_BEHAVIORS, classify_pose
 
 logger = get_logger(__name__)
 
 # Đường dẫn trọng số, cho phép ghi đè qua biến môi trường MODEL_PATH.
 # Ưu tiên bản OpenVINO (nhanh ~2.6x trên CPU), fallback về .pt nếu thiếu.
 _AI_MODEL_DIR = Path(__file__).resolve().parent
+_PROJECT_ROOT = _AI_MODEL_DIR.parents[1]
 _DEFAULT_WEIGHTS = _AI_MODEL_DIR / "weights" / "best.pt"
 _OV_WEIGHTS = _AI_MODEL_DIR / "weights" / "best_openvino_model"
-_MODEL_PATH = Path(os.getenv("MODEL_PATH", str(_OV_WEIGHTS if _OV_WEIGHTS.exists() else _DEFAULT_WEIGHTS)))
+
+
+def _resolve_weight(path_str: str | None, default: Path) -> Path:
+    """Resolve đường dẫn weights: env tương đối thì tính từ gốc dự án."""
+    if not path_str:
+        return default
+    p = Path(path_str)
+    return p if p.is_absolute() else _PROJECT_ROOT / p
+
+
+_MODEL_PATH = _resolve_weight(
+    os.getenv("MODEL_PATH"),
+    _OV_WEIGHTS if _OV_WEIGHTS.exists() else _DEFAULT_WEIGHTS,
+)
 
 # Thứ tự nhãn phải khớp đúng dataset huấn luyện dataset_seg_v4
 LABELS = ["Answer_paper", "Cheat_Paper", "cellphone"]
@@ -37,11 +52,22 @@ TRACK_STRIDE = max(1, int(os.getenv("MODEL_STRIDE", "2")))
 TRACK_KEEP = max(1, int(os.getenv("MODEL_KEEP", "5")))
 _track_alive: dict[int, list] = {}  # track_id -> [label, conf, bbox, ttl]
 
-# Màu vẽ khung: bài làm xanh lá, phao đỏ, điện thoại cam
+# Model pose (YOLO26n-pose OpenVINO): phát hiện hành vi quay đầu/cúi.
+# OV export khóa imgsz 320 — không chỉnh POSE_IMGSZ lên cao hơn.
+_POSE_DEFAULT = _AI_MODEL_DIR / "weights" / "yolo26n-pose_openvino_model"
+_POSE_PATH = _resolve_weight(os.getenv("POSE_MODEL_PATH"), _POSE_DEFAULT)
+POSE_IMGSZ = 320
+POSE_CONF = float(os.getenv("POSE_CONF", "0.25"))
+POSE_STRIDE = max(1, int(os.getenv("POSE_STRIDE", "3")))
+
+# Màu vẽ khung: bài làm xanh lá, phao đỏ, điện thoại cam, hành vi tím
 COLORS = {
     "Answer_paper": (0, 255, 0),
     "Cheat_Paper": (0, 0, 255),
     "cellphone": (0, 165, 255),
+    "quay_dau": (255, 0, 255),
+    "quay_sau": (255, 0, 255),
+    "cui_xuong": (255, 0, 255),
 }
 
 # Nạp model an toàn: thiếu weights thì trả rỗng thay vì crash lúc import
@@ -61,14 +87,32 @@ except Exception as exc:
     logger.error(f"Failed to load model: {exc}", exc_info=True)
     _yolo_model = None
 
+# Nạp model pose riêng (thiếu thì chỉ tắt nhánh hành vi, seg vẫn chạy)
+logger.info(f"Loading pose model from: {_POSE_PATH}")
+try:
+    _pose_model = (
+        YOLO(str(_POSE_PATH), task="pose") if _POSE_PATH.exists() else None
+    )
+    if _pose_model is None:
+        logger.warning(f"Pose weights not found: {_POSE_PATH} — tắt phát hiện hành vi")
+except Exception as exc:
+    logger.error(f"Failed to load pose model: {exc}", exc_info=True)
+    _pose_model = None
+
 
 def reset_tracker() -> None:
-    """Xóa trạng thái track (gọi khi đổi nguồn video/camera)."""
+    """Xóa trạng thái track (gọi khi đổi nguồn video/camera).
+    Điểm logic: luôn xóa box giữ lại; chỉ reset predictor với model .pt
+    (null predictor làm track() trên OpenVINO trả rỗng vĩnh viễn)."""
     _track_alive.clear()
     try:
         # Đặt predictor về None để lần track sau dựng mới hoàn toàn;
         # gán trackers=[] làm track() trả rỗng (đã gặp thực tế).
-        if _yolo_model is not None and getattr(_yolo_model, "predictor", None) is not None:
+        if (
+            _yolo_model is not None
+            and not _MODEL_PATH.is_dir()
+            and getattr(_yolo_model, "predictor", None) is not None
+        ):
             _yolo_model.predictor = None
     except Exception:
         pass
@@ -168,9 +212,47 @@ def process_frame(
             "label": label,
             "confidence": round(conf, 4),
             "is_cheat": label in CHEAT_LABELS,
+            "kind": "object",
         })
 
     return frame, results_data
+
+
+def _run_pose(frame: np.ndarray) -> list[dict]:
+    """Chạy pose + rule hành vi, trả detection kind=behavior (chỉ hành vi gian lận).
+    Điểm logic: bỏ nhin_thang; conf lấy từ rule keypoints."""
+    out: list[dict] = []
+    try:
+        res = _pose_model(frame, imgsz=POSE_IMGSZ, conf=POSE_CONF, verbose=False)[0]
+    except Exception as exc:
+        logger.debug(f"Pose inference failed: {exc}")
+        return out
+    if res.boxes is None or res.keypoints is None:
+        return out
+    kpts = res.keypoints.data
+    for i, box in enumerate(res.boxes):
+        try:
+            bbox = list(map(int, box.xyxy[0].tolist()))
+        except Exception:
+            continue
+        if i >= len(kpts):
+            continue
+        try:
+            kp = kpts[i].cpu().numpy() if hasattr(kpts[i], "cpu") else np.asarray(kpts[i])
+            label, bconf = classify_pose(kp)
+        except Exception:
+            continue
+        if label not in CHEAT_BEHAVIORS:
+            continue
+        out.append({
+            "bbox": bbox,
+            "mask": None,
+            "label": label,
+            "confidence": round(bconf, 4),
+            "is_cheat": True,
+            "kind": "behavior",
+        })
+    return out
 
 
 def _process_frame_tracked(
@@ -178,7 +260,8 @@ def _process_frame_tracked(
 ) -> tuple[np.ndarray, list[dict]]:
     """Bản tối ưu: ByteTrack + infer cách frame + giữ box khi flicker.
     Điểm logic: frame lẻ tái dùng box frame chẵn (giảm nửa infer);
-    box mất dấu được giữ TRACK_KEEP frame trước khi xóa."""
+    box mất dấu được giữ TRACK_KEEP frame trước khi xóa;
+    pose chạy stride riêng, hành vi gian lận gắn kind=behavior."""
     results_data: list[dict] = []
     if frame_count % TRACK_STRIDE == 0:
         try:
@@ -219,12 +302,19 @@ def _process_frame_tracked(
             "label": label,
             "confidence": round(conf, 4),
             "is_cheat": label in CHEAT_LABELS,
+            "kind": "object",
             "track_id": track_id,
         })
+
+    if _pose_model is not None and frame_count % POSE_STRIDE == 0:
+        for b in _run_pose(frame):
+            _draw_detection(frame, b["label"], b["confidence"], b["bbox"])
+            results_data.append(b)
+
     return frame, results_data
 
 
 def is_cheat_label(label: str | None) -> bool:
-    """Kiểm tra nhãn gian lận (Cheat_Paper hoặc cellphone).
-    Điểm logic: nhãn rỗng hoặc Answer_paper thì coi như không gian lận."""
-    return (label or "") in CHEAT_LABELS
+    """Kiểm tra nhãn gian lận (Cheat_Paper, cellphone hoặc hành vi quay/cúi).
+    Điểm logic: nhãn rỗng, Answer_paper hay nhin_thang thì coi như không gian lận."""
+    return (label or "") in CHEAT_LABELS or (label or "") in CHEAT_BEHAVIORS

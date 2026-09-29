@@ -91,11 +91,7 @@ def capture_loop() -> None:
                             break
                     if annotated is None:
                         annotated = frame
-                    confirmed = [
-                        r for r in results
-                        if not r.get("is_cheat")
-                        or state.is_cheat_confirmed(CHEAT_WINDOW, CHEAT_MIN_HITS)
-                    ]
+                    confirmed = [r for r in results if _keep_result(state, r)]
                     _save_snapshot(
                         db, state,
                         annotated,
@@ -135,10 +131,28 @@ def _infer_worker(state: CameraState) -> None:
                 state.latest_frame = annotated
                 state.latest_results = results
                 state.recent.append((annotated, results))
-            state.note_frame_cheat(any(r.get("is_cheat") for r in results))
+            state.note_frame_cheat(any(
+                r.get("is_cheat") and r.get("kind", "object") == "object" for r in results
+            ))
+            state.note_frame_behavior(any(
+                r.get("kind") == "behavior" for r in results
+            ))
         except Exception as exc:
             logger.debug(f"Infer worker failed: {exc}")
             time.sleep(0.05)
+
+
+def _keep_result(state: CameraState, r: dict) -> bool:
+    """Quyết định giữ detection vào snapshot.
+    Điểm logic: vật sạch luôn giữ; vật gian lận cần debounce 3/5;
+    hành vi quay/cúi cần debounce riêng; quay_sau ghi ngay (hiếm, nghiêm trọng)."""
+    if not r.get("is_cheat"):
+        return True
+    if r.get("kind") == "behavior":
+        if r.get("label") == "quay_sau":
+            return True
+        return state.is_behavior_confirmed(CHEAT_WINDOW, CHEAT_MIN_HITS)
+    return state.is_cheat_confirmed(CHEAT_WINDOW, CHEAT_MIN_HITS)
 
 
 def _save_snapshot(

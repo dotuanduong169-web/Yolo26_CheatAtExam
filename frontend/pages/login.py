@@ -41,30 +41,54 @@ if st.button("Quên mật khẩu?"):
 
 if st.button("Đăng nhập", type="primary", use_container_width=True):
     if not username or not password:
-        st.error("❌ Vui lòng nhập đầy đủ tên đăng nhập và mật khẩu")
+        st.error("Vui lòng nhập đầy đủ tên đăng nhập và mật khẩu")
     else:
         with st.spinner("Đang kiểm tra..."):
             res = login(st.session_state.client, username, password)
 
         if res is None:
-            st.error("❌ Không kết nối được server")
+            st.error("Không kết nối được server")
         elif res.status_code == 200:
             data = res.json()
             st.session_state["access_token_value"] = data.get("access_token")
             st.session_state["refresh_token_value"] = data.get("refresh_token")
             st.session_state["user_role"] = data.get("role", "teacher")
+            st.session_state["username"] = username
             st.session_state["is_login"] = True
-            st.success("✅ Đăng nhập thành công")
-            st.switch_page("pages/home.py")
-        elif res.status_code == 401:
-            st.error("❌ Tên đăng nhập hoặc mật khẩu không chính xác")
-        else:
-            st.error(f"❌ Lỗi: {res.text}")
 
-# ── Footer ──────────────────────────────────────────────────
-st.markdown("""
-<div class="register-footer">
-    <span class="text-muted">Chưa có tài khoản?</span> 
-    <a href="register" target="_self" class="register-link">Đăng ký ngay</a>
-</div>
-""", unsafe_allow_html=True)
+            # Lấy họ tên hiển thị
+            try:
+                from services.user_api import get_user
+                profile = get_user(st.session_state.client)
+                if profile:
+                    st.session_state["user_fullname"] = profile.get("HoVaTen")
+            except Exception:
+                pass
+
+            st.success("Đăng nhập thành công")
+            st.switch_page("pages/home.py")
+
+        elif res.status_code == 401:
+            st.error("Tên đăng nhập hoặc mật khẩu không chính xác")
+        else:
+            st.error(f"Lỗi: {res.text}")
+
+st.markdown("<div style='height: 10px;'></div>", unsafe_allow_html=True)
+col_demo1, col_demo2 = st.columns(2)
+with col_demo1:
+    if st.button("Vào nhanh (Admin Demo)", use_container_width=True):
+        st.session_state["access_token_value"] = "demo_token_admin"
+        st.session_state["user_role"] = "admin"
+        st.session_state["username"] = "admin_duong"
+        st.session_state["user_fullname"] = "Đỗ Tuấn Dương"
+        st.session_state["is_login"] = True
+        st.switch_page("pages/home.py")
+
+with col_demo2:
+    if st.button("Vào nhanh (Giám thị Demo)", use_container_width=True):
+        st.session_state["access_token_value"] = "demo_token_teacher"
+        st.session_state["user_role"] = "teacher"
+        st.session_state["username"] = "gv_le_ngoc_an"
+        st.session_state["user_fullname"] = "ThS. Lê Ngọc An"
+        st.session_state["is_login"] = True
+        st.switch_page("pages/home.py")

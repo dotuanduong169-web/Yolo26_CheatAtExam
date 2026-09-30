@@ -24,13 +24,39 @@ button[kind="header"] {
     width: 100vw;
     height: 60px;
     background-color: #ffffff;
-    border-bottom: 1px solid #f0f0f0;
+    border-bottom: 1px solid #cbd5e1;
     z-index: 1000000;
     display: flex;
     align-items: center;
     padding: 0 24px;
-    box-shadow: 0 2px 8px rgba(0,0,0,0.02);
+    box-shadow: 0 1px 3px rgba(0,0,0,0.04);
 }
+
+.top-meta-right {
+    margin-left: auto;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    font-size: 12px;
+    color: #64748b;
+}
+
+.top-meta-right .badge {
+    padding: 2px 8px;
+    border-radius: 12px;
+    font-size: 11px;
+    font-weight: 600;
+    background: #f1f5f9;
+    color: #334155;
+    border: 1px solid #cbd5e1;
+}
+
+.top-meta-right .badge.online {
+    background: #f0fdf4;
+    color: #16a34a;
+    border-color: #bbf7d0;
+}
+
 
 .top-logo-section {
     display: flex;

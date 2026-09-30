@@ -181,7 +181,30 @@ def admin_update(
     from core.exceptions import NotFoundError
 
     _require_admin(user)
-    updated = admin_update_user(db, user_id, data.VaiTro, data.TrangThai)
+    updated = admin_update_user(
+        db,
+        user_id,
+        vai_tro=data.VaiTro,
+        trang_thai=data.TrangThai,
+        ho_va_ten=data.HoVaTen,
+    )
     if not updated:
         raise NotFoundError(detail="User not found")
     return updated
+
+
+@router.post("/create", response_model=UserResponse)
+def admin_create_user_endpoint(
+    data: UserCreate,
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Admin tạo tài khoản mới từ giao diện quản trị."""
+    from core.exceptions import ConflictError
+    from crud.user_crud import create_user, get_user_by_username
+
+    _require_admin(user)
+    if get_user_by_username(db, data.TenDangNhap):
+        raise ConflictError(detail="Tên đăng nhập đã tồn tại")
+    return create_user(db, data)
+

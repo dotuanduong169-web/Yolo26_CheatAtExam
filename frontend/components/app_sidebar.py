@@ -8,30 +8,28 @@ def render_sidebar(active: str = "home") -> None:
     with st.sidebar:
         st.markdown('<div style="height: 10px;"></div>', unsafe_allow_html=True)
 
-        btn_home = st.button("🎥 Giám sát", key="nav_home", use_container_width=True)
-        btn_events = st.button("🚨 Sự kiện", key="nav_events", use_container_width=True)
-        btn_stats = st.button("📊 Thống kê", key="nav_statistics", use_container_width=True)
-        btn_hist = st.button("🕘 Lịch sử", key="nav_history", use_container_width=True)
-        btn_devices = st.button("📷 Thiết bị", key="nav_devices", use_container_width=True)
-        btn_settings = st.button("⚙️ Cài đặt", key="nav_setting", use_container_width=True)
+        btn_home = st.button("Giám sát trực tiếp", key="nav_home", use_container_width=True)
+        btn_events = st.button("Sự kiện phát hiện", key="nav_events", use_container_width=True)
+        btn_devices = st.button("Thiết bị biên", key="nav_devices", use_container_width=True)
+        btn_stats = st.button("Báo cáo thống kê", key="nav_statistics", use_container_width=True)
+        btn_users = st.button("Quản lý người dùng", key="nav_users", use_container_width=True)
 
         if btn_home: st.switch_page("pages/home.py")
         if btn_events: st.switch_page("pages/events.py")
-        if btn_stats: st.switch_page("pages/statistics.py")
-        if btn_hist: st.switch_page("pages/history.py")
         if btn_devices: st.switch_page("pages/devices.py")
-        if btn_settings: st.switch_page("pages/setting.py")
+        if btn_stats: st.switch_page("pages/statistics.py")
+        if btn_users: st.switch_page("pages/users.py")
 
-        menu_map = {"home": 1, "events": 2, "statistics": 3, "history": 4, "devices": 5, "setting": 6}
+        menu_map = {"home": 1, "events": 2, "devices": 3, "statistics": 4, "users": 5, "setting": 5}
         active_idx = menu_map.get(active, 1)
 
         st.markdown(f"""
         <style>
         section[data-testid="stSidebar"] [data-testid="stVerticalBlock"] > div:nth-child({active_idx + 1}) button {{
-            background-color: #1677ff !important;
+            background-color: #2563eb !important;
             color: white !important;
             font-weight: 600 !important;
-            box-shadow: 0 4px 12px rgba(22, 119, 255, 0.2) !important;
+            border-radius: 4px !important;
         }}
         section[data-testid="stSidebar"] [data-testid="stVerticalBlock"] > div:nth-child({active_idx + 1}) button p {{
             color: white !important;
@@ -39,7 +37,8 @@ def render_sidebar(active: str = "home") -> None:
         </style>
         """, unsafe_allow_html=True)
 
-        if st.button("↪️ Đăng xuất", key="logout_btn", use_container_width=True):
+
+        if st.button("Đăng xuất", key="logout_btn", use_container_width=True):
             try:
                 if "client" in st.session_state:
                     logout(st.session_state.client)

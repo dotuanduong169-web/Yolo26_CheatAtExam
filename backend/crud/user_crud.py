@@ -67,8 +67,9 @@ def admin_update_user(
     user_id: int,
     vai_tro: Optional[str] = None,
     trang_thai: Optional[str] = None,
+    ho_va_ten: Optional[str] = None,
 ) -> Optional[User]:
-    """Admin đổi vai trò/trạng thái. Field None thì giữ nguyên."""
+    """Admin đổi vai trò/trạng thái hoặc họ tên. Field None thì giữ nguyên."""
     user = db.query(User).filter(User.PK_MaNguoiDung == user_id).first()
     if not user:
         return None
@@ -77,6 +78,8 @@ def admin_update_user(
         user.VaiTro = vai_tro
     if trang_thai is not None:
         user.TrangThai = trang_thai
+    if ho_va_ten is not None:
+        user.HoVaTen = ho_va_ten
     db.commit()
     db.refresh(user)
     return user

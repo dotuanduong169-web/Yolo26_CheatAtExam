@@ -75,3 +75,79 @@ def change_password(
 
     except requests.RequestException as exc:
         return False, f"Lỗi kết nối: {exc}"
+
+
+def list_all_users(session: requests.Session, skip: int = 0, limit: int = 50) -> list:
+    """Liệt kê toàn bộ người dùng trong hệ thống (chỉ admin)."""
+    try:
+        res = session.get(
+            f"{API_BASE_URL}/users/list",
+            params={"skip": skip, "limit": limit},
+            headers=get_auth_headers(),
+        )
+        if res.status_code == 200:
+            return res.json()
+        logger.warning(f"list_all_users failed: {res.status_code}")
+        return []
+    except requests.RequestException as exc:
+        logger.warning(f"list_all_users error: {exc}")
+        return []
+
+
+def admin_update_user(
+    session: requests.Session,
+    user_id: int,
+    role: str | None = None,
+    status: str | None = None,
+    ho_va_ten: str | None = None,
+) -> tuple[bool, str | dict]:
+    """Admin cập nhật vai trò, trạng thái hoặc họ tên tài khoản người dùng."""
+    try:
+        payload = {}
+        if role is not None:
+            payload["VaiTro"] = role
+        if status is not None:
+            payload["TrangThai"] = status
+        if ho_va_ten is not None:
+            payload["HoVaTen"] = ho_va_ten
+
+        res = session.put(
+            f"{API_BASE_URL}/users/{user_id}",
+            json=payload,
+            headers=get_auth_headers(),
+        )
+        if res.status_code == 200:
+            return True, res.json()
+        detail = res.json().get("detail", "Lỗi server") if res.text else "Lỗi server"
+        return False, detail
+    except requests.RequestException as exc:
+        return False, f"Lỗi kết nối: {exc}"
+
+
+def admin_create_user(
+    session: requests.Session,
+    username: str,
+    full_name: str,
+    password: str,
+    role: str = "teacher",
+) -> tuple[bool, str | dict]:
+    """Admin tạo tài khoản người dùng mới."""
+    try:
+        res = session.post(
+            f"{API_BASE_URL}/users/create",
+            json={
+                "TenDangNhap": username,
+                "HoVaTen": full_name,
+                "MatKhau": password,
+                "VaiTro": role,
+            },
+            headers=get_auth_headers(),
+        )
+        if res.status_code in (200, 201):
+            return True, res.json()
+        detail = res.json().get("detail", "Lỗi server") if res.text else "Lỗi server"
+        return False, detail
+    except requests.RequestException as exc:
+        return False, f"Lỗi kết nối: {exc}"
+
+

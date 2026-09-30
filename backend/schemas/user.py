@@ -77,7 +77,8 @@ class UserResponse(BaseModel):
 
 
 class UserAdminUpdate(BaseModel):
-    """Admin đổi vai trò/trạng thái tài khoản."""
+    """Admin đổi vai trò/trạng thái hoặc họ tên tài khoản."""
 
     VaiTro: Optional[str] = Field(default=None, pattern="^(admin|teacher)$")
     TrangThai: Optional[str] = Field(default=None, pattern="^(hoat_dong|khoa)$")
+    HoVaTen: Optional[str] = Field(default=None, min_length=1, max_length=255)

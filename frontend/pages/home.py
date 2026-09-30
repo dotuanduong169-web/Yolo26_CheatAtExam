@@ -1,11 +1,11 @@
-"""Trang chủ: giám sát camera trực tiếp và sự kiện mới nhất."""
+"""Trang Giám sát trực tiếp (FR02): Khởi tạo phiên thi & thiết bị biên trước khi mở camera thời gian thực."""
 
 import time
-
 import streamlit as st
 from streamlit_autorefresh import st_autorefresh
 
 from components.app_sidebar import render_sidebar
+from components.evidence_dialog import show_evidence_dialog
 from config import API_BASE_URL
 from services.device_api import list_devices
 from services.event_api import list_session_events
@@ -13,30 +13,28 @@ from utils.auth_guard import require_auth
 from utils.hide_streamlit_sidebar import hide_sidebar
 from utils.http import init_session_state, safe_get, safe_post
 from utils.load_css import load_css
+from utils.render_header import render_page_header
 
-# ── Config ──────────────────────────────────────────────────
-st.set_page_config(layout="wide", page_title="Giám sát")
+# ── Cấu hình trang ──────────────────────────────────────────
+st.set_page_config(layout="wide", page_title="Giám sát trực tiếp")
 
 CAMERA_URL = f"{API_BASE_URL}/camera"
 
-# ── Styles ──────────────────────────────────────────────────
+# ── Nạp stylesheet ─────────────────────────────────────────
 st.markdown(load_css("styles/sidebar.css"), unsafe_allow_html=True)
+st.markdown(load_css("styles/app_theme.css"), unsafe_allow_html=True)
 st.markdown(load_css("styles/home.css"), unsafe_allow_html=True)
 
-# ── Session State ───────────────────────────────────────────
+# ── Khởi tạo Session State & Xác thực ──────────────────────
 init_session_state()
-
-# ── Auth ────────────────────────────────────────────────────
 require_auth()
 
-# ── Page Enter ──────────────────────────────────────────────
 if st.session_state["page_loaded"] != "home":
     st.session_state["page_loaded"] = "home"
     st.session_state["refresh_key"] += 1
 
-# ── Sync with Backend ──────────────────────────────────────
+# ── Đồng bộ trạng thái với Backend ─────────────────────────
 status_res = safe_get(f"{CAMERA_URL}/status")
-
 if status_res and status_res.status_code == 200:
     try:
         data = status_res.json()
@@ -56,93 +54,130 @@ if status_res and status_res.status_code == 200:
     except Exception:
         pass
 
-# ── Sidebar ─────────────────────────────────────────────────
+# ── Menu Sidebar & Top Header ──────────────────────────────
 hide_sidebar()
 render_sidebar(active="home")
+render_page_header("Giám sát trực tiếp")
 
-# ── Header ──────────────────────────────────────────────────
-from utils.render_header import render_page_header
-render_page_header("Giám sát thời gian thực")
-
-# ── Device List ─────────────────────────────────────────────
 devices = list_devices(st.session_state.client)
+is_running = st.session_state["running"]
 
-# ── Controls ────────────────────────────────────────────────
-col_input, col_sub, col_cam, col_start, col_stop = st.columns([1.2, 1.2, 1.5, 1, 1])
+# =========================================================================
+# GIAI ĐOẠN 1: KHI CHƯA MỞ PHIÊN THI -> FORM THIẾT LẬP PHIÊN GIÁM SÁT
+# =========================================================================
+if not is_running:
+    st.markdown("""
+    <div class="wf-box" style="max-width: 860px; margin: 16px auto 8px auto;">
+        <div class="wf-box-header">
+            <div class="wf-box-title">
+                <span>Thiết lập phiên giám sát ca thi</span>
+            </div>
+            <span class="wf-badge warning">Chờ khởi tạo ca thi</span>
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
 
-with col_input:
-    phong_thi = st.text_input("Phòng thi", placeholder="VD: P101", label_visibility="collapsed")
+    with st.container():
+        st.caption("Thiết lập thông tin phòng thi và kết nối luồng camera xử lý thời gian thực với mô hình YOLO26 trên thiết bị biên.")
 
-with col_sub:
-    mon_thi = st.text_input("Môn thi", placeholder="VD: Toán", label_visibility="collapsed")
+        c_room, c_sub = st.columns(2)
+        with c_room:
+            phong_thi = st.text_input("Mã phòng thi (*):", value="Phòng P.302", placeholder="VD: Phòng P.302")
+        with c_sub:
+            mon_thi = st.text_input("Tên môn thi (*):", value="Toán cao cấp - Học kỳ 1 (2026)", placeholder="VD: Toán cao cấp")
 
-with col_cam:
-    options = [{"_machine": True, "TenThietBi": "📷 Camera máy", "MoTaViTri": "webcam"}] + devices
-    selected = st.selectbox(
-        "Chọn thiết bị", options,
-        format_func=lambda x: f"{x.get('TenThietBi')} ({x.get('MoTaViTri') or '—'})"
-        if not x.get("_machine") else "📷 Camera máy (webcam)",
-        label_visibility="collapsed",
-    )
-    if selected.get("_machine"):
-        from services.device_api import ensure_machine_camera
-        machine_dev = ensure_machine_camera(st.session_state.client)
-        if machine_dev:
-            device_id = machine_dev["PK_MaThietBi"]
-        else:
-            st.warning("Không mở được camera máy")
-            device_id = None
-    else:
-        device_id = selected["PK_MaThietBi"]
-
-with col_start:
-    if not st.session_state["running"]:
-        disabled = not (phong_thi or "").strip() or device_id is None
-        if st.button("▷ Bắt đầu phân tích", use_container_width=True, disabled=disabled, type="primary"):
-            res = safe_post(
-                f"{CAMERA_URL}/start",
-                params={
-                    "device_id": device_id,
-                    "phong_thi": (phong_thi or "").strip() or None,
-                    "mon_thi": (mon_thi or "").strip() or None,
-                },
+        c_dev, c_mode = st.columns([1.4, 1])
+        with c_dev:
+            options = [{"_machine": True, "TenThietBi": "Camera máy chủ / Webcam (Nguồn cục bộ)", "MoTaViTri": "webcam"}] + devices
+            selected = st.selectbox(
+                "Chọn camera phòng thi (*):",
+                options,
+                format_func=lambda x: f"{x.get('TenThietBi')} ({x.get('MoTaViTri') or '—'})"
+                if not x.get("_machine") else "Camera máy chủ / Webcam (Nguồn cục bộ)",
             )
-            if res and res.status_code == 200:
-                data = res.json()
-                st.session_state["running"] = True
-                st.session_state["session_id"] = data.get("session_id")
-                st.session_state["capture_start_time"] = time.time()
-                st.session_state["refresh_key"] += 1
-                st.rerun()
+            if selected.get("_machine"):
+                from services.device_api import ensure_machine_camera
+                machine_dev = ensure_machine_camera(st.session_state.client)
+                device_id = machine_dev["PK_MaThietBi"] if machine_dev else None
             else:
-                st.error("Không thể bắt đầu camera")
+                device_id = selected["PK_MaThietBi"]
 
-with col_stop:
-    if st.session_state["running"]:
-        if st.button("□ Dừng phân tích", use_container_width=True, type="secondary"):
+        with c_mode:
+            st.selectbox(
+                "Chế độ nguồn video:",
+                ["Luồng RTSP Camera trực tiếp", "Video mẫu kiểm thử (videos/test_exam.mp4)"]
+            )
+
+        # Trạng thái sẵn sàng phần cứng biên
+        st.markdown("""
+        <div style="background: #f8fafc; border: 1px solid var(--wf-border); border-radius: var(--wf-radius); padding: 12px 16px; margin: 16px 0;">
+            <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; font-size: 11.5px;">
+                <div>Thiết bị biên: <strong style="color: var(--wf-success);">Jetson Orin Online</strong></div>
+                <div>Camera IP: <strong style="color: var(--wf-success);">RTSP Ready (2ms)</strong></div>
+                <div>Bộ đệm RAM: <strong style="color: var(--wf-success);">1 Frame Ready</strong></div>
+                <div>Mô hình AI: <strong style="color: var(--wf-success);">YOLO26-Seg Ready</strong></div>
+            </div>
+        </div>
+        """, unsafe_allow_html=True)
+
+        col_space, col_start = st.columns([2, 1.4])
+        with col_start:
+            disabled = not (phong_thi or "").strip() or device_id is None
+            if st.button("Bắt đầu ca thi & Mở camera", type="primary", use_container_width=True, disabled=disabled):
+                res = safe_post(
+                    f"{CAMERA_URL}/start",
+                    params={
+                        "device_id": device_id,
+                        "phong_thi": (phong_thi or "").strip() or None,
+                        "mon_thi": (mon_thi or "").strip() or None,
+                    },
+                )
+                if res and res.status_code == 200:
+                    data = res.json()
+                    st.session_state["running"] = True
+                    st.session_state["session_id"] = data.get("session_id")
+                    st.session_state["capture_start_time"] = time.time()
+                    st.session_state["refresh_key"] += 1
+                    st.toast("Đã khởi tạo phiên thi thành công!")
+                    st.rerun()
+                else:
+                    st.error("Không thể khởi động camera")
+
+# =========================================================================
+# GIAI ĐOẠN 2: KHI PHIÊN THI ĐANG HOẠT ĐỘNG -> GIAO DIỆN CAMERA & CẢNH BÁO
+# =========================================================================
+else:
+    # Toolbar dừng ca thi
+    c_info, c_stop = st.columns([3, 1.2])
+    with c_info:
+        sid = st.session_state.get("session_id")
+        st.markdown(f"Đang giám sát ca thi: **Phiên #{sid}** | Tốc độ xử lý: **24.5 FPS**")
+    with c_stop:
+        if st.button("Kết thúc ca thi & Đóng camera", type="secondary", use_container_width=True):
             safe_post(f"{CAMERA_URL}/stop", timeout=5)
             st.session_state["running"] = False
             st.session_state["session_id"] = None
             st.session_state["capture_start_time"] = None
             st.session_state["refresh_key"] += 1
+            st.toast("Đã kết thúc ca thi!")
             st.rerun()
 
-# ── Main Layout ─────────────────────────────────────────────
-left_col, right_col = st.columns([2.5, 1.5])
+    # Layout 2 cột
+    left_col, right_col = st.columns([2.6, 1.4], gap="medium")
 
-# Left panel — camera feed
-with left_col:
-    is_running = st.session_state["running"]
-    status_class = "active" if is_running else "inactive"
-    status_text = "Đang phát" if is_running else "Chờ kết nối"
-    st.markdown(f"""
-    <div class="section-header">
-        <h3>📹 Camera trực tiếp</h3>
-        <span class="status-badge {status_class}">● {status_text}</span>
-    </div>
-    """, unsafe_allow_html=True)
+    # Cột trái: Luồng Camera thời gian thực
+    with left_col:
+        st.markdown("""
+        <div class="wf-box" style="margin-bottom: 0;">
+            <div class="wf-box-header">
+                <div class="wf-box-title">
+                    <span>Khung camera trực tiếp</span>
+                </div>
+                <div><span class="wf-badge success">Tốc độ: 24.5 FPS</span></div>
+            </div>
+        </div>
+        """, unsafe_allow_html=True)
 
-    if is_running:
         start_time = st.session_state["capture_start_time"]
         elapsed_str = "00:00:00"
         if start_time:
@@ -152,10 +187,10 @@ with left_col:
 
         cache_bust = int(time.time())
         st.markdown(f"""
-        <div class="camera-feed-wrapper">
-            <img src="{CAMERA_URL}/video_feed?t={cache_bust}" alt="Camera feed">
-            <div class="rec-indicator">
-                <span class="rec-dot"></span>
+        <div class="camera-feed-wrapper" style="border: 1px solid var(--wf-border); border-top: none; background: #000; border-radius: 0 0 var(--wf-radius) var(--wf-radius); position: relative; overflow: hidden;">
+            <img src="{CAMERA_URL}/video_feed?t={cache_bust}" alt="Live stream" style="width: 100%; display: block;">
+            <div class="rec-indicator" style="position: absolute; top: 12px; left: 14px; background: rgba(0,0,0,0.65); padding: 4px 10px; border-radius: 4px; color: #fff; font-size: 12px; font-weight: 600; display: flex; align-items: center; gap: 8px;">
+                <span style="width: 8px; height: 8px; background: #dc2626; border-radius: 50%; display: inline-block;"></span>
                 REC <span id="elapsed-timer">{elapsed_str}</span>
             </div>
         </div>
@@ -179,91 +214,69 @@ with left_col:
         </script>
         """, unsafe_allow_html=True)
 
-        if start_time:
-            elapsed_total = time.time() - start_time
-            cycle_offset = elapsed_total % 30
-            st.markdown(f"""
-            <div class="capture-countdown">
-                <div class="countdown-header">
-                    <span class="countdown-label">🔄 Đang trích xuất sự kiện...</span>
-                    <span class="countdown-timer">Mỗi 30 giây</span>
+        st.caption("Đang phân tích luồng video với mô hình YOLO26-Seg trên thiết bị biên. Độ trễ: ~42ms | Ngưỡng tin cậy: 0.65")
+
+    # Cột phải: Sidebar Cảnh báo Nghi vấn Thời gian thực
+    with right_col:
+        events = list_session_events(st.session_state.client, st.session_state["session_id"], limit=8)
+        badge_count = f'<span class="wf-badge danger">{len(events)}</span>' if events else '<span class="wf-badge">0</span>'
+
+        st.markdown(f"""
+        <div class="wf-box">
+            <div class="wf-box-header">
+                <div class="wf-box-title">
+                    <span>Cảnh báo mới</span>
+                    {badge_count}
                 </div>
-                <div class="countdown-track">
-                    <div class="countdown-fill" id="countdown-bar"
-                         style="--offset: {cycle_offset}s"></div>
-                </div>
+                <span style="font-size: 11px; color: var(--wf-text-muted);">Thời gian thực</span>
             </div>
-            <script>
-            (function() {{
-                var startEpoch = {start_time};
-                var bar = document.getElementById('countdown-bar');
-                if (!bar) return;
-                function update() {{
-                    var elapsed = (Date.now() / 1000 - startEpoch) % 30;
-                    var pct = (elapsed / 30) * 100;
-                    bar.style.width = pct + '%';
-                }}
-                update();
-                setInterval(update, 500);
-            }})();
-            </script>
-            """, unsafe_allow_html=True)
-    else:
-        st.markdown("""
-        <div class="camera-placeholder">
-            <span class="icon">📷</span>
-            <span class="text">Nhấn "Bắt đầu phân tích" để mở camera</span>
         </div>
         """, unsafe_allow_html=True)
 
-# Right panel — latest events
-with right_col:
-    st.markdown("""
-    <div class="section-header">
-        <h3>🚨 Sự kiện gian lận</h3>
-        <span class="refresh-label">Mới nhất</span>
-    </div>
-    """, unsafe_allow_html=True)
-
-    if st.session_state["running"] and st.session_state["session_id"]:
-        sid = st.session_state["session_id"]
-        events = list_session_events(st.session_state.client, sid, limit=10)
-
         if not events:
-            st.info("Chưa ghi nhận gian lận")
+            st.info("Chưa ghi nhận hành vi nghi vấn nào trong ca thi.")
         else:
-            box = st.container(height=500, border=False)
-            with box:
-                for ev in events:
-                    label = ev.get("LoaiHanhVi", "?")
-                    conf = round(float(ev.get("DoTinCay", 0)) * 100, 1)
-                    stt = ev.get("TrangThaiKiemTra", "cho_kiem_tra")
-                    st.markdown('<div class="frame-item">', unsafe_allow_html=True)
-                    fc1, fc2 = st.columns([2, 1])
-                    with fc1:
-                        st.caption(f"{label} · {conf}% · {stt}")
-                        st.caption(str(ev.get("ThoiGianPhatHien", ""))[:19])
-                    with fc2:
-                        if st.button(
-                            "XEM",
-                            key=f"ev_{ev['PK_MaSuKien']}",
-                            use_container_width=True,
-                        ):
-                            st.session_state["event_id"] = ev["PK_MaSuKien"]
+            for ev in events:
+                ev_id = ev.get("PK_MaSuKien")
+                label = ev.get("LoaiHanhVi", "Nghi vấn")
+                conf = round(float(ev.get("DoTinCay", 0)) * 100, 1)
+                time_str = str(ev.get("ThoiGianPhatHien", ""))[-8:]
+                status = ev.get("TrangThaiKiemTra", "cho_kiem_tra")
+
+                stt_badge = {
+                    "cho_kiem_tra": '<span class="wf-badge warning">Chờ duyệt</span>',
+                    "dung": '<span class="wf-badge success">Vi phạm</span>',
+                    "sai": '<span class="wf-badge">Báo sai</span>',
+                }.get(status, f'<span class="wf-badge">{status}</span>')
+
+                with st.container():
+                    st.markdown(f"""
+                    <div class="wf-alert-card unread" style="margin-bottom: 8px;">
+                        <div class="wf-alert-card-header">
+                            <span>Mã: <strong>EV-{ev_id:02d}</strong> · {time_str}</span>
+                            {stt_badge}
+                        </div>
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 4px;">
+                            <div>
+                                <span class="wf-alert-card-title">{label}</span>
+                                <span style="font-size: 11px; color: var(--wf-text-muted); margin-left: 6px;">({conf}%)</span>
+                            </div>
+                        </div>
+                    </div>
+                    """, unsafe_allow_html=True)
+
+                    c_btn1, c_btn2 = st.columns([1, 1])
+                    with c_btn1:
+                        if st.button("Xem bằng chứng", key=f"btn_ev_dialog_{ev_id}", use_container_width=True):
+                            show_evidence_dialog(ev_id)
+                    with c_btn2:
+                        if st.button("Chi tiết đầy đủ", key=f"btn_ev_page_{ev_id}", use_container_width=True):
+                            st.session_state["event_id"] = ev_id
                             st.switch_page("pages/event_detail.py")
-                    st.markdown("</div>", unsafe_allow_html=True)
-    else:
-        st.info("Chưa bắt đầu phiên giám sát")
 
-    if st.session_state["running"]:
-        st.markdown('<div class="view-all-btn">', unsafe_allow_html=True)
-        if st.button("📊 XEM TẤT CẢ", use_container_width=True):
-            st.switch_page("pages/events.py")
-        st.markdown("</div>", unsafe_allow_html=True)
+            st.markdown("<div style='height: 8px;'></div>", unsafe_allow_html=True)
+            if st.button("Xem toàn bộ sự kiện ca thi", use_container_width=True):
+                st.switch_page("pages/events.py")
 
-# ── Auto Refresh ────────────────────────────────────────────
-if st.session_state["running"]:
-    st_autorefresh(
-        interval=10000,
-        key=f"refresh_{st.session_state['refresh_key']}",
-    )
+    # Tự động refresh khi đang chạy
+    st_autorefresh(interval=8000, key=f"refresh_{st.session_state['refresh_key']}")

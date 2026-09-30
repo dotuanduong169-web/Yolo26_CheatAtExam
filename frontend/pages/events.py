@@ -1,250 +1,206 @@
-# -*- coding: utf-8 -*-
-"""Trang sự kiện phiên: lưới sự kiện gian lận theo thời gian."""
+"""Trang Quản lý Sự kiện & Bằng chứng (FR03): Tra cứu nhật ký vi phạm, xem snapshot và xác minh đúng/sai."""
 
-import math
-
+import io
+import pandas as pd
 import streamlit as st
-from streamlit_autorefresh import st_autorefresh
 
 from components.app_sidebar import render_sidebar
+from components.evidence_dialog import show_evidence_dialog
 from services.event_api import list_session_events
-from services.history_api import get_all_sessions
+from services.history_api import get_all_sessions, get_session_detail, delete_session
 from utils.auth_guard import require_auth
 from utils.hide_streamlit_sidebar import hide_sidebar
 from utils.http import init_session_state
 from utils.load_css import load_css
 from utils.render_header import render_page_header
 
-# ── Config ──────────────────────────────────────────────────
-st.set_page_config(layout="wide", page_title="Sự kiện gian lận")
+# ── Cấu hình trang ──────────────────────────────────────────
+st.set_page_config(layout="wide", page_title="Sự kiện phát hiện")
 
 init_session_state()
-
-if "events_page" not in st.session_state:
-    st.session_state.events_page = 1
-if "events_filter" not in st.session_state:
-    st.session_state.events_filter = "Tất cả"
-
-# ── Hidden buttons for page navigation ───────────────────────
-col_a1, col_a2, col_a3, col_a4, col_a5 = st.columns(5)
-with col_a1:
-    st.markdown('<div id="hide-nav-row-analysis"></div>', unsafe_allow_html=True)
-    if st.button("Go analysis 1", key="analysis_go_1", disabled=True):
-        st.session_state.events_page = 1
-with col_a2:
-    if st.button("Go analysis 2", key="analysis_go_2", disabled=True):
-        st.session_state.events_page = 2
-with col_a3:
-    if st.button("Go analysis 3", key="analysis_go_3", disabled=True):
-        st.session_state.events_page = 3
-with col_a4:
-    if st.button("Go analysis 4", key="analysis_go_4", disabled=True):
-        st.session_state.events_page = 4
-with col_a5:
-    if st.button("Go analysis 5", key="analysis_go_5", disabled=True):
-        st.session_state.events_page = 5
-
-st.markdown("""
-<style>
-    [data-testid="stHorizontalBlock"]:has(#hide-nav-row-analysis) {
-        display: none !important;
-    }
-</style>
-<script>
-    (function() {
-        const marker = document.getElementById('hide-nav-row-analysis');
-        if (marker) {
-            const row = marker.closest('[data-testid="stHorizontalBlock"]');
-            if (row) {
-                row.style.display = 'none';
-                row.style.height = '0';
-                row.style.margin = '0';
-                row.style.padding = '0';
-            }
-        }
-    })();
-</script>
-""", unsafe_allow_html=True)
-
 require_auth()
 
-# ── Sidebar & Styles ────────────────────────────────────────
+# ── Styles & Sidebar ────────────────────────────────────────
 hide_sidebar()
 render_sidebar(active="events")
 st.markdown(load_css("styles/sidebar.css"), unsafe_allow_html=True)
-st.markdown(load_css("styles/session_analysis.css"), unsafe_allow_html=True)
+st.markdown(load_css("styles/app_theme.css"), unsafe_allow_html=True)
+render_page_header("Sự kiện phát hiện")
 
-# ── Session ID ──────────────────────────────────────────────
-session_id = st.session_state.get("session_id") or st.session_state.get("selected_session")
-if not session_id:
-    st.warning("Chưa chọn phiên giám sát. Mở giám sát hoặc chọn trong Lịch sử.")
+# ── Lấy danh sách phiên thi ─────────────────────────────────
+client = st.session_state.client
+all_sessions = get_all_sessions(client)
+
+if not all_sessions:
+    st.info("Chưa có phiên thi nào được ghi nhận trong cơ sở dữ liệu.")
     st.stop()
 
-# ── Session Name ────────────────────────────────────────────
-room_name = f"#{session_id}"
-all_sessions = get_all_sessions(st.session_state.client)
-for s in all_sessions:
-    if s.get("PK_MaPhienGiamSat") == session_id:
-        room_name = s.get("PhongThi") or s.get("MonThi") or room_name
-        break
+# Tab phân tách: Danh sách sự kiện & Tra cứu lịch sử phiên thi
+tab_events, tab_sessions = st.tabs(["Nhật ký sự kiện & Xác minh", "Danh mục ca thi"])
 
-# ── Header ──────────────────────────────────────────────────
-render_page_header("Sự kiện gian lận")
-if st.button("← Quay lại giám sát"):
-    st.switch_page("pages/home.py")
+# =========================================================================
+# TAB 1: NHẬT KÝ SỰ KIỆN PHÁT HIỆN
+# =========================================================================
+with tab_events:
+    # ── Bộ lọc ──────────────────────────────────────────────
+    f_c1, f_c2, f_c3 = st.columns([1.6, 1.2, 1.2])
 
-st.markdown(f"""
-<div class="header-meta">
-    <span class="tag tag-blue">PHIÊN {session_id}</span>
-    <span class="tag-text">Phòng: {room_name}</span>
-</div>
-""", unsafe_allow_html=True)
+    with f_c1:
+        # Tùy chọn phiên thi
+        active_sid = st.session_state.get("session_id")
+        session_options = {s["PK_MaPhienGiamSat"]: f"Phiên #{s['PK_MaPhienGiamSat']} - {s.get('PhongThi') or 'P.Thi'} ({s.get('MonThi') or 'Môn'})" for s in all_sessions}
+        
+        default_idx = 0
+        if active_sid and active_sid in session_options:
+            default_idx = list(session_options.keys()).index(active_sid)
 
-# ── Filter ──────────────────────────────────────────────────
-flt = st.selectbox(
-    "Lọc trạng thái",
-    ["Tất cả", "cho_kiem_tra", "dung", "sai"],
-    index=["Tất cả", "cho_kiem_tra", "dung", "sai"].index(st.session_state.events_filter),
-)
-if flt != st.session_state.events_filter:
-    st.session_state.events_filter = flt
-    st.session_state.events_page = 1
-    st.rerun()
+        selected_sid = st.selectbox(
+            "Chọn phiên giám sát",
+            options=list(session_options.keys()),
+            format_func=lambda x: session_options.get(x, f"Phiên #{x}"),
+            index=default_idx,
+        )
 
-trang_thai = "" if flt == "Tất cả" else flt
-events = list_session_events(st.session_state.client, session_id, trang_thai=trang_thai, limit=200)
+    with f_c2:
+        filter_behavior = st.selectbox(
+            "Loại hành vi",
+            ["Tất cả", "Cheat_Paper (Tài liệu)", "cellphone (Điện thoại)", "Head_Turn (Quay đầu)"]
+        )
 
-st.markdown(
-    '<div class="section-title">Dòng thời gian sự kiện (mới nhất trước)</div>',
-    unsafe_allow_html=True,
-)
+    with f_c3:
+        filter_status = st.selectbox(
+            "Trạng thái kiểm tra",
+            ["Tất cả", "Chờ kiểm tra", "Đã xác nhận vi phạm", "Bác bỏ (Báo sai)"]
+        )
 
-if not events:
-    st.info("Chưa có sự kiện nào.")
-    st.stop()
+    # ── Tải danh sách sự kiện ────────────────────────────────
+    status_param = None
+    if filter_status == "Chờ kiểm tra":
+        status_param = "cho_kiem_tra"
+    elif filter_status == "Đã xác nhận vi phạm":
+        status_param = "dung"
+    elif filter_status == "Bác bỏ (Báo sai)":
+        status_param = "sai"
 
-# ── Pagination ──────────────────────────────────────────────
-PER_PAGE = 6
-total = len(events)
-pages = max(1, math.ceil(total / PER_PAGE))
-page = min(st.session_state.events_page, pages)
-st.session_state.events_page = page
+    events = list_session_events(client, selected_sid, trang_thai=status_param or "", limit=100)
 
-start = (page - 1) * PER_PAGE
-show_events = events[start:start + PER_PAGE]
+    # Lọc hành vi phía client nếu cần
+    if filter_behavior != "Tất cả":
+        key_check = "Cheat_Paper" if "Cheat_Paper" in filter_behavior else ("cellphone" if "cellphone" in filter_behavior else "Head_Turn")
+        events = [e for e in events if key_check.lower() in (e.get("LoaiHanhVi") or "").lower()]
 
-row1 = show_events[:3]
-row2 = show_events[3:6]
-
-
-def render_card(item, col):
-    """Vẽ một thẻ sự kiện."""
-    with col:
-        pending = item.get("TrangThaiKiemTra") == "cho_kiem_tra"
-        card_cls = "frame-card alert" if pending else "frame-card"
-        status_cls = "warning" if pending else "active"
-        status_text = "CHỜ KIỂM TRA" if pending else item.get("TrangThaiKiemTra", "").upper()
-
-        raw_time = str(item.get("ThoiGianPhatHien", ""))
-        time_short = raw_time.split("T")[-1][:8] if "T" in raw_time else raw_time[:8]
-        label = item.get("LoaiHanhVi", "?")
-        conf = round(float(item.get("DoTinCay", 0)) * 100, 1)
-
-        st.markdown(f'<div class="{card_cls}">', unsafe_allow_html=True)
-        st.markdown(f"""
-        <div class="img-container">
-            <div class="time-overlay">{time_short}</div>
-            <div class="status-overlay {status_cls}">{status_text}</div>
-        </div>
-        """, unsafe_allow_html=True)
-
-        st.markdown(f"""
-        <div class="card-info-title">{label} · {conf}%</div>
-        <div class="card-info-time">Phát hiện lúc {raw_time[:19]}</div>
-        """, unsafe_allow_html=True)
-
-        st.markdown(f"""
-        <div class="stats-row">
-            <div class="stat-box">
-                <div class="stat-label">NHÃN AI</div>
-                <div class="stat-value blue">{item.get("NhanAI", "?")}</div>
-            </div>
-            <div class="stat-box">
-                <div class="stat-label">NHÃN SỬA</div>
-                <div class="stat-value red">{item.get("NhanNguoiDung") or "—"}</div>
+    st.markdown(f"""
+    <div class="wf-box">
+        <div class="wf-box-header">
+            <div class="wf-box-title">Danh sách sự kiện phát hiện gian lận · Phiên #{selected_sid}</div>
+            <div>
+                <span class="wf-badge danger">Tổng sự kiện: {len(events)}</span>
             </div>
         </div>
-        """, unsafe_allow_html=True)
+    </div>
+    """, unsafe_allow_html=True)
 
-        if st.button("Xem chi tiết", use_container_width=True, key=f"evdetail_{item['PK_MaSuKien']}"):
-            st.session_state["event_id"] = item["PK_MaSuKien"]
-            st.switch_page("pages/event_detail.py")
+    if not events:
+        st.info("Không có sự kiện nào khớp với tiêu chí lọc.")
+    else:
+        # Tiêu đề hàng bảng (Đồng bộ font/màu mặc định của bảng)
+        th1, th2, th3, th4, th5, th6, th7 = st.columns([0.9, 1.6, 1.8, 0.9, 1.5, 1.2, 1.3])
+        th1.caption("MÃ SỰ KIỆN")
+        th2.caption("THỜI GIAN")
+        th3.caption("NHÃN AI")
+        th4.caption("ĐỘ TIN CẬY")
+        th5.caption("NHÃN XÁC MINH")
+        th6.caption("TRẠNG THÁI")
+        th7.caption("HÀNH ĐỘNG")
 
-        st.markdown("</div>", unsafe_allow_html=True)
+        st.markdown("<hr style='margin: 4px 0 8px 0; border: none; border-top: 1px solid var(--wf-border);'>", unsafe_allow_html=True)
+
+        # Hiển thị dạng bảng trực quan với 3 nút icon button chuẩn nghiệp vụ (theo kiểu ảnh 1)
+        from services.event_api import verify_event
+        for ev in events:
+            ev_id = ev.get("PK_MaSuKien")
+            label = ev.get("LoaiHanhVi", "?")
+            conf = round(float(ev.get("DoTinCay", 0)) * 100, 1)
+            time_str = str(ev.get("ThoiGianPhatHien", ""))[:19]
+            stt = ev.get("TrangThaiKiemTra", "cho_kiem_tra")
+            user_label = ev.get("NhanNguoiDung")
+
+            stt_badge = {
+                "cho_kiem_tra": '<span class="wf-badge warning">Chờ kiểm tra</span>',
+                "dung": '<span class="wf-badge success">Xác nhận</span>',
+                "sai": '<span class="wf-badge danger">Bác bỏ</span>',
+            }.get(stt, f'<span class="wf-badge">{stt}</span>')
+
+            with st.container():
+                c1, c2, c3, c4, c5, c6, c7 = st.columns([0.9, 1.6, 1.8, 0.9, 1.5, 1.2, 1.3])
+                with c1:
+                    st.markdown(f"<strong>EV-{ev_id:02d}</strong>", unsafe_allow_html=True)
+                with c2:
+                    st.caption(time_str)
+                with c3:
+                    st.markdown(f"<span style='color: var(--wf-danger); font-weight: 600;'>{label}</span>", unsafe_allow_html=True)
+                with c4:
+                    st.caption(f"{conf}%")
+                with c5:
+                    if user_label:
+                        st.markdown(f"<strong>{user_label}</strong>", unsafe_allow_html=True)
+                    else:
+                        st.caption("—")
+                with c6:
+                    st.markdown(stt_badge, unsafe_allow_html=True)
+                with c7:
+                    # 3 Icon Button chuẩn nghiệp vụ: Xem ảnh & xác minh (Eye), Xác nhận vi phạm (Check), Bác bỏ (Cross)
+                    act1, act2, act3 = st.columns(3)
+                    with act1:
+                        if st.button("👁", key=f"view_ev_{ev_id}", help="Xem chi tiết & xác minh lại nhãn đúng"):
+                            show_evidence_dialog(ev_id)
+                    with act2:
+                        if st.button("✓", key=f"confirm_ev_{ev_id}", help="Xác nhận đúng vi phạm"):
+                            verify_event(client, ev_id, "dung", label)
+                            st.toast(f"Đã xác nhận sự kiện EV-{ev_id:02d} là Vi phạm ({label})")
+                            st.rerun()
+                    with act3:
+                        if st.button("✕", key=f"reject_ev_{ev_id}", help="Bác bỏ vi phạm (Báo sai: Giấy thi hợp lệ)"):
+                            verify_event(client, ev_id, "sai", "Answer_paper")
+                            st.toast(f"Đã bác bỏ sự kiện EV-{ev_id:02d} (Báo sai)")
+                            st.rerun()
+
+                st.markdown("<hr style='margin: 4px 0 8px 0; border: none; border-top: 1px solid var(--wf-border);'>", unsafe_allow_html=True)
 
 
-if row1:
-    cols1 = st.columns(3)
-    for i, item in enumerate(row1):
-        render_card(item, cols1[i])
+# =========================================================================
+# TAB 2: TRA CỨU DANH MỤC CA THI
+# =========================================================================
+with tab_sessions:
+    st.markdown("""
+    <div class="wf-box">
+        <div class="wf-box-header">
+            <div class="wf-box-title">Danh mục ca thi đã ghi nhận</div>
+            <span style="font-size: 11px; color: var(--wf-text-muted);">Lịch sử giám sát</span>
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
 
-if row2:
-    cols2 = st.columns(3)
-    for i, item in enumerate(row2):
-        render_card(item, cols2[i])
+    for s in all_sessions:
+        s_id = s.get("PK_MaPhienGiamSat")
+        room = s.get("PhongThi") or "Chưa đặt"
+        subject = s.get("MonThi") or "Chưa đặt"
+        start_t = str(s.get("ThoiGianBatDau", ""))[:19]
+        end_t = str(s.get("ThoiGianKetThuc", "Đang diễn ra"))[:19] if s.get("ThoiGianKetThuc") else "Đang diễn ra"
+        event_count = s.get("so_su_kien", 0)
 
-# ── Pagination row ──────────────────────────────────────────
-st.markdown('<div id="analysis-pagination-row">', unsafe_allow_html=True)
-info_col, prev_col, nums_col, next_col = st.columns([4, 1, 4, 1], gap="small")
-
-with info_col:
-    st.markdown(
-        f"<div class='pg-info-label'>Hiển thị {len(show_events)} trong số {total} sự kiện</div>",
-        unsafe_allow_html=True,
-    )
-
-p_start = max(1, page - 2)
-p_end = min(pages, page + 2)
-page_btns_html = ""
-if p_start > 1:
-    page_btns_html += '<span class="pg-btn">1</span><span class="pg-btn disabled">…</span>'
-for p in range(p_start, p_end + 1):
-    active = "active" if p == page else ""
-    page_btns_html += f'<span class="pg-btn {active}" data-page="{p}">{p}</span>'
-if p_end < pages:
-    page_btns_html += f'<span class="pg-btn disabled">…</span><span class="pg-btn">{pages}</span>'
-
-with nums_col:
-    st.markdown(
-        f"<div class='pg-nums-bar'>{page_btns_html}</div>",
-        unsafe_allow_html=True,
-    )
-
-with prev_col:
-    if st.button("‹", disabled=(page <= 1), key="pg_prev"):
-        st.session_state.events_page -= 1
-        st.rerun()
-
-with next_col:
-    if st.button("›", disabled=(page >= pages), key="pg_next"):
-        st.session_state.events_page += 1
-        st.rerun()
-
-st.markdown('</div>', unsafe_allow_html=True)
-
-st.markdown("""
-<script>
-    document.querySelectorAll('#analysis-pagination-row .pg-btn[data-page]').forEach(btn => {
-        btn.style.cursor = 'pointer';
-        btn.addEventListener('click', function() {
-            const page = parseInt(this.dataset.page);
-            const hiddenBtn = document.querySelector('button[data-testid*="analysis_go_' + page + '"]');
-            if (hiddenBtn) hiddenBtn.click();
-        });
-    });
-</script>
-""", unsafe_allow_html=True)
-
-# ── Auto Refresh ────────────────────────────────────────────
-if st.session_state.get("running", False):
-    st_autorefresh(interval=10000, key="events_refresh")
+        with st.container():
+            sc1, sc2, sc3, sc4, sc5 = st.columns([1, 2, 2, 1.2, 1.2])
+            with sc1:
+                st.markdown(f"<strong>Ca #{s_id}</strong>", unsafe_allow_html=True)
+            with sc2:
+                st.markdown(f"Phòng: <strong>{room}</strong> | Môn: <strong>{subject}</strong>", unsafe_allow_html=True)
+            with sc3:
+                st.caption(f"{start_t} → {end_t}")
+            with sc4:
+                st.markdown(f"<span class='wf-badge'>Sự kiện: {event_count}</span>", unsafe_allow_html=True)
+            with sc5:
+                if st.button("Chi tiết ca", key=f"btn_session_{s_id}", use_container_width=True):
+                    st.session_state["session_id"] = s_id
+                    st.rerun()
+            st.markdown("<hr style='margin: 4px 0 10px 0; border: none; border-top: 1px solid var(--wf-border);'>", unsafe_allow_html=True)

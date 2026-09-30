@@ -21,6 +21,36 @@ from api.router import (
 # ── Cơ sở dữ liệu ────────────────────────────────────────────────
 models.Base.metadata.create_all(bind=engine)
 
+def init_default_admin():
+    """Tự động tạo tài khoản admin mặc định nếu chưa tồn tại."""
+    from database.database import SessionLocal
+    from models.user import User
+    from core.security import hash_password
+    with SessionLocal() as db:
+        admin_exists = db.query(User).filter(
+            User.TenDangNhap == "admin"
+        ).first()
+        if not admin_exists:
+            admin_user = User(
+                TenDangNhap="admin",
+                MatKhau=hash_password("Admin123"),
+                HoVaTen="Quản trị viên Hệ thống",
+                VaiTro="admin",
+                TrangThai="hoat_dong",
+            )
+            try:
+                db.add(admin_user)
+                db.commit()
+            except Exception:
+                db.rollback()
+                raise
+            print("[INFO] Đã tự động khởi tạo tài khoản admin mặc định: admin / Admin123")
+
+try:
+    init_default_admin()
+except Exception as exc:
+    print(f"[WARN] Không thể kiểm tra/khởi tạo admin: {exc}")
+
 # ── Ứng dụng ─────────────────────────────────────────────
 app = FastAPI(
     title="ExamCheat AI Detection API",

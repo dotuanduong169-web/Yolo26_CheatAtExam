@@ -118,7 +118,7 @@ with left_col:
                     <span class="bbox-tag">{label} · {conf}%</span>
                 </div>
             </div>
-            <div class="frame-hint"><span>🔍</span> Dùng nút bên phải để xác minh đúng/sai</div>
+            <div class="frame-hint">Dùng nút bên phải để xác minh đúng/sai</div>
         </body>
         </html>
         """
@@ -172,26 +172,41 @@ with right_col:
     """, unsafe_allow_html=True)
 
     st.markdown('<div class="right-section-title">Xác minh thủ công</div>', unsafe_allow_html=True)
+
+    available_labels = ["Cheat_Paper", "cellphone", "quay_dau", "quay_sau", "cui_xuong", "Answer_paper"]
+    label_names = {
+        "Cheat_Paper": "Tài liệu giấy (Cheat_Paper)",
+        "cellphone": "Điện thoại di động (cellphone)",
+        "quay_dau": "Quay đầu (>45°)",
+        "quay_sau": "Quay người về sau",
+        "cui_xuong": "Cúi đầu nhìn xuống gầm bàn",
+        "Answer_paper": "Giấy thi hợp lệ (Answer_paper - Không vi phạm)",
+    }
+    cur_choice = data.get("NhanNguoiDung") or data.get("NhanAI") or "Cheat_Paper"
+    def_idx = available_labels.index(cur_choice) if cur_choice in available_labels else 0
+
+    chosen_label = st.selectbox(
+        "Xác minh lại nhãn đúng (NhanNguoiDung):",
+        options=available_labels,
+        index=def_idx,
+        format_func=lambda x: label_names.get(x, x),
+        key=f"detail_sel_label_{event_id}",
+    )
+
     col_ok, col_no = st.columns(2)
     with col_ok:
-        if st.button("✅ Đúng", use_container_width=True, type="primary"):
-            res = verify_event(st.session_state.client, event_id, "dung", "")
+        if st.button("Xác nhận Vi phạm", use_container_width=True, type="primary"):
+            res = verify_event(st.session_state.client, event_id, "dung", chosen_label)
             if res is not None and res.status_code == 200:
-                st.toast("✅ Đã xác nhận đúng")
+                st.toast(f"Đã xác nhận sự kiện với nhãn: {chosen_label}")
                 st.rerun()
             else:
-                st.error("❌ Lỗi xác minh")
+                st.error("Lỗi xác minh")
     with col_no:
-        if st.button("❌ Sai", use_container_width=True):
-            st.session_state["show_fix_label"] = True
-
-    if st.session_state.get("show_fix_label"):
-        fix_label = st.selectbox("Nhãn đúng là", ["Answer_paper", "Cheat_Paper", "cellphone", "quay_dau", "quay_sau", "cui_xuong", "nhin_thang"])
-        if st.button("Lưu xác minh sai", use_container_width=True):
-            res = verify_event(st.session_state.client, event_id, "sai", fix_label)
+        if st.button("Bác bỏ (Báo sai)", use_container_width=True):
+            res = verify_event(st.session_state.client, event_id, "sai", "Answer_paper")
             if res is not None and res.status_code == 200:
-                st.session_state["show_fix_label"] = False
-                st.toast("✅ Đã ghi nhận sai")
+                st.toast("Đã ghi nhận báo sai (Giấy thi hợp lệ)")
                 st.rerun()
             else:
-                st.error("❌ Lỗi xác minh")
+                st.error("Lỗi xác minh")

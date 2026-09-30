@@ -16,7 +16,7 @@ from utils.load_css import load_css
 from utils.render_header import render_page_header
 
 # ── Config ──────────────────────────────────────────────────
-st.set_page_config(layout="wide", page_title="Lịch sử")
+st.set_page_config(layout="wide", initial_sidebar_state="expanded", page_title="Lịch sử")
 
 st.markdown(load_css("styles/sidebar.css"), unsafe_allow_html=True)
 st.markdown(load_css("styles/history.css"), unsafe_allow_html=True)
@@ -147,7 +147,7 @@ st.markdown("""
 
 
 # ── Header ──────────────────────────────────────────────────
-render_page_header("Lịch sử giám sát")
+render_page_header("Lịch sử giám sát", active="history")
 
 # ── Load Data ───────────────────────────────────────────────
 data = _fetch_history(

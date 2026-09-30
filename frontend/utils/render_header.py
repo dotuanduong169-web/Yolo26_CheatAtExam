@@ -1,8 +1,10 @@
 import streamlit as st
 from utils.load_css import load_css
 
-def render_page_header(title: str):
-    """Vẽ thanh header chung: logo ExamCheat AI + tiêu đề trang + thông tin phiên & giám thị."""
+def render_page_header(title: str, active: str | None = None):
+    """Vẽ thanh header chung: logo ExamCheat AI + tiêu đề trang.
+    active: key trang hiện tại (home/events/statistics/history/devices/setting)
+    để vẽ hàng tab điều hướng ngay dưới header."""
     st.markdown(load_css("styles/header.css"), unsafe_allow_html=True)
     st.markdown(load_css("styles/app_theme.css"), unsafe_allow_html=True)
 
@@ -39,4 +41,8 @@ def render_page_header(title: str):
         </div>
     </div>
     """, unsafe_allow_html=True)
+
+    if active:
+        from components.nav_tabs import render_nav_tabs
+        render_nav_tabs(active)
 

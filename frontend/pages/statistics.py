@@ -14,7 +14,7 @@ from utils.load_css import load_css
 from utils.render_header import render_page_header
 
 # ── Cấu hình trang ──────────────────────────────────────────
-st.set_page_config(layout="wide", page_title="Báo cáo thống kê")
+st.set_page_config(layout="wide", initial_sidebar_state="expanded", page_title="Báo cáo thống kê")
 
 init_session_state()
 require_auth()
@@ -24,7 +24,7 @@ hide_sidebar()
 render_sidebar(active="statistics")
 st.markdown(load_css("styles/sidebar.css"), unsafe_allow_html=True)
 st.markdown(load_css("styles/app_theme.css"), unsafe_allow_html=True)
-render_page_header("Báo cáo thống kê")
+render_page_header("Báo cáo thống kê", active="statistics")
 
 client = st.session_state.client
 

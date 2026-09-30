@@ -15,7 +15,7 @@ from utils.load_css import load_css
 from utils.render_header import render_page_header
 
 # ── Cấu hình trang ──────────────────────────────────────────
-st.set_page_config(layout="wide", page_title="Sự kiện phát hiện")
+st.set_page_config(layout="wide", initial_sidebar_state="expanded", page_title="Sự kiện phát hiện")
 
 init_session_state()
 require_auth()
@@ -25,7 +25,7 @@ hide_sidebar()
 render_sidebar(active="events")
 st.markdown(load_css("styles/sidebar.css"), unsafe_allow_html=True)
 st.markdown(load_css("styles/app_theme.css"), unsafe_allow_html=True)
-render_page_header("Sự kiện phát hiện")
+render_page_header("Sự kiện phát hiện", active="events")
 
 # ── Lấy danh sách phiên thi ─────────────────────────────────
 client = st.session_state.client

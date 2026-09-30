@@ -18,7 +18,7 @@ from utils.load_css import load_css
 from utils.render_header import render_page_header
 
 # ── Cấu hình trang ──────────────────────────────────────────
-st.set_page_config(layout="wide", page_title="Quản lý người dùng")
+st.set_page_config(layout="wide", initial_sidebar_state="expanded", page_title="Quản lý người dùng")
 
 init_session_state()
 require_auth()
@@ -28,7 +28,7 @@ hide_sidebar()
 render_sidebar(active="users")
 st.markdown(load_css("styles/sidebar.css"), unsafe_allow_html=True)
 st.markdown(load_css("styles/app_theme.css"), unsafe_allow_html=True)
-render_page_header("Quản lý người dùng")
+render_page_header("Quản lý người dùng", active="setting")
 
 client = st.session_state.client
 is_admin = st.session_state.get("user_role") == "admin"

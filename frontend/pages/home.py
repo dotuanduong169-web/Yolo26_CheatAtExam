@@ -16,7 +16,7 @@ from utils.load_css import load_css
 from utils.render_header import render_page_header
 
 # ── Cấu hình trang ──────────────────────────────────────────
-st.set_page_config(layout="wide", page_title="Giám sát trực tiếp")
+st.set_page_config(layout="wide", initial_sidebar_state="expanded", page_title="Giám sát trực tiếp")
 
 CAMERA_URL = f"{API_BASE_URL}/camera"
 
@@ -57,7 +57,7 @@ if status_res and status_res.status_code == 200:
 # ── Menu Sidebar & Top Header ──────────────────────────────
 hide_sidebar()
 render_sidebar(active="home")
-render_page_header("Giám sát trực tiếp")
+render_page_header("Giám sát trực tiếp", active="home")
 
 devices = list_devices(st.session_state.client)
 is_running = st.session_state["running"]

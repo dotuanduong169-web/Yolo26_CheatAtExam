@@ -15,7 +15,7 @@ from utils.load_css import load_css
 from utils.render_header import render_page_header
 
 # ── Config ──────────────────────────────────────────────────
-st.set_page_config(layout="wide", page_title="Chi tiết phiên")
+st.set_page_config(layout="wide", initial_sidebar_state="expanded", page_title="Chi tiết phiên")
 
 init_session_state()
 require_auth()
@@ -96,7 +96,7 @@ clean_pct = round(ty_le_sach * 100)
 cheat_pct = 100 - clean_pct
 
 # ── Page Header ─────────────────────────────────────────────
-render_page_header("Chi tiết lịch sử phiên")
+render_page_header("Chi tiết lịch sử phiên", active="history")
 
 st.markdown("""
 <a href="/history" target="_self" class="back-btn" style="text-decoration: none;">

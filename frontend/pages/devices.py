@@ -11,7 +11,7 @@ from utils.load_css import load_css
 from utils.render_header import render_page_header
 
 # ── Cấu hình trang ──────────────────────────────────────────
-st.set_page_config(layout="wide", page_title="Thiết bị biên")
+st.set_page_config(layout="wide", initial_sidebar_state="expanded", page_title="Thiết bị biên")
 
 init_session_state()
 require_auth()
@@ -21,7 +21,7 @@ hide_sidebar()
 render_sidebar(active="devices")
 st.markdown(load_css("styles/sidebar.css"), unsafe_allow_html=True)
 st.markdown(load_css("styles/app_theme.css"), unsafe_allow_html=True)
-render_page_header("Thiết bị biên")
+render_page_header("Thiết bị biên", active="devices")
 
 # ── 3 Khung đo đạc tài nguyên biên (Wireframe Grid-3) ───────
 is_running = st.session_state.get("running", False)

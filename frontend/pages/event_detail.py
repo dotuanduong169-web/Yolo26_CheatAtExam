@@ -16,7 +16,7 @@ from utils.load_css import load_css
 from utils.render_header import render_page_header
 
 # ── Config ──────────────────────────────────────────────────
-st.set_page_config(layout="wide", page_title="Chi tiết sự kiện")
+st.set_page_config(layout="wide", initial_sidebar_state="expanded", page_title="Chi tiết sự kiện")
 
 init_session_state()
 require_auth()
@@ -47,7 +47,7 @@ bbox = data.get("ToaDo") or []
 evidences = data.get("evidences", [])
 
 # ── Header ──────────────────────────────────────────────────
-render_page_header(f"Chi tiết sự kiện #{event_id}")
+render_page_header(f"Chi tiết sự kiện #{event_id}", active="events")
 
 if st.button("← Quay lại danh sách sự kiện"):
     st.switch_page("pages/events.py")

@@ -224,31 +224,54 @@ div[data-testid="stMetric"] {
   padding: 10px 14px !important;
 }
 
-/* Button Refinement */
+/* Button Refinement (Anti-AI Clear Industrial Aesthetics) */
 .stButton > button {
   border-radius: var(--wf-radius) !important;
   font-size: 13px !important;
-  font-weight: 500 !important;
+  font-weight: 600 !important;
   border: 1px solid var(--wf-border) !important;
-  box-shadow: none !important;
-  transition: all 0.15s ease !important;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05) !important;
+  transition: all 0.2s ease !important;
+  cursor: pointer !important;
 }
 
 .stButton > button[kind="primary"] {
-  background-color: var(--wf-accent) !important;
-  border-color: var(--wf-accent) !important;
-  color: white !important;
+  background-color: #1677ff !important;
+  border-color: #1677ff !important;
+  color: #ffffff !important;
+}
+
+.stButton > button[kind="primary"]:hover:not(:disabled) {
+  background-color: #0958d9 !important;
+  border-color: #0958d9 !important;
+  box-shadow: 0 3px 8px rgba(22, 119, 255, 0.35) !important;
 }
 
 .stButton > button[kind="secondary"] {
-  background-color: var(--wf-surface) !important;
-  color: var(--wf-text) !important;
+  background-color: #ffffff !important;
+  color: #334155 !important;
+  border-color: #cbd5e1 !important;
 }
 
-.stButton > button[kind="secondary"]:hover {
-  background-color: #f1f5f9 !important;
-  border-color: var(--wf-border-strong) !important;
+.stButton > button[kind="secondary"]:hover:not(:disabled) {
+  background-color: #f8fafc !important;
+  border-color: #94a3b8 !important;
+  color: #0f172a !important;
 }
+
+/* Nút bị vô hiệu hóa (disabled) hiển thị rõ rệt, không nhầm lẫn */
+.stButton > button:disabled,
+.stButton > button[disabled] {
+  background-color: #f1f5f9 !important;
+  color: #94a3b8 !important;
+  border-color: #e2e8f0 !important;
+  opacity: 0.6 !important;
+  cursor: not-allowed !important;
+  box-shadow: none !important;
+  transform: none !important;
+  pointer-events: none !important;
+}
+
 
 /* Inputs & Select */
 div[data-baseweb="input"], div[data-baseweb="select"] {

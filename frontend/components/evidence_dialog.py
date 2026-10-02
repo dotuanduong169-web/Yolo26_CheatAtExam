@@ -6,6 +6,7 @@ import streamlit as st
 from PIL import Image
 
 from services.event_api import get_event_detail, get_evidence_bytes, verify_event
+from utils.status_helpers import get_event_status_info, get_friendly_behavior_label
 
 
 def render_evidence_content(event_id: int):
@@ -17,6 +18,7 @@ def render_evidence_content(event_id: int):
         return
 
     label = data.get("LoaiHanhVi", "?")
+    friendly_ai_label = get_friendly_behavior_label(label)
     conf = round(float(data.get("DoTinCay", 0)) * 100, 1)
     status = data.get("TrangThaiKiemTra", "cho_kiem_tra")
     user_label = data.get("NhanNguoiDung")
@@ -24,12 +26,7 @@ def render_evidence_content(event_id: int):
     bbox = data.get("ToaDo") or []
     evidences = data.get("evidences", [])
 
-    status_map = {
-        "cho_kiem_tra": ("Chưa kiểm tra", "wf-badge"),
-        "dung": ("Đã xác nhận", "wf-badge success"),
-        "sai": ("Bác bỏ (Báo sai)", "wf-badge danger"),
-    }
-    stt_text, stt_cls = status_map.get(status, (status, "wf-badge"))
+    stt_text, stt_cls = get_event_status_info(status)
 
     c_left, c_right = st.columns([1.2, 1], gap="medium")
 
@@ -49,11 +46,11 @@ def render_evidence_content(event_id: int):
             st.info("Chưa có snapshot cho sự kiện này")
 
     with c_right:
-        user_label_disp = user_label if user_label else "Chưa xác minh"
+        user_label_disp = get_friendly_behavior_label(user_label) if user_label else "Chưa xác minh"
         st.markdown(f"""
         <div style="font-size: 13px; line-height: 1.8;">
             <div>Mã sự kiện: <strong>EV-{event_id:02d}</strong></div>
-            <div>Nhãn AI phát hiện: <strong style="color: var(--wf-danger);">{label}</strong></div>
+            <div>Nhãn AI phát hiện: <strong style="color: var(--wf-danger);">{friendly_ai_label} ({label})</strong></div>
             <div>Độ tin cậy AI: <strong>{conf}%</strong></div>
             <div>Thời điểm: <span>{time_str}</span></div>
             <div>Nhãn đã xác minh: <strong>{user_label_disp}</strong></div>

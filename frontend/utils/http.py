@@ -24,13 +24,27 @@ _DEFAULTS = {
 
 
 def init_session_state() -> None:
-    """Đảm bảo mọi key session state tồn tại với giá trị mặc định."""
+    """Đảm bảo mọi key session state tồn tại với giá trị mặc định và khôi phục khi F5."""
     for key, value in _DEFAULTS.items():
         if key not in st.session_state:
             st.session_state[key] = value
 
     if "client" not in st.session_state:
         st.session_state.client = requests.Session()
+
+    # Khôi phục phiên khi F5 (Refresh) từ query params
+    if not st.session_state.get("access_token_value"):
+        saved_auth = st.query_params.get("auth")
+        if saved_auth:
+            st.session_state["access_token_value"] = saved_auth
+            st.session_state["is_login"] = True
+            saved_role = st.query_params.get("role")
+            if saved_role:
+                st.session_state["user_role"] = saved_role
+            saved_user = st.query_params.get("u")
+            if saved_user:
+                st.session_state["username"] = saved_user
+                st.session_state["user_fullname"] = saved_user
 
 
 # ── Auth Headers ────────────────────────────────────────────
@@ -42,6 +56,7 @@ def get_auth_headers() -> dict:
     if token:
         return {"Authorization": f"Bearer {token}"}
     return {}
+
 
 
 # ── Safe HTTP Wrappers ──────────────────────────────────────

@@ -144,3 +144,14 @@ def delete_session_cascade(db: DBSession, session_id: int) -> bool:
     db.delete(session)
     db.commit()
     return True
+
+
+def get_active_session(db: DBSession) -> Optional[MonitoringSession]:
+    """Lấy phiên thi đang diễn ra gần nhất."""
+    return (
+        db.query(MonitoringSession)
+        .filter(MonitoringSession.TrangThai == "dang_giam_sat", MonitoringSession.ThoiGianKetThuc.is_(None))
+        .order_by(MonitoringSession.PK_MaPhienGiamSat.desc())
+        .first()
+    )
+

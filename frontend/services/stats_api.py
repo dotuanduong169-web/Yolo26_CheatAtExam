@@ -76,3 +76,20 @@ def get_weekly_stats(session: requests.Session, weeks: int = 4) -> list:
         logger.warning(f"get_weekly_stats error: {exc}")
         return []
 
+
+def get_behavior_distribution(session: requests.Session) -> list:
+    """Lấy phân bố hành vi vi phạm thực tế từ backend."""
+    try:
+        res = session.get(
+            f"{API_BASE_URL}/stats/distribution",
+            headers=get_auth_headers(),
+        )
+        if res.status_code == 200:
+            return res.json()
+        logger.warning(f"get_behavior_distribution failed: {res.status_code}")
+        return []
+    except requests.RequestException as exc:
+        logger.warning(f"get_behavior_distribution error: {exc}")
+        return []
+
+

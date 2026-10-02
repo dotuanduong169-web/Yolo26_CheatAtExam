@@ -3,7 +3,7 @@
 
 import streamlit as st
 
-from components.app_sidebar import render_sidebar
+
 from services.history_api import (
     delete_session,
     get_history,
@@ -14,9 +14,10 @@ from utils.hide_streamlit_sidebar import hide_sidebar
 from utils.http import init_session_state
 from utils.load_css import load_css
 from utils.render_header import render_page_header
+from utils.status_helpers import get_session_status_badge
 
 # ── Config ──────────────────────────────────────────────────
-st.set_page_config(layout="wide", initial_sidebar_state="expanded", page_title="Lịch sử")
+st.set_page_config(layout="wide", initial_sidebar_state="collapsed", page_title="Lịch sử")
 
 st.markdown(load_css("styles/sidebar.css"), unsafe_allow_html=True)
 st.markdown(load_css("styles/history.css"), unsafe_allow_html=True)
@@ -47,104 +48,41 @@ def handle_delete(session_id: int) -> None:
     """Xóa phiên và hiện kết quả."""
     res = delete_session(st.session_state.client, session_id)
     if not res:
-        st.error("[ERROR] Không kết nối được server")
+        st.error("Không thể kết nối đến máy chủ.")
         return
     if res.status_code == 200:
-        st.success("[OK] Xóa phiên thành công")
+        st.success("Xóa phiên giám sát thành công.")
         st.rerun()
     elif res.status_code == 400:
-        st.error("[ERROR] Không thể xóa phiên đang chạy")
+        st.error("Không thể xóa phiên đang diễn ra.")
     elif res.status_code == 404:
-        st.error("[ERROR] Không tìm thấy phiên")
+        st.error("Không tìm thấy phiên giám sát.")
     else:
-        st.error(f"[ERROR] Lỗi server: {res.text}")
+        st.error(f"Lỗi hệ thống: {res.text}")
 
 
-@st.dialog("Xac nhan xoa phien")
+@st.dialog("Xác nhận xóa phiên giám sát")
 def confirm_delete(session_id: int):
-    st.warning("Bạn có chắc muốn xóa phiên này không?")
-    st.caption("Hành động này sẽ xóa toàn bộ sự kiện và bằng chứng liên quan.")
+    st.warning("Bạn có chắc chắn muốn xóa phiên giám sát này không?")
+    st.caption("Hành động này sẽ xóa vĩnh viễn toàn bộ sự kiện và hình ảnh bằng chứng liên quan.")
 
     c1, c2 = st.columns(2)
     with c1:
-        if st.button("Huy", use_container_width=True):
+        if st.button("Hủy bỏ", use_container_width=True):
             st.rerun()
     with c2:
-        if st.button("Xoa", type="primary", use_container_width=True):
+        if st.button("Xác nhận xóa", type="primary", use_container_width=True):
             handle_delete(session_id)
 
 
 # ── Sidebar ─────────────────────────────────────────────────
 hide_sidebar()
-render_sidebar(active="history")
 
 # ── Session state for pagination ────────────────────────────
 if "hist_page" not in st.session_state:
     st.session_state.hist_page = 1
 if "hist_search" not in st.session_state:
     st.session_state.hist_search = ""
-
-# ── Hidden buttons for page navigation ───────────────────────
-col_hidden1, col_hidden2, col_hidden3, col_hidden4, col_hidden5 = st.columns(5)
-with col_hidden1:
-    st.markdown('<div id="hide-nav-row"></div>', unsafe_allow_html=True)
-    if st.button("Go to 1", key="hist_go_1", disabled=True):
-        st.session_state.hist_page = 1
-with col_hidden2:
-    if st.button("Go to 2", key="hist_go_2", disabled=True):
-        st.session_state.hist_page = 2
-with col_hidden3:
-    if st.button("Go to 3", key="hist_go_3", disabled=True):
-        st.session_state.hist_page = 3
-with col_hidden4:
-    if st.button("Go to 4", key="hist_go_4", disabled=True):
-        st.session_state.hist_page = 4
-with col_hidden5:
-    if st.button("Go to 5", key="hist_go_5", disabled=True):
-        st.session_state.hist_page = 5
-
-st.markdown("""
-<style>
-    [data-testid="stHorizontalBlock"]:has(#hide-nav-row) {
-        display: none !important;
-    }
-    div[data-testid="column"]:last-child div[data-testid="stPopover"] button {
-        border: none !important;
-        background: transparent !important;
-        box-shadow: none !important;
-        padding: 4px 8px !important;
-        min-height: unset !important;
-        font-size: 20px !important;
-        color: #64748b !important;
-        display: flex !important;
-        align-items: center !important;
-        justify-content: center !important;
-    }
-    div[data-testid="column"]:last-child div[data-testid="stPopover"] button:hover {
-        background-color: #f1f5f9 !important;
-        color: #0f172a !important;
-        border-radius: 4px !important;
-    }
-    div[data-testid="column"]:last-child div[data-testid="stPopover"] button svg {
-        display: none !important;
-    }
-</style>
-<script>
-    (function() {
-        const marker = document.getElementById('hide-nav-row');
-        if (marker) {
-            const row = marker.closest('[data-testid="stHorizontalBlock"]');
-            if (row) {
-                row.style.display = 'none';
-                row.style.height = '0';
-                row.style.margin = '0';
-                row.style.padding = '0';
-            }
-        }
-    })();
-</script>
-""", unsafe_allow_html=True)
-
 
 # ── Header ──────────────────────────────────────────────────
 render_page_header("Lịch sử giám sát", active="history")
@@ -166,7 +104,7 @@ with col_s1:
     <div class="summary-card">
         <div class="label">TỔNG PHIÊN GIÁM SÁT</div>
         <div class="value">{data['total_sessions']:,}</div>
-        <div class="trend up">&uarr; +12%</div>
+        <div class="trend up">Toàn bộ ca thi</div>
     </div>
     """, unsafe_allow_html=True)
 
@@ -175,7 +113,7 @@ with col_s2:
     <div class="summary-card">
         <div class="label">TỔNG SỰ KIỆN GIAN LẬN</div>
         <div class="value">{data['total_events']:,}</div>
-        <div class="trend neutral">Toàn hệ thống</div>
+        <div class="trend neutral">Đã ghi nhận trong DB</div>
     </div>
     """, unsafe_allow_html=True)
 
@@ -185,7 +123,7 @@ st.markdown("")
 search_val = st.text_input(
     "Tìm kiếm",
     value=st.session_state.hist_search,
-    placeholder="Tim kiem theo phong thi hoac mon thi...",
+    placeholder="Tìm kiếm theo phòng thi hoặc môn thi...",
     label_visibility="collapsed",
 )
 
@@ -198,6 +136,10 @@ if search_val != st.session_state.hist_search:
 sessions = data["sessions"]
 total_sessions_count = data["total_sessions"]
 total_pages = max((total_sessions_count - 1) // PAGE_SIZE + 1, 1)
+
+# Đảm bảo trang hiện tại hợp lệ
+if st.session_state.hist_page > total_pages:
+    st.session_state.hist_page = total_pages
 current_page = st.session_state.hist_page
 
 # ── Table ───────────────────────────────────────────────────
@@ -206,8 +148,9 @@ st.markdown('<div class="table-card">', unsafe_allow_html=True)
 st.markdown("""
 <div class="table-header-row">
     <span>MÃ PHIÊN</span>
-    <span>PHÒNG / MÔN</span>
-    <span>BẮT ĐẦU</span>
+    <span>PHÒNG / MÔN THI</span>
+    <span>THỜI GIAN BẮT ĐẦU</span>
+    <span>TRẠNG THÁI</span>
     <span>SỰ KIỆN</span>
     <span style="text-align:right">THAO TÁC</span>
 </div>
@@ -216,93 +159,93 @@ st.markdown("""
 if not sessions:
     st.markdown("""
     <div style="padding:40px 24px; text-align:center; color:#9ca3af;">
-        <div style="font-size:14px; font-weight:500;">Khong tim thay phien nao</div>
+        <div style="font-size:14px; font-weight:500;">Không tìm thấy phiên giám sát nào phù hợp.</div>
     </div>
     """, unsafe_allow_html=True)
 else:
     for sess in sessions:
         sid = sess["PK_MaPhienGiamSat"]
-        room = sess.get("PhongThi") or sess.get("MonThi") or "—"
+        room = sess.get("PhongThi") or "Chưa đặt"
+        subject = sess.get("MonThi") or "Chưa đặt"
+        room_subject_label = f"{room} — {subject}"
         date_str = str(sess.get("ThoiGianBatDau", ""))[:16]
         ev_count = sess.get("so_su_kien", 0)
+        status_badge = get_session_status_badge(sess.get("TrangThai"), sess.get("ThoiGianKetThuc"))
 
-        row_cols = st.columns([1.2, 2, 1.5, 1.2, 0.5])
+        row_cols = st.columns([1.1, 2.0, 1.4, 1.2, 0.8, 0.7])
         with row_cols[0]:
             st.markdown(f'<span class="cell-session-id">#SESS-{sid}</span>', unsafe_allow_html=True)
         with row_cols[1]:
-            st.markdown(f'<span class="cell-class">{room}</span>', unsafe_allow_html=True)
+            st.markdown(f'<span class="cell-class">{room_subject_label}</span>', unsafe_allow_html=True)
         with row_cols[2]:
             st.markdown(f'<span class="cell-date">{date_str}</span>', unsafe_allow_html=True)
         with row_cols[3]:
-            st.markdown(f'<span class="cell-count">{ev_count}</span>', unsafe_allow_html=True)
+            st.markdown(status_badge, unsafe_allow_html=True)
         with row_cols[4]:
-            with st.popover("⋮", use_container_width=False):
-                if st.button("Xem chi tiet", key=f"view_{sid}", use_container_width=True):
+            st.markdown(f'<span class="cell-count">{ev_count}</span>', unsafe_allow_html=True)
+        with row_cols[5]:
+            with st.popover("Thao tác", use_container_width=False):
+                if st.button("Xem chi tiết", key=f"view_{sid}", use_container_width=True):
                     st.session_state.selected_session = sid
                     st.switch_page("pages/session_detail.py")
-                if st.button("Xoa phien", key=f"del_{sid}", use_container_width=True):
+                if st.button("Xóa phiên", key=f"del_{sid}", use_container_width=True):
                     confirm_delete(sid)
 
-# ── Pagination ──────────────────────────────────────────────
-start_idx = (current_page - 1) * PAGE_SIZE + 1
+st.markdown("</div>", unsafe_allow_html=True)
+
+# ── Pagination (Native Streamlit Buttons - Không dùng JS hack) ──
+start_idx = (current_page - 1) * PAGE_SIZE + 1 if total_sessions_count > 0 else 0
 end_idx = min(current_page * PAGE_SIZE, total_sessions_count)
 
-st.markdown('<div id="hist-pagination-row">', unsafe_allow_html=True)
-info_col, prev_col, nums_col, next_col = st.columns([4, 1, 4, 1], gap="small")
+st.markdown("<div style='height: 14px;'></div>", unsafe_allow_html=True)
+pg_left, pg_right = st.columns([4, 6])
 
-with info_col:
+with pg_left:
     st.markdown(
-        f"<div class='pagination-info'>Hiển thị {start_idx} – {end_idx} của {total_sessions_count} kết quả</div>",
+        f"<div style='font-size: 13px; color: var(--wf-text-muted); padding-top: 6px;'>"
+        f"Hiển thị {start_idx} – {end_idx} trong tổng số {total_sessions_count} phiên"
+        f"</div>",
         unsafe_allow_html=True,
     )
 
-page_buttons_html = []
-if total_pages <= 7:
-    page_range = range(1, total_pages + 1)
-else:
-    if current_page <= 3:
-        page_range = list(range(1, 5)) + [-1, total_pages]
-    elif current_page >= total_pages - 2:
-        page_range = [1, -1] + list(range(total_pages - 3, total_pages + 1))
+with pg_right:
+    # Xây dựng các trang hiển thị
+    pages_to_show = []
+    if total_pages <= 7:
+        pages_to_show = list(range(1, total_pages + 1))
     else:
-        page_range = [1, -1, current_page - 1, current_page, current_page + 1, -1, total_pages]
+        if current_page <= 4:
+            pages_to_show = [1, 2, 3, 4, 5, "...", total_pages]
+        elif current_page >= total_pages - 3:
+            pages_to_show = [1, "..."] + list(range(total_pages - 4, total_pages + 1))
+        else:
+            pages_to_show = [1, "...", current_page - 1, current_page, current_page + 1, "...", total_pages]
 
-for p in page_range:
-    if p == -1:
-        page_buttons_html.append('<span class="page-ellipsis">…</span>')
-    else:
-        active = "active" if p == current_page else ""
-        page_buttons_html.append(f'<span class="page-btn {active}" data-page="{p}">{p}</span>')
+    num_btn_cols = len(pages_to_show) + 2
+    btn_cols = st.columns(num_btn_cols)
 
-with nums_col:
-    st.markdown(
-        f"<div class='pagination-controls'>{''.join(page_buttons_html)}</div>",
-        unsafe_allow_html=True,
-    )
+    # Nút Previous (‹)
+    with btn_cols[0]:
+        if st.button("‹", key="btn_prev_page", disabled=(current_page <= 1), use_container_width=True):
+            st.session_state.hist_page -= 1
+            st.rerun()
 
-with prev_col:
-    if st.button("‹", key="pg_prev_btn", disabled=(current_page <= 1)):
-        st.session_state.hist_page -= 1
-        st.rerun()
+    # Các nút số trang
+    for idx, p in enumerate(pages_to_show):
+        with btn_cols[idx + 1]:
+            if p == "...":
+                st.markdown("<div style='text-align: center; line-height: 38px; color: #94a3b8;'>…</div>", unsafe_allow_html=True)
+            else:
+                is_active = (p == current_page)
+                btn_type = "primary" if is_active else "secondary"
+                if st.button(str(p), key=f"page_num_{p}", type=btn_type, use_container_width=True):
+                    if p != current_page:
+                        st.session_state.hist_page = p
+                        st.rerun()
 
-with next_col:
-    if st.button("›", key="pg_next_btn", disabled=(current_page >= total_pages)):
-        st.session_state.hist_page += 1
-        st.rerun()
+    # Nút Next (›)
+    with btn_cols[-1]:
+        if st.button("›", key="btn_next_page", disabled=(current_page >= total_pages), use_container_width=True):
+            st.session_state.hist_page += 1
+            st.rerun()
 
-st.markdown('</div>', unsafe_allow_html=True)
-
-st.markdown("""
-<script>
-    document.querySelectorAll('#hist-pagination-row .page-btn[data-page]').forEach(btn => {
-        btn.style.cursor = 'pointer';
-        btn.addEventListener('click', function() {
-            const page = parseInt(this.dataset.page);
-            const hiddenBtn = document.querySelector('button[data-testid*="hist_go_' + page + '"]');
-            if (hiddenBtn) hiddenBtn.click();
-        });
-    });
-</script>
-""", unsafe_allow_html=True)
-
-st.markdown("</div>", unsafe_allow_html=True)

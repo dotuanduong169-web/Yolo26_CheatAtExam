@@ -47,14 +47,22 @@ if st.button("Đăng nhập", type="primary", use_container_width=True):
             res = login(st.session_state.client, username, password)
 
         if res is None:
-            st.error("Không kết nối được server")
+            st.error("Không kết nối được đến máy chủ hoặc máy chủ không phản hồi (hết thời gian chờ).")
         elif res.status_code == 200:
             data = res.json()
-            st.session_state["access_token_value"] = data.get("access_token")
+            tok = data.get("access_token")
+            role = data.get("role", "teacher")
+            st.session_state["access_token_value"] = tok
             st.session_state["refresh_token_value"] = data.get("refresh_token")
-            st.session_state["user_role"] = data.get("role", "teacher")
+            st.session_state["user_role"] = role
             st.session_state["username"] = username
             st.session_state["is_login"] = True
+
+            # Lưu vào query params để giữ phiên khi F5 / Refresh trang
+            if tok:
+                st.query_params["auth"] = tok
+                st.query_params["role"] = role
+                st.query_params["u"] = username
 
             # Lấy họ tên hiển thị
             try:
@@ -68,10 +76,18 @@ if st.button("Đăng nhập", type="primary", use_container_width=True):
             st.success("Đăng nhập thành công")
             st.switch_page("pages/home.py")
 
-        elif res.status_code == 401:
-            st.error("Tên đăng nhập hoặc mật khẩu không chính xác")
+        elif res.status_code in (401, 403):
+            detail_msg = ""
+            try:
+                detail_msg = str(res.json().get("detail", ""))
+            except Exception:
+                pass
+            if "locked" in detail_msg.lower() or "khóa" in detail_msg.lower():
+                st.error("Tài khoản của bạn đã bị khóa. Vui lòng liên hệ quản trị viên.")
+            else:
+                st.error("Tên đăng nhập hoặc mật khẩu không chính xác")
         else:
-            st.error(f"Lỗi: {res.text}")
+            st.error(f"Lỗi đăng nhập: {res.text}")
 
 st.markdown("<div style='height: 10px;'></div>", unsafe_allow_html=True)
 col_demo1, col_demo2 = st.columns(2)
@@ -82,6 +98,9 @@ with col_demo1:
         st.session_state["username"] = "admin_duong"
         st.session_state["user_fullname"] = "Đỗ Tuấn Dương"
         st.session_state["is_login"] = True
+        st.query_params["auth"] = "demo_token_admin"
+        st.query_params["role"] = "admin"
+        st.query_params["u"] = "admin_duong"
         st.switch_page("pages/home.py")
 
 with col_demo2:
@@ -91,4 +110,8 @@ with col_demo2:
         st.session_state["username"] = "gv_le_ngoc_an"
         st.session_state["user_fullname"] = "ThS. Lê Ngọc An"
         st.session_state["is_login"] = True
+        st.query_params["auth"] = "demo_token_teacher"
+        st.query_params["role"] = "teacher"
+        st.query_params["u"] = "gv_le_ngoc_an"
         st.switch_page("pages/home.py")
+

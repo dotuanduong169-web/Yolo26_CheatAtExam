@@ -83,3 +83,27 @@ def get_evidence_bytes(session: requests.Session, evidence_id: int) -> bytes | N
     except requests.RequestException as exc:
         logger.warning(f"get_evidence_bytes error: {exc}")
         return None
+
+
+def get_system_notifications(session: requests.Session) -> dict:
+    """Lấy dữ liệu thông báo hệ thống và cảnh báo vi phạm chưa duyệt."""
+    default_res = {
+        "total_pending": 0,
+        "alerts": [],
+        "active_session": None,
+        "system_status": "offline",
+        "server_time": "",
+    }
+    try:
+        res = session.get(
+            f"{API_BASE_URL}/events/system/notifications",
+            headers=get_auth_headers(),
+            timeout=4,
+        )
+        if res.status_code == 200:
+            return res.json()
+        return default_res
+    except requests.RequestException as exc:
+        logger.warning(f"get_system_notifications error: {exc}")
+        return default_res
+

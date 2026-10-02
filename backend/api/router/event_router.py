@@ -84,3 +84,60 @@ def get_evidence_file(
     if not path.is_file():
         raise NotFoundError(detail="Evidence file missing")
     return FileResponse(path)
+
+
+@router.get("/system/notifications")
+def get_system_notifications_endpoint(
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Tổng hợp thông báo hệ thống và cảnh báo vi phạm mới nhất."""
+    from datetime import datetime
+    from crud.event_crud import count_total_pending_events, list_recent_pending_events
+    from crud.session_crud import get_active_session
+
+    total_pending = count_total_pending_events(db)
+    recent_events = list_recent_pending_events(db, limit=6)
+    active_session = get_active_session(db)
+
+    behavior_names = {
+        "Cheat_Paper": "Sử dụng tài liệu (Phao thi)",
+        "cellphone": "Sử dụng điện thoại di động",
+        "Head_Turn": "Quay đầu / Nhìn bài",
+        "quay_dau": "Quay đầu bất thường (>45°)",
+        "quay_sau": "Quay người về sau trao đổi bài",
+        "cui_xuong": "Cúi đầu nhìn tài liệu gầm bàn",
+        "Answer_paper": "Giấy thi hợp lệ",
+    }
+
+    alerts = []
+    for ev in recent_events:
+        raw_b = ev.LoaiHanhVi or ""
+        friendly_b = behavior_names.get(raw_b, raw_b)
+        alerts.append({
+            "id": ev.PK_MaSuKien,
+            "session_id": ev.FK_MaPhienGiamSat,
+            "behavior": raw_b,
+            "behavior_label": friendly_b,
+            "confidence": round(float(ev.DoTinCay or 0) * 100, 1),
+            "detected_at": str(ev.ThoiGianPhatHien)[:19] if ev.ThoiGianPhatHien else "",
+            "status": ev.TrangThaiKiemTra,
+        })
+
+    session_info = None
+    if active_session:
+        session_info = {
+            "session_id": active_session.PK_MaPhienGiamSat,
+            "room": active_session.PhongThi or "Chưa đặt phòng",
+            "subject": active_session.MonThi or "Chưa đặt môn",
+            "started_at": str(active_session.ThoiGianBatDau)[:19] if active_session.ThoiGianBatDau else "",
+        }
+
+    return {
+        "total_pending": total_pending,
+        "alerts": alerts,
+        "active_session": session_info,
+        "system_status": "online",
+        "server_time": datetime.now().strftime("%H:%M:%S %d/%m/%Y"),
+    }
+

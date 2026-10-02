@@ -109,6 +109,12 @@ def capture_loop() -> None:
     except Exception as exc:
         logger.critical(f"Fatal error in capture loop: {exc}", exc_info=True)
     finally:
+        try:
+            if state.current_session_id:
+                from crud.session_crud import end_session
+                end_session(db, state.current_session_id)
+        except Exception as exc_end:
+            logger.warning(f"Failed to end session #{state.current_session_id} on loop exit: {exc_end}")
         db.close()
         logger.info("Capture loop stopped")
 

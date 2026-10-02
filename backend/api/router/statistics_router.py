@@ -79,3 +79,19 @@ def stats_summary(
     except Exception as exc:
         logger.error(f"Error fetching summary: {exc}", exc_info=True)
         raise HTTPException(status_code=500, detail="Failed to fetch summary")
+
+
+@router.get("/distribution")
+def stats_distribution(
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Lấy phân bố hành vi gian lận thực tế từ cơ sở dữ liệu."""
+    try:
+        from service.statistics_service import get_behavior_distribution
+        user_id_filter = None if user.VaiTro == "admin" else user.PK_MaNguoiDung
+        return get_behavior_distribution(db, user_id_filter)
+    except Exception as exc:
+        logger.error(f"Error fetching distribution: {exc}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Failed to fetch distribution")
+

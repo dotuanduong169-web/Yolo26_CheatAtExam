@@ -11,11 +11,17 @@ logger = logging.getLogger(__name__)
 
 
 def login(session: requests.Session, username: str, password: str):
-    """Đăng nhập bằng tên đăng nhập, token nằm trong body JSON."""
-    return session.post(
-        f"{API_BASE_URL}/users/login",
-        json={"TenDangNhap": username, "MatKhau": password},
-    )
+    """Đăng nhập bằng tên đăng nhập, có timeout để tránh bị treo request."""
+    try:
+        return session.post(
+            f"{API_BASE_URL}/users/login",
+            json={"TenDangNhap": username, "MatKhau": password},
+            timeout=8,
+        )
+    except requests.RequestException as exc:
+        logger.warning(f"Login request error: {exc}")
+        return None
+
 
 
 def register(session: requests.Session, username: str, full_name: str, password: str):

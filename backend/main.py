@@ -51,6 +51,14 @@ try:
 except Exception as exc:
     print(f"[WARN] Không thể kiểm tra/khởi tạo admin: {exc}")
 
+try:
+    from service.camera_service import cleanup_orphan_sessions
+    cleared = cleanup_orphan_sessions()
+    if cleared:
+        print(f"[INFO] Đã dọn dẹp {cleared} phiên mồ côi bị treo")
+except Exception as exc:
+    print(f"[WARN] Không thể dọn dẹp phiên mồ côi: {exc}")
+
 # ── Ứng dụng ─────────────────────────────────────────────
 app = FastAPI(
     title="ExamCheat AI Detection API",

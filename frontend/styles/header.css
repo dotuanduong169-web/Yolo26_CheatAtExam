@@ -41,6 +41,43 @@ button[kind="header"] {
     color: #64748b;
 }
 
+.top-bell-box {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    background: #f8fafc;
+    border: 1px solid #cbd5e1;
+    padding: 3px 8px;
+    border-radius: 14px;
+    cursor: default;
+    transition: all 0.2s ease;
+}
+
+.top-bell-box:hover {
+    border-color: #94a3b8;
+    background: #f1f5f9;
+}
+
+.top-bell-badge {
+    background: #cbd5e1;
+    color: #334155;
+    font-size: 11px;
+    font-weight: 700;
+    padding: 1px 6px;
+    border-radius: 10px;
+}
+
+.top-bell-badge.danger {
+    background: #dc2626 !important;
+    color: #ffffff !important;
+    animation: bell-pulse 2s infinite ease-in-out;
+}
+
+@keyframes bell-pulse {
+    0%, 100% { transform: scale(1); }
+    50% { transform: scale(1.1); }
+}
+
 .top-meta-right .badge {
     padding: 2px 8px;
     border-radius: 12px;
@@ -56,6 +93,18 @@ button[kind="header"] {
     color: #16a34a;
     border-color: #bbf7d0;
 }
+
+/* 2.1 NOTIFICATION POPOVER STYLING */
+div[data-testid="stPopoverBody"] {
+    max-width: 440px !important;
+    min-width: 360px !important;
+    border-radius: 12px !important;
+    box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1) !important;
+    border: 1px solid #e2e8f0 !important;
+    padding: 16px !important;
+}
+
+
 
 
 .top-logo-section {

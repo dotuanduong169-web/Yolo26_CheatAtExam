@@ -134,3 +134,26 @@ def verify_event(
     db.commit()
     db.refresh(event)
     return event
+
+
+def count_total_pending_events(db: DBSession) -> int:
+    """Đếm tổng số sự kiện chờ kiểm tra trên toàn hệ thống."""
+    return (
+        db.query(func.count(DetectedEvent.PK_MaSuKien))
+        .filter(DetectedEvent.TrangThaiKiemTra == "cho_kiem_tra")
+        .scalar()
+        or 0
+    )
+
+
+def list_recent_pending_events(db: DBSession, limit: int = 5) -> list[DetectedEvent]:
+    """Lấy danh sách các sự kiện vi phạm chờ kiểm tra mới nhất."""
+    return (
+        db.query(DetectedEvent)
+        .options(joinedload(DetectedEvent.evidences))
+        .filter(DetectedEvent.TrangThaiKiemTra == "cho_kiem_tra")
+        .order_by(DetectedEvent.PK_MaSuKien.desc())
+        .limit(limit)
+        .all()
+    )
+

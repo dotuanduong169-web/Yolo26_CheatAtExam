@@ -1,13 +1,11 @@
-"""Điểm vào ứng dụng: kiểm tra đăng nhập rồi định tuyến trang."""
-
 import requests
 import streamlit as st
 
 from config import API_BASE_URL
+from utils.http import init_session_state
 
-# ── HTTP Client ─────────────────────────────────────────────
-if "client" not in st.session_state:
-    st.session_state.client = requests.Session()
+# ── Khôi phục session & HTTP Client ─────────────────────────
+init_session_state()
 
 # ── Validate Session ────────────────────────────────────────
 is_login = False

@@ -64,6 +64,51 @@ def delete_device(session: requests.Session, device_id: int):
         return None
 
 
+def test_device(session: requests.Session, device_id: int) -> dict:
+    """Gọi API kiểm tra kết nối thực tế tới thiết bị camera/RTSP."""
+    try:
+        res = session.post(
+            f"{API_BASE_URL}/devices/{device_id}/test",
+            headers=get_auth_headers(),
+            timeout=5,
+        )
+        if res.status_code == 200:
+            return res.json()
+        return {"online": False, "latency_ms": 0, "message": f"Lỗi kiểm tra ({res.status_code})"}
+    except requests.RequestException as exc:
+        logger.warning(f"test_device error: {exc}")
+        return {"online": False, "latency_ms": 0, "message": "Không thể kết nối đến máy chủ"}
+
+
+def get_ai_config(session: requests.Session) -> dict:
+    """Lấy tham số cấu hình AI nhận diện đã lưu."""
+    try:
+        res = session.get(
+            f"{API_BASE_URL}/devices/ai-config/get",
+            headers=get_auth_headers(),
+            timeout=5,
+        )
+        if res.status_code == 200:
+            return res.json()
+    except requests.RequestException:
+        pass
+    return {"conf_thresh": 0.75, "time_thresh": 2.5}
+
+
+def save_ai_config(session: requests.Session, conf_thresh: float, time_thresh: float) -> bool:
+    """Lưu tham số cấu hình AI nhận diện vào hệ thống."""
+    try:
+        res = session.post(
+            f"{API_BASE_URL}/devices/ai-config/save",
+            json={"conf_thresh": conf_thresh, "time_thresh": time_thresh},
+            headers=get_auth_headers(),
+            timeout=5,
+        )
+        return res.status_code == 200
+    except requests.RequestException:
+        return False
+
+
 def ensure_machine_camera(session: requests.Session) -> dict | None:
     """Tìm thiết bị webcam của máy (RTSP '0'), chưa có thì tự đăng ký. Lỗi trả None."""
     for dev in list_devices(session):
@@ -74,3 +119,4 @@ def ensure_machine_camera(session: requests.Session) -> dict | None:
         return res.json()
     logger.warning("ensure_machine_camera failed")
     return None
+

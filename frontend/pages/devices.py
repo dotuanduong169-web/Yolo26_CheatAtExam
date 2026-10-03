@@ -1,6 +1,7 @@
 """Trang Thiết bị biên & Hệ thống (FR04): Quản lý camera IP/RTSP, tài nguyên biên và tham số nhận diện AI."""
 
 import streamlit as st
+from utils.notify import notify
 
 from services.device_api import (
     create_device,
@@ -63,7 +64,7 @@ is_admin = st.session_state.get("user_role") == "admin"
 # ── Dialog xác nhận xóa thiết bị ───────────────────────────
 def show_delete_device_dialog(dev_id: int, dev_name: str):
     """Hộp thoại xác nhận xóa thiết bị."""
-    st.warning(f"Bạn có chắc chắn muốn xóa thiết bị **{dev_name}** (#{dev_id})?")
+    notify.warning(f"Bạn có chắc chắn muốn xóa thiết bị **{dev_name}** (#{dev_id})?")
     st.caption("Lưu ý: Không thể xóa thiết bị đang được gắn với ca thi hoặc có phiên giám sát lịch sử.")
     col_d1, col_d2 = st.columns(2)
     with col_d1:
@@ -75,13 +76,13 @@ def show_delete_device_dialog(dev_id: int, dev_name: str):
             del_res = delete_device(client, dev_id)
             st.session_state[f"confirm_del_{dev_id}"] = False
             if del_res is not None and del_res.status_code == 200:
-                st.toast(f"Đã xóa thiết bị #{dev_id} thành công!")
+                notify.success(f"Đã xóa thiết bị #{dev_id} thành công!")
                 st.rerun()
             elif del_res is not None and del_res.status_code == 400:
-                st.error("Không thể xóa thiết bị đang gắn ca thi hoặc có phiên giám sát.")
+                notify.error("Không thể xóa thiết bị đang gắn ca thi hoặc có phiên giám sát.")
             else:
                 err_text = del_res.text if del_res else "Lỗi kết nối máy chủ"
-                st.error(f"Xóa thiết bị thất bại: {err_text}")
+                notify.error(f"Xóa thiết bị thất bại: {err_text}")
 
 
 # ── Danh mục Camera & Thiết bị biên ─────────────────────────
@@ -97,7 +98,7 @@ st.markdown(f"""
 """, unsafe_allow_html=True)
 
 if not devices:
-    st.info("Chưa có thiết bị camera nào trong danh mục.")
+    notify.info("Chưa có thiết bị camera nào trong danh mục.")
 else:
     # Header hàng bảng
     th1, th2, th3, th4, th5, th6 = st.columns([0.8, 1.6, 2.2, 1.6, 1.0, 1.8])
@@ -142,9 +143,9 @@ else:
                                 test_res = test_device(client, dev_id)
                             if test_res.get("online"):
                                 lat = test_res.get("latency_ms", 5)
-                                st.toast(f"{name}: {test_res.get('message')} ({lat}ms)")
+                                notify.success(f"{name}: {test_res.get('message')} ({lat}ms)")
                             else:
-                                st.error(f"{name}: {test_res.get('message')}")
+                                notify.error(f"{name}: {test_res.get('message')}")
                     with col_b2:
                         if st.button("Sửa", key=f"edit_btn_{dev_id}", help="Chỉnh sửa cấu hình thiết bị"):
                             st.session_state[f"editing_device_{dev_id}"] = not st.session_state.get(f"editing_device_{dev_id}", False)
@@ -177,10 +178,10 @@ else:
                         up_res = update_device(client, dev_id, {"TenThietBi": e_name.strip(), "DuongDanRTSP": e_rtsp.strip(), "MoTaViTri": e_loc.strip()})
                         if up_res and up_res.status_code == 200:
                             st.session_state[f"editing_device_{dev_id}"] = False
-                            st.toast("Đã cập nhật thiết bị thành công")
+                            notify.success("Đã cập nhật thiết bị thành công")
                             st.rerun()
                         else:
-                            st.error("Lỗi khi cập nhật thiết bị")
+                            notify.error("Lỗi khi cập nhật thiết bị")
                     st.markdown("</div>", unsafe_allow_html=True)
 
             st.markdown("<hr style='margin: 4px 0 10px 0; border: none; border-top: 1px solid var(--wf-border);'>", unsafe_allow_html=True)
@@ -198,14 +199,14 @@ if is_admin:
 
         if st.button("Lưu thiết bị mới", type="primary"):
             if not new_name or not new_rtsp:
-                st.warning("Vui lòng điền đầy đủ tên và đường dẫn RTSP")
+                notify.warning("Vui lòng điền đầy đủ tên và đường dẫn RTSP")
             else:
                 res = create_device(client, new_name.strip(), new_rtsp.strip(), new_loc.strip())
                 if res and res.status_code == 200:
-                    st.toast("Đăng ký thiết bị thành công")
+                    notify.success("Đăng ký thiết bị thành công")
                     st.rerun()
                 else:
-                    st.error("Lỗi khi thêm thiết bị")
+                    notify.error("Lỗi khi thêm thiết bị")
 
 # ── Cấu hình tham số AI nhận diện (Sửa Lỗi 16: Lưu thực tế vào backend) ────
 st.markdown("""
@@ -247,6 +248,6 @@ with cf3:
     if st.button("Lưu cấu hình tham số", type="primary", use_container_width=True):
         ok = save_ai_config(client, conf_thresh, time_thresh)
         if ok:
-            st.toast(f"Đã lưu cấu hình AI: Ngưỡng {conf_thresh:.2f}, Debounce {time_thresh:.1f}s!")
+            notify.success(f"Đã lưu cấu hình AI: Ngưỡng {conf_thresh:.2f}, Debounce {time_thresh:.1f}s!")
         else:
-            st.error("Không thể lưu cấu hình tham số AI vào hệ thống.")
+            notify.error("Không thể lưu cấu hình tham số AI vào hệ thống.")

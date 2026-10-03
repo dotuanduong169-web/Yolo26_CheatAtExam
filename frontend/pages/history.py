@@ -2,6 +2,7 @@
 """Trang lịch sử phiên: tìm kiếm, phân trang và xóa phiên."""
 
 import streamlit as st
+from utils.notify import notify
 
 
 from services.history_api import (
@@ -48,22 +49,22 @@ def handle_delete(session_id: int) -> None:
     """Xóa phiên và hiện kết quả."""
     res = delete_session(st.session_state.client, session_id)
     if not res:
-        st.error("Không thể kết nối đến máy chủ.")
+        notify.error("Không thể kết nối đến máy chủ.")
         return
     if res.status_code == 200:
-        st.success("Xóa phiên giám sát thành công.")
+        notify.success("Xóa phiên giám sát thành công.")
         st.rerun()
     elif res.status_code == 400:
-        st.error("Không thể xóa phiên đang diễn ra.")
+        notify.error("Không thể xóa phiên đang diễn ra.")
     elif res.status_code == 404:
-        st.error("Không tìm thấy phiên giám sát.")
+        notify.error("Không tìm thấy phiên giám sát.")
     else:
-        st.error(f"Lỗi hệ thống: {res.text}")
+        notify.error(f"Lỗi hệ thống: {res.text}")
 
 
 @st.dialog("Xác nhận xóa phiên giám sát")
 def confirm_delete(session_id: int):
-    st.warning("Bạn có chắc chắn muốn xóa phiên giám sát này không?")
+    notify.warning("Bạn có chắc chắn muốn xóa phiên giám sát này không?")
     st.caption("Hành động này sẽ xóa vĩnh viễn toàn bộ sự kiện và hình ảnh bằng chứng liên quan.")
 
     c1, c2 = st.columns(2)

@@ -299,6 +299,11 @@ button[data-baseweb="tab"][aria-selected="true"] {
   border-bottom: 2px solid var(--wf-accent) !important;
 }
 
+/* Tắt vạch đỏ mặc định của Streamlit, chỉ giữ vạch xanh của theme */
+div[data-baseweb="tab-highlight"] {
+  display: none !important;
+}
+
 /* Action Icon Buttons trong các cột bảng */
 div[data-testid="column"] button {
   min-height: 28px !important;

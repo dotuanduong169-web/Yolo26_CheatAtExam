@@ -1,6 +1,7 @@
 """Trang Quản lý Tài khoản (FR01): Danh sách người dùng, phân quyền Admin/Giám thị và cài đặt hồ sơ cá nhân."""
 
 import streamlit as st
+from utils.notify import notify
 
 from services.user_api import (
     admin_create_user,
@@ -52,7 +53,7 @@ tab_users, tab_profile = st.tabs(["Danh sách người dùng & Phân quyền", "
 # =========================================================================
 with tab_users:
     if not is_admin:
-        st.info("Tính năng phân quyền và quản trị danh sách người dùng dành riêng cho Quản trị viên (Admin). Bạn đang đăng nhập với vai trò Cán bộ coi thi.")
+        notify.info("Tính năng phân quyền và quản trị danh sách người dùng dành riêng cho Quản trị viên (Admin). Bạn đang đăng nhập với vai trò Cán bộ coi thi.")
     else:
         users = list_all_users(client)
 
@@ -66,7 +67,7 @@ with tab_users:
         """, unsafe_allow_html=True)
 
         if not users:
-            st.info("Không có dữ liệu người dùng.")
+            notify.info("Không có dữ liệu người dùng.")
         else:
             # Header hàng bảng
             th1, th2, th3, th4, th5, th6 = st.columns([0.8, 1.6, 2.0, 1.6, 1.0, 1.8])
@@ -110,10 +111,10 @@ with tab_users:
                             if st.button("Đổi quyền", key=f"role_btn_{u_id}", help=role_tooltip):
                                 ok, res = admin_update_user(client, u_id, new_role, u_status)
                                 if ok:
-                                    st.toast(f"Đã đổi vai trò cho @{u_login}")
+                                    notify.success(f"Đã đổi vai trò cho @{u_login}")
                                     st.rerun()
                                 else:
-                                    st.error("Lỗi khi cập nhật vai trò")
+                                    notify.error("Lỗi khi cập nhật vai trò")
                         with col_u2:
                             if st.button("Sửa", key=f"edit_u_btn_{u_id}", help="Chỉnh sửa thông tin tài khoản"):
                                 st.session_state[f"editing_user_{u_id}"] = not st.session_state.get(f"editing_user_{u_id}", False)
@@ -124,10 +125,10 @@ with tab_users:
                             if st.button(lock_label, key=f"lock_btn_{u_id}", help=lock_tooltip):
                                 ok, res = admin_update_user(client, u_id, u_role, new_status)
                                 if ok:
-                                    st.toast(f"Đã cập nhật trạng thái @{u_login}")
+                                    notify.success(f"Đã cập nhật trạng thái @{u_login}")
                                     st.rerun()
                                 else:
-                                    st.error("Lỗi khi đổi trạng thái tài khoản")
+                                    notify.error("Lỗi khi đổi trạng thái tài khoản")
 
                     # Form inline sửa tên người dùng
                     if st.session_state.get(f"editing_user_{u_id}", False):
@@ -142,7 +143,7 @@ with tab_users:
                                     ok, res = admin_update_user(client, u_id, u_role, u_status, ho_va_ten=edit_full_name.strip())
                                     if ok:
                                         st.session_state[f"editing_user_{u_id}"] = False
-                                        st.toast("Đã cập nhật họ tên thành công")
+                                        notify.success("Đã cập nhật họ tên thành công")
                                         st.rerun()
                             st.markdown("</div>", unsafe_allow_html=True)
 
@@ -162,18 +163,18 @@ with tab_users:
 
             if st.button("Tạo tài khoản", type="primary"):
                 if not new_username or not new_fullname or not new_password:
-                    st.warning("Vui lòng nhập đầy đủ các trường thông tin.")
+                    notify.warning("Vui lòng nhập đầy đủ các trường thông tin.")
                 else:
                     is_valid, errors = validate_password_rules(new_password)
                     if not is_valid:
-                        st.error(f"Mật khẩu chưa đạt tiêu chuẩn an toàn: Thiếu {', '.join(errors)}.")
+                        notify.error(f"Mật khẩu chưa đạt tiêu chuẩn an toàn: Thiếu {', '.join(errors)}.")
                     else:
                         ok, res = admin_create_user(client, new_username.strip(), new_fullname.strip(), new_password, new_role)
                         if ok:
-                            st.toast("Đã tạo tài khoản thành công!")
+                            notify.success("Đã tạo tài khoản thành công!")
                             st.rerun()
                         else:
-                            st.error(f"{res}")
+                            notify.error(f"{res}")
 
 
 # =========================================================================
@@ -182,7 +183,7 @@ with tab_users:
 with tab_profile:
     user = get_user(client)
     if not user:
-        st.warning("Không thể tải thông tin tài khoản hiện tại.")
+        notify.warning("Không thể tải thông tin tài khoản hiện tại.")
     else:
         full_name = user.get("HoVaTen", "")
         username = user.get("TenDangNhap", "")
@@ -210,15 +211,15 @@ with tab_profile:
             new_name_val = st.text_input("Họ và tên hiển thị", value=full_name)
             if st.button("Lưu thay đổi họ tên", type="primary"):
                 if not new_name_val.strip():
-                    st.warning("Họ tên không được để trống")
+                    notify.warning("Họ tên không được để trống")
                 else:
                     ok, res = update_user(client, new_name_val.strip())
                     if ok:
                         st.session_state["user_fullname"] = new_name_val.strip()
-                        st.toast("Đã cập nhật họ tên!")
+                        notify.success("Đã cập nhật họ tên!")
                         st.rerun()
                     else:
-                        st.error("Lỗi khi cập nhật")
+                        notify.error("Lỗi khi cập nhật")
 
         st.markdown("<hr style='margin: 20px 0;'>", unsafe_allow_html=True)
 
@@ -242,17 +243,17 @@ with tab_profile:
 
         if st.button("Cập nhật mật khẩu", type="secondary"):
             if not old_p or not new_p or not confirm_p:
-                st.warning("Vui lòng điền đầy đủ tất cả các trường mật khẩu.")
+                notify.warning("Vui lòng điền đầy đủ tất cả các trường mật khẩu.")
             elif new_p != confirm_p:
-                st.error("Mật khẩu xác nhận không khớp với mật khẩu mới.")
+                notify.error("Mật khẩu xác nhận không khớp với mật khẩu mới.")
             else:
                 is_valid, errors = validate_password_rules(new_p)
                 if not is_valid:
-                    st.error(f"Mật khẩu mới không hợp lệ: Cần bổ sung {', '.join(errors)}.")
+                    notify.error(f"Mật khẩu mới không hợp lệ: Cần bổ sung {', '.join(errors)}.")
                 else:
                     ok, res = change_password(client, old_p, new_p)
                     if ok:
-                        st.toast("Đổi mật khẩu thành công! Mật khẩu mới đã được lưu.")
+                        notify.success("Đổi mật khẩu thành công! Mật khẩu mới đã được lưu.")
                     else:
-                        st.error(f"{res}")
+                        notify.error(f"{res}")
 

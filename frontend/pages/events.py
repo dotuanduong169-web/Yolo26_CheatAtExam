@@ -3,6 +3,7 @@
 import io
 import pandas as pd
 import streamlit as st
+from utils.notify import notify
 
 from components.evidence_dialog import show_evidence_dialog
 from services.event_api import list_session_events, verify_event
@@ -38,7 +39,7 @@ client = st.session_state.client
 all_sessions = get_all_sessions(client)
 
 if not all_sessions:
-    st.info("Chưa có phiên thi nào được ghi nhận trong cơ sở dữ liệu.")
+    notify.info("Chưa có phiên thi nào được ghi nhận trong cơ sở dữ liệu.")
     st.stop()
 
 # Tab phân tách: Danh sách sự kiện & Tra cứu lịch sử phiên thi
@@ -110,7 +111,7 @@ with tab_events:
     """, unsafe_allow_html=True)
 
     if not events:
-        st.info("Không có sự kiện nào khớp với tiêu chí lọc.")
+        notify.info("Không có sự kiện nào khớp với tiêu chí lọc.")
     else:
         # Tiêu đề hàng bảng
         th1, th2, th3, th4, th5, th6, th7 = st.columns([0.8, 1.3, 1.8, 0.8, 1.4, 1.1, 1.8])
@@ -161,18 +162,18 @@ with tab_events:
                         if st.button("Đúng", key=f"confirm_ev_{ev_id}", help="Xác nhận đúng vi phạm"):
                             res = verify_event(client, ev_id, "dung", raw_label)
                             if res is not None and res.status_code == 200:
-                                st.toast(f"Đã xác nhận sự kiện EV-{ev_id:02d} là Vi phạm ({friendly_label})")
+                                notify.success(f"Đã xác nhận sự kiện EV-{ev_id:02d} là Vi phạm ({friendly_label})")
                                 st.rerun()
                             else:
-                                st.error("Không thể cập nhật trạng thái sự kiện")
+                                notify.error("Không thể cập nhật trạng thái sự kiện")
                     with act3:
                         if st.button("Sai", key=f"reject_ev_{ev_id}", help="Bác bỏ vi phạm (Báo sai: Giấy thi hợp lệ)"):
                             res = verify_event(client, ev_id, "sai", "Answer_paper")
                             if res is not None and res.status_code == 200:
-                                st.toast(f"Đã bác bỏ sự kiện EV-{ev_id:02d} (Báo sai: Giấy thi hợp lệ)")
+                                notify.success(f"Đã bác bỏ sự kiện EV-{ev_id:02d} (Báo sai: Giấy thi hợp lệ)")
                                 st.rerun()
                             else:
-                                st.error("Không thể cập nhật trạng thái sự kiện")
+                                notify.error("Không thể cập nhật trạng thái sự kiện")
 
                 st.markdown("<hr style='margin: 4px 0 8px 0; border: none; border-top: 1px solid var(--wf-border);'>", unsafe_allow_html=True)
 
@@ -211,7 +212,7 @@ with tab_sessions:
         filtered_sessions = [s for s in filtered_sessions if s.get("ThoiGianKetThuc")]
 
     if not filtered_sessions:
-        st.info("Không tìm thấy ca thi nào phù hợp với điều kiện tìm kiếm.")
+        notify.info("Không tìm thấy ca thi nào phù hợp với điều kiện tìm kiếm.")
     else:
         for s in filtered_sessions:
             s_id = s.get("PK_MaPhienGiamSat")

@@ -1,7 +1,6 @@
 """Thanh sidebar: menu điều hướng và đăng xuất."""
 
 import streamlit as st
-from services.auth_api import logout
 
 def render_sidebar(active: str = "home") -> None:
     """Vẽ sidebar, highlight mục đang mở. Thứ tự nút phải khớp CSS nth-child."""
@@ -36,13 +35,3 @@ def render_sidebar(active: str = "home") -> None:
         }}
         </style>
         """, unsafe_allow_html=True)
-
-
-        if st.button("Đăng xuất", key="logout_btn", use_container_width=True):
-            try:
-                if "client" in st.session_state:
-                    logout(st.session_state.client)
-            except Exception:
-                pass
-            st.session_state.clear()
-            st.switch_page("pages/login.py")

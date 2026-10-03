@@ -16,6 +16,21 @@ def require_auth() -> None:
         st.switch_page("pages/login.py")
         st.stop()
 
+    # Đồng bộ token từ URL vào session (F5 reload mất session_state nhưng còn query_params)
+    if not st.session_state.get("access_token_value"):
+        st.session_state["access_token_value"] = token
+        if st.query_params.get("role"):
+            st.session_state["user_role"] = st.query_params.get("role")
+        if st.query_params.get("u"):
+            st.session_state["username"] = st.query_params.get("u")
+    # Khôi phục refresh token vào cookie client để tự gia hạn sau reload
+    if st.query_params.get("refresh"):
+        st.session_state["refresh_token_value"] = st.query_params.get("refresh")
+        try:
+            st.session_state.client.cookies.set("refresh_token", st.query_params.get("refresh"))
+        except Exception:
+            pass
+
     # Bỏ qua xác thực backend với token demo
     if str(token).startswith("demo_token"):
         return
@@ -45,8 +60,9 @@ def require_auth() -> None:
 
             # Chỉ đăng xuất khi cả refresh token cũng hết hạn
             st.session_state["access_token_value"] = None
-            if "auth" in st.query_params:
-                del st.query_params["auth"]
+            for _k in ("auth", "refresh"):
+                if _k in st.query_params:
+                    del st.query_params[_k]
             st.warning("Phiên làm việc đã hết hạn. Vui lòng đăng nhập lại.")
             st.switch_page("pages/login.py")
             st.stop()

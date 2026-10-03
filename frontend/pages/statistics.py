@@ -3,6 +3,7 @@
 import pandas as pd
 import plotly.express as px
 import streamlit as st
+from utils.notify import notify
 
 from services.history_api import get_all_sessions
 from services.stats_api import get_stats_summary, get_behavior_distribution
@@ -80,7 +81,7 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 if not distribution or all(d.get("so_luot", 0) == 0 for d in distribution):
-    st.info("Chưa có vi phạm gian lận nào được ghi nhận trong cơ sở dữ liệu để vẽ biểu đồ phân bố.")
+    notify.info("Chưa có vi phạm gian lận nào được ghi nhận trong cơ sở dữ liệu để vẽ biểu đồ phân bố.")
 else:
     chart_rows = []
     for d in distribution:

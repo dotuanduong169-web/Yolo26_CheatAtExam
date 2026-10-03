@@ -36,9 +36,17 @@ button[kind="header"] {
     margin-left: auto;
     display: flex;
     align-items: center;
-    gap: 16px;
+    gap: 12px;
     font-size: 12px;
     color: #64748b;
+    white-space: nowrap;
+    flex-shrink: 0;
+}
+
+.top-meta-right > div {
+    display: flex;
+    align-items: center;
+    gap: 4px;
 }
 
 .top-bell-box {
@@ -111,7 +119,8 @@ div[data-testid="stPopoverBody"] {
     display: flex;
     align-items: center;
     gap: 12px;
-    min-width: 260px;
+    min-width: 240px;
+    flex-shrink: 0;
 }
 
 .top-logo-box {
@@ -137,12 +146,15 @@ div[data-testid="stPopoverBody"] {
 }
 
 .top-page-title {
-    font-size: 16px;
-    font-weight: 600;
-    color: #262626;
-    margin-left: 20px;
-    padding-left: 20px;
-    border-left: 1px solid #f0f0f0;
+    flex: 1;
+    text-align: center;
+    font-size: 17px;
+    font-weight: 700;
+    color: #1e293b;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    padding: 0 16px;
 }
 
 /* 3. SIDEBAR */
@@ -213,4 +225,19 @@ section[data-testid="stSidebar"] {
 /* 5. MAIN CONTENT OFFSET */
 .main .block-container {
     padding-top: 85px !important;
+}
+
+/* 6. NAV TABS ĐỒNG NHẤT MỌI TRANG */
+/* Triệt tiêu khối markdown chỉ chứa <style> (nạp CSS) để không đẩy nội dung */
+div[data-testid="stMarkdownContainer"]:has(> style:only-child) {
+    display: none !important;
+}
+
+/* Ghim thanh tab điều hướng dưới header: vị trí cố định khi chuyển trang/cuộn */
+div.element-container:has(div[data-testid="stSegmentedControl"]) {
+    position: sticky !important;
+    top: 64px !important;
+    z-index: 90 !important;
+    background: #f8f9fa !important;
+    padding: 6px 0 8px !important;
 }

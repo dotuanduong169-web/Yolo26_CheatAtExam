@@ -4,6 +4,7 @@
 import math
 
 import streamlit as st
+from utils.notify import notify
 import plotly.graph_objects as go
 
 from services.history_api import get_session_detail
@@ -35,7 +36,7 @@ st.markdown(load_css("styles/session_detail.css"), unsafe_allow_html=True)
 # ── Session ID ──────────────────────────────────────────────
 session_id = st.session_state.get("selected_session") or st.session_state.get("session_id")
 if not session_id:
-    st.error("Không tìm thấy mã phiên giám sát cần xem.")
+    notify.error("Không tìm thấy mã phiên giám sát cần xem.")
     if st.button("Về danh sách lịch sử"):
         st.switch_page("pages/history.py")
     st.stop()
@@ -44,7 +45,7 @@ if not session_id:
 # ── Load Data ───────────────────────────────────────────────
 data = get_session_detail(st.session_state.client, session_id)
 if not data:
-    st.error("Không lấy được dữ liệu của phiên giám sát.")
+    notify.error("Không lấy được dữ liệu của phiên giám sát.")
     st.stop()
 
 sess = data.get("session", {})
@@ -204,7 +205,7 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 if not events:
-    st.info("Phiên thi này không có sự kiện vi phạm nào được ghi nhận.")
+    notify.info("Phiên thi này không có sự kiện vi phạm nào được ghi nhận.")
 else:
     st.markdown("""
         <div class="tbl-head-row">

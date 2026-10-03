@@ -2,6 +2,7 @@ import base64
 import io
 
 import streamlit as st
+from utils.notify import notify
 from PIL import Image
 
 from config import API_BASE_URL
@@ -27,14 +28,14 @@ st.markdown(load_css("styles/frame_detail.css"), unsafe_allow_html=True)
 # ── Event ID ────────────────────────────────────────────────
 event_id = st.session_state.get("event_id")
 if not event_id:
-    st.warning("Không có sự kiện để xem.")
+    notify.warning("Không có sự kiện để xem.")
     st.stop()
 
 
 # ── Load Data ───────────────────────────────────────────────
 data = get_event_detail(st.session_state.client, event_id)
 if not data:
-    st.error("Không lấy được dữ liệu sự kiện.")
+    notify.error("Không lấy được dữ liệu sự kiện.")
     st.stop()
 
 raw_label = data.get("LoaiHanhVi", "?")
@@ -128,7 +129,7 @@ with left_col:
     elif img_b64:
         st.image(f"data:image/jpeg;base64,{img_b64}", use_container_width=True)
     else:
-        st.warning("Không tải được ảnh bằng chứng.")
+        notify.warning("Không tải được ảnh bằng chứng.")
 
 # ── RIGHT: Info + Verify ────────────────────────────────────
 with right_col:
@@ -200,16 +201,16 @@ with right_col:
         if st.button("Xác nhận Vi phạm", use_container_width=True, type="primary"):
             res = verify_event(st.session_state.client, event_id, "dung", chosen_label)
             if res is not None and res.status_code == 200:
-                st.toast(f"Đã xác nhận sự kiện với nhãn: {label_names.get(chosen_label, chosen_label)}")
+                notify.success(f"Đã xác nhận sự kiện với nhãn: {label_names.get(chosen_label, chosen_label)}")
                 st.rerun()
             else:
-                st.error("Lỗi khi gửi xác minh tới hệ thống")
+                notify.error("Lỗi khi gửi xác minh tới hệ thống")
     with col_no:
         if st.button("Bác bỏ (Báo sai)", use_container_width=True):
             res = verify_event(st.session_state.client, event_id, "sai", "Answer_paper")
             if res is not None and res.status_code == 200:
-                st.toast("Đã ghi nhận bác bỏ sự kiện (Báo sai: Giấy thi hợp lệ)")
+                notify.success("Đã ghi nhận bác bỏ sự kiện (Báo sai: Giấy thi hợp lệ)")
                 st.rerun()
             else:
-                st.error("Lỗi khi gửi xác minh tới hệ thống")
+                notify.error("Lỗi khi gửi xác minh tới hệ thống")
 

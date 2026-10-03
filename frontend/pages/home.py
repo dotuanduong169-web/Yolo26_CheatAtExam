@@ -2,6 +2,7 @@
 
 import time
 import streamlit as st
+from utils.notify import notify
 from streamlit_autorefresh import st_autorefresh
 
 from components.evidence_dialog import show_evidence_dialog
@@ -163,11 +164,11 @@ if not is_running:
                     st.session_state["session_id"] = data.get("session_id")
                     st.session_state["capture_start_time"] = time.time()
                     st.session_state["refresh_key"] += 1
-                    st.toast("Đã khởi tạo phiên thi thành công!")
+                    notify.success("Đã khởi tạo phiên thi thành công!")
                     st.rerun()
                 else:
                     err_msg = res.json().get("detail", "Không thể khởi động camera") if res else "Không thể kết nối đến máy chủ"
-                    st.error(f"Khởi động thất bại: {err_msg}")
+                    notify.error(f"Khởi động thất bại: {err_msg}")
 
 # =========================================================================
 # GIAI ĐOẠN 2: KHI PHIÊN THI ĐANG HOẠT ĐỘNG -> GIAO DIỆN CAMERA & CẢNH BÁO
@@ -185,7 +186,7 @@ else:
             st.session_state["session_id"] = None
             st.session_state["capture_start_time"] = None
             st.session_state["refresh_key"] += 1
-            st.toast("Đã kết thúc ca thi!")
+            notify.success("Đã kết thúc ca thi!")
             st.rerun()
 
     # Layout 2 cột cân đối: Cột camera 65%, Cột cảnh báo 35%
@@ -265,7 +266,7 @@ else:
         """, unsafe_allow_html=True)
 
         if not all_events:
-            st.info("Chưa có cảnh báo nghi vấn nào trong ca thi.")
+            notify.info("Chưa có cảnh báo nghi vấn nào trong ca thi.")
         else:
             # Sửa Lỗi 5: Bọc trong container có thanh cuộn và khống chế chiều cao, không làm tràn trang
             st.markdown('<div class="record-scroll-container" style="max-height: 440px; overflow-y: auto; padding-right: 4px;">', unsafe_allow_html=True)

@@ -1,0 +1,14 @@
+# Flutter/Dart
+.dart_tool/
+.flutter-plugins
+.flutter-plugins-dependencies
+build/
+
+# Android
+android/.gradle/
+android/.kotlin/
+android/captures/
+android/local.properties
+**/*.iml
+**/*.keystore
+**/*.jks

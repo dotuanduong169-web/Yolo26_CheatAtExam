@@ -25,33 +25,39 @@ def render_page_header(title: str, active: str | None = None):
         session_badge_cls = ""
         session_badge_text = "Hệ thống sẵn sàng"
 
-    st.markdown(f"""
-    <div class="global-top-bar">
-        <div class="top-logo-section">
-            <div class="top-logo-box">
-                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                    <path d="M3 3v18h18" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                    <path d="M7 14l4-4 4 4 6-6" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                    <path d="M21 8v-4h-4" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                </svg>
-            </div>
-            <div class="top-logo-text">
-                <div class="top-logo-main">ExamCheat AI</div>
-                <div class="top-logo-sub">Giám sát thi thông minh</div>
-            </div>
-        </div>
-        <div class="top-page-title">{title}</div>
-        <div class="top-meta-right">
-            <div>Ca thi: <strong>{session_text}</strong></div>
-            <div>{role_label}: <strong>{user_name}</strong></div>
-            <div>Trạng thái: <span class="badge {session_badge_cls}">{session_badge_text}</span></div>
-        </div>
-    </div>
-    """, unsafe_allow_html=True)
-
+    header_html = (
+        '<div class="global-top-bar">'
+        '  <div class="top-logo-section">'
+        '    <div class="top-logo-box">'
+        '      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">'
+        '        <path d="M3 3v18h18" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>'
+        '        <path d="M7 14l4-4 4 4 6-6" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>'
+        '        <path d="M21 8v-4h-4" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>'
+        '      </svg>'
+        '    </div>'
+        '    <div class="top-logo-text">'
+        '      <div class="top-logo-main">ExamCheat AI</div>'
+        '      <div class="top-logo-sub">Giám sát thi thông minh</div>'
+        '    </div>'
+        '  </div>'
+        f'  <div class="top-page-title">{title}</div>'
+        '  <div class="top-meta-right">'
+        f'    <div>Ca thi: <strong>{session_text}</strong></div>'
+        f'    <div>{role_label}: <strong>{user_name}</strong></div>'
+        f'    <div>Trạng thái: <span class="badge {session_badge_cls}">{session_badge_text}</span></div>'
+        '    <a href="/login" class="header-logout-btn" onclick="try{window.parent.localStorage.removeItem(\'examcheat_auth\');}catch(e){};try{localStorage.removeItem(\'examcheat_auth\');}catch(e){};" title="Đăng xuất khỏi hệ thống">'
+        '      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">'
+        '        <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>'
+        '        <polyline points="16 17 21 12 16 7"/>'
+        '        <line x1="21" y1="12" x2="9" y2="12"/>'
+        '      </svg>'
+        '      <span>Đăng xuất</span>'
+        '    </a>'
+        '  </div>'
+        '</div>'
+    )
+    st.markdown(header_html, unsafe_allow_html=True)
 
     if active:
         from components.nav_tabs import render_nav_tabs
         render_nav_tabs(active)
-
-

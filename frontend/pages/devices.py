@@ -134,11 +134,10 @@ else:
                 st.markdown(stt_badge, unsafe_allow_html=True)
             with c6:
                 if is_admin:
-                    # 3 Nút nghiệp vụ tiếng Việt: Thử luồng thực tế, Sửa cấu hình, Xóa thiết bị
-                    col_b1, col_b2, col_b3 = st.columns(3)
+                    col_b1, col_b2, col_b3 = st.columns([1, 1, 1])
                     with col_b1:
-                        # Sửa Lỗi 3: Kiểm tra luồng thực tế từ backend, không dùng mock data
-                        if st.button("Thử", key=f"test_btn_{dev_id}", help="Kiểm tra kết nối luồng RTSP thực tế"):
+                        st.markdown('<div class="btn-icon-action btn-icon-test">', unsafe_allow_html=True)
+                        if st.button("Thử", key=f"test_btn_{dev_id}", help="Kiểm tra kết nối luồng RTSP camera"):
                             with st.spinner("Đang kiểm tra kết nối thiết bị..."):
                                 test_res = test_device(client, dev_id)
                             if test_res.get("online"):
@@ -146,13 +145,17 @@ else:
                                 notify.success(f"{name}: {test_res.get('message')} ({lat}ms)")
                             else:
                                 notify.error(f"{name}: {test_res.get('message')}")
+                        st.markdown('</div>', unsafe_allow_html=True)
                     with col_b2:
-                        if st.button("Sửa", key=f"edit_btn_{dev_id}", help="Chỉnh sửa cấu hình thiết bị"):
+                        st.markdown('<div class="btn-icon-action btn-icon-edit">', unsafe_allow_html=True)
+                        if st.button("Sửa", key=f"edit_btn_{dev_id}", help="Chỉnh sửa thông tin thiết bị"):
                             st.session_state[f"editing_device_{dev_id}"] = not st.session_state.get(f"editing_device_{dev_id}", False)
+                        st.markdown('</div>', unsafe_allow_html=True)
                     with col_b3:
-                        # Sửa Lỗi 2: Bấm nút xóa mở dialog xác nhận an toàn
+                        st.markdown('<div class="btn-icon-action btn-icon-delete">', unsafe_allow_html=True)
                         if st.button("Xóa", key=f"del_dev_{dev_id}", help="Xóa thiết bị khỏi danh mục"):
                             st.session_state[f"confirm_del_{dev_id}"] = True
+                        st.markdown('</div>', unsafe_allow_html=True)
                 else:
                     st.caption("Cán bộ")
 

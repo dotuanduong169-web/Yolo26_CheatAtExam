@@ -237,9 +237,11 @@ else:
         )
 
         with c5:
-            if st.button("Xem", key=f"view_ev_btn_{row['PK_MaSuKien']}", use_container_width=True, type="secondary"):
+            st.markdown('<div class="btn-icon-action btn-icon-view">', unsafe_allow_html=True)
+            if st.button("Xem", key=f"view_ev_btn_{row['PK_MaSuKien']}", help="Xem chi tiết vi phạm", use_container_width=True, type="secondary"):
                 st.session_state["event_id"] = row["PK_MaSuKien"]
                 st.switch_page("pages/event_detail.py")
+            st.markdown('</div>', unsafe_allow_html=True)
 
     # Phân trang native bằng Streamlit button
     showing = len(page_events)

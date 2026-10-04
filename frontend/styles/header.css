@@ -262,7 +262,39 @@ section[data-testid="stSidebar"] {
 
 /* 5. MAIN CONTENT OFFSET */
 .main .block-container {
-    padding-top: 76px !important;
+    padding-top: 64px !important;
+}
+
+/* Nút Đăng xuất trên Header góc phải */
+.header-logout-btn {
+    display: inline-flex !important;
+    align-items: center !important;
+    gap: 5px !important;
+    height: 28px !important;
+    padding: 0 10px !important;
+    font-size: 12px !important;
+    font-weight: 500 !important;
+    color: #ef4444 !important;
+    background-color: #fef2f2 !important;
+    border: 1px solid #fecaca !important;
+    border-radius: 6px !important;
+    cursor: pointer !important;
+    text-decoration: none !important;
+    transition: all 0.15s ease-in-out !important;
+    margin-left: 8px !important;
+    outline: none !important;
+    flex-shrink: 0 !important;
+}
+
+.header-logout-btn:hover {
+    background-color: #fee2e2 !important;
+    color: #dc2626 !important;
+    border-color: #f87171 !important;
+    box-shadow: 0 1px 2px rgba(239, 68, 68, 0.1) !important;
+}
+
+.header-logout-btn svg {
+    display: block !important;
 }
 
 /* 6. NAV TABS ĐỒNG NHẤT MỌI TRANG */
@@ -271,11 +303,59 @@ div[data-testid="stMarkdownContainer"]:has(> style:only-child) {
     display: none !important;
 }
 
-/* Ghim thanh tab điều hướng dưới header: vị trí cố định khi chuyển trang/cuộn */
+/* Ghim thanh tab điều hướng cố định ngay dưới header */
 div.element-container:has(div[data-testid="stSegmentedControl"]) {
     position: sticky !important;
-    top: 64px !important;
-    z-index: 90 !important;
+    top: 60px !important;
+    z-index: 9999 !important;
     background: #f8fafc !important;
-    padding: 6px 0 8px !important;
+    padding: 6px 0 4px 0 !important;
+    margin-bottom: 2px !important;
+}
+
+div[data-testid="stSegmentedControl"] {
+    width: 100% !important;
+    max-width: 100% !important;
+    background: #ffffff !important;
+    border: 1px solid #e2e8f0 !important;
+    border-radius: 10px !important;
+    padding: 4px !important;
+    display: flex !important;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.03) !important;
+}
+
+div[data-testid="stSegmentedControl"] > div {
+    width: 100% !important;
+    display: flex !important;
+    gap: 8px !important;
+}
+
+div[data-testid="stSegmentedControl"] button {
+    flex: 1 1 0px !important;
+    min-width: 0 !important;
+    border-radius: 7px !important;
+    font-weight: 500 !important;
+    font-size: 13.5px !important;
+    height: 36px !important;
+    padding: 0 8px !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    border: 1px solid transparent !important;
+    color: #475569 !important;
+    background: transparent !important;
+    transition: all 0.15s ease-in-out !important;
+}
+
+div[data-testid="stSegmentedControl"] button:hover {
+    background-color: #f1f5f9 !important;
+    color: #0f172a !important;
+}
+
+div[data-testid="stSegmentedControl"] button[aria-checked="true"] {
+    background-color: #eff6ff !important;
+    color: #2563eb !important;
+    border-color: #bfdbfe !important;
+    font-weight: 600 !important;
+    box-shadow: 0 1px 2px rgba(37, 99, 235, 0.08) !important;
 }

@@ -154,16 +154,24 @@ with tab_events:
                 with c6:
                     st.markdown(stt_badge, unsafe_allow_html=True)
                 with c7:
-                    with st.popover("Thao tác", use_container_width=False):
-                        if st.button("Xem", key=f"view_ev_{ev_id}", help="Xem chi tiết & xác minh lại nhãn đúng", use_container_width=True):
+                    ev_b1, ev_b2, ev_b3 = st.columns([1, 1, 1])
+                    with ev_b1:
+                        st.markdown('<div class="btn-icon-action btn-icon-view">', unsafe_allow_html=True)
+                        if st.button("Xem", key=f"view_ev_{ev_id}", help="Xem chi tiết bằng chứng & tọa độ vi phạm", use_container_width=True):
                             show_evidence_dialog(ev_id)
-                        if st.button("Đúng", key=f"confirm_ev_{ev_id}", help="Xác nhận đúng vi phạm", use_container_width=True):
+                        st.markdown('</div>', unsafe_allow_html=True)
+                    with ev_b2:
+                        st.markdown('<div class="btn-icon-action btn-icon-confirm">', unsafe_allow_html=True)
+                        if st.button("Đúng", key=f"confirm_ev_{ev_id}", help=f"Xác nhận đúng vi phạm ({friendly_label})", use_container_width=True):
                             res = verify_event(client, ev_id, "dung", raw_label)
                             if res is not None and res.status_code == 200:
                                 notify.success(f"Đã xác nhận sự kiện EV-{ev_id:02d} là Vi phạm ({friendly_label})")
                                 st.rerun()
                             else:
                                 notify.error("Không thể cập nhật trạng thái sự kiện")
+                        st.markdown('</div>', unsafe_allow_html=True)
+                    with ev_b3:
+                        st.markdown('<div class="btn-icon-action btn-icon-reject">', unsafe_allow_html=True)
                         if st.button("Sai", key=f"reject_ev_{ev_id}", help="Bác bỏ vi phạm (Báo sai: Giấy thi hợp lệ)", use_container_width=True):
                             res = verify_event(client, ev_id, "sai", "Answer_paper")
                             if res is not None and res.status_code == 200:
@@ -171,6 +179,7 @@ with tab_events:
                                 st.rerun()
                             else:
                                 notify.error("Không thể cập nhật trạng thái sự kiện")
+                        st.markdown('</div>', unsafe_allow_html=True)
 
                 st.markdown("<hr style='margin: 4px 0 8px 0; border: none; border-top: 1px solid var(--wf-border);'>", unsafe_allow_html=True)
 
@@ -235,14 +244,18 @@ with tab_sessions:
                 with sc5:
                     btn_detail_col, btn_select_col = st.columns(2)
                     with btn_detail_col:
-                        if st.button("Xem chi tiết", key=f"btn_detail_sess_{s_id}", help="Xem báo cáo và biểu đồ chi tiết của ca này"):
+                        st.markdown('<div class="btn-icon-action btn-icon-view">', unsafe_allow_html=True)
+                        if st.button("Xem", key=f"btn_detail_sess_{s_id}", help="Xem báo cáo chi tiết ca thi"):
                             st.session_state["selected_session"] = s_id
                             st.switch_page("pages/session_detail.py")
+                        st.markdown('</div>', unsafe_allow_html=True)
                     with btn_select_col:
-                        if st.button("Xem sự kiện", key=f"btn_events_sess_{s_id}", help="Xem các vi phạm của ca này"):
+                        st.markdown('<div class="btn-icon-action btn-icon-events">', unsafe_allow_html=True)
+                        if st.button("Sự kiện", key=f"btn_events_sess_{s_id}", help="Xem các sự kiện vi phạm của ca thi này"):
                             st.session_state["session_id"] = s_id
                             st.session_state["selected_session"] = s_id
                             st.rerun()
+                        st.markdown('</div>', unsafe_allow_html=True)
 
                 st.markdown("<hr style='margin: 4px 0 10px 0; border: none; border-top: 1px solid var(--wf-border);'>", unsafe_allow_html=True)
 

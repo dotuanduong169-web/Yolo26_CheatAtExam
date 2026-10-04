@@ -122,14 +122,6 @@ if not is_running:
                 ["Luồng RTSP Camera trực tiếp", "Video mẫu kiểm thử (videos/test_exam.mp4)"]
             )
 
-        # Tiện ích tự động điền nhanh dữ liệu ca thi
-        col_autofill, col_space2 = st.columns([1.5, 2])
-        with col_autofill:
-            if st.button("Tự động điền dữ liệu mẫu ca thi", use_container_width=True):
-                st.session_state["prefill_phong_thi"] = "Phòng P.302"
-                st.session_state["prefill_mon_thi"] = "Toán cao cấp - Học kỳ 1 (2026)"
-                st.rerun()
-
         # Trạng thái sẵn sàng phần cứng biên
         st.markdown("""
         <div class="hw-status-grid" style="background: #f8fafc; border: 1px solid var(--wf-border); border-radius: var(--wf-radius); padding: 12px 16px; margin: 16px 0;">

@@ -26,6 +26,8 @@ st.markdown(load_css("styles/history.css"), unsafe_allow_html=True)
 
 init_session_state()
 require_auth()
+hide_sidebar()
+render_page_header("Lịch sử giám sát", active="history")
 
 PAGE_SIZE = 5
 
@@ -34,10 +36,20 @@ def _fetch_history(session, search: str = "", page: int = 1) -> dict | None:
     """Lấy danh sách phiên và tóm tắt qua service."""
     skip = (page - 1) * PAGE_SIZE
     sessions = get_history(session, search=search, skip=skip, limit=PAGE_SIZE)
-    summary = get_history_summary(session, search=search)
+    try:
+        summary = get_history_summary(session, search=search)
+    except TypeError:
+        try:
+            summary = get_history_summary(session)
+        except Exception:
+            summary = {}
+    except Exception:
+        summary = {}
 
-    if sessions is None or summary is None:
+    if sessions is None:
         return None
+    if summary is None:
+        summary = {}
 
     return {
         "sessions": sessions,
@@ -77,17 +89,11 @@ def confirm_delete(session_id: int):
             handle_delete(session_id)
 
 
-# ── Sidebar ─────────────────────────────────────────────────
-hide_sidebar()
-
 # ── Session state for pagination ────────────────────────────
 if "hist_page" not in st.session_state:
     st.session_state.hist_page = 1
 if "hist_search" not in st.session_state:
     st.session_state.hist_search = ""
-
-# ── Header ──────────────────────────────────────────────────
-render_page_header("Lịch sử giám sát", active="history")
 
 # ── Load Data ───────────────────────────────────────────────
 data = _fetch_history(
@@ -186,12 +192,18 @@ else:
         with row_cols[4]:
             st.markdown(f'<span class="cell-count">{ev_count}</span>', unsafe_allow_html=True)
         with row_cols[5]:
-            with st.popover("Thao tác", use_container_width=False):
-                if st.button("Xem chi tiết", key=f"view_{sid}", use_container_width=True):
+            h_col1, h_col2 = st.columns([1, 1])
+            with h_col1:
+                st.markdown('<div class="btn-icon-action btn-icon-view">', unsafe_allow_html=True)
+                if st.button("Xem", key=f"view_{sid}", help="Xem chi tiết phiên giám sát", use_container_width=True):
                     st.session_state.selected_session = sid
                     st.switch_page("pages/session_detail.py")
-                if st.button("Xóa phiên", key=f"del_{sid}", use_container_width=True):
+                st.markdown('</div>', unsafe_allow_html=True)
+            with h_col2:
+                st.markdown('<div class="btn-icon-action btn-icon-delete">', unsafe_allow_html=True)
+                if st.button("Xóa", key=f"del_{sid}", help="Xóa phiên giám sát", use_container_width=True):
                     confirm_delete(sid)
+                st.markdown('</div>', unsafe_allow_html=True)
 
 st.markdown("</div>", unsafe_allow_html=True)
 

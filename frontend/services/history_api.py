@@ -36,11 +36,11 @@ def get_history(
         return []
 
 
-def get_history_summary(session: requests.Session, search: str = "") -> dict:
+def get_history_summary(session: requests.Session, search: str = "", *args, **kwargs) -> dict:
     """Tóm tắt phiên và sự kiện. Lỗi trả {}."""
     try:
         params = {}
-        if search.strip():
+        if isinstance(search, str) and search.strip():
             params["search"] = search.strip()
         res = session.get(
             f"{API_BASE_URL}/history/summary",

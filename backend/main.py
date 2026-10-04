@@ -70,7 +70,12 @@ app = FastAPI(
 if settings.is_production:
     allowed_origins = settings.ALLOWED_ORIGINS or ["https://yourdomain.com"]
 else:
-    allowed_origins = ["*"]
+    allowed_origins = settings.ALLOWED_ORIGINS or [
+        "http://localhost:8501",
+        "http://127.0.0.1:8501",
+        "http://localhost:8502",
+        "http://127.0.0.1:8502",
+    ]
 
 app.add_middleware(
     CORSMiddleware,

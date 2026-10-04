@@ -34,7 +34,7 @@ def _fetch_history(session, search: str = "", page: int = 1) -> dict | None:
     """Lấy danh sách phiên và tóm tắt qua service."""
     skip = (page - 1) * PAGE_SIZE
     sessions = get_history(session, search=search, skip=skip, limit=PAGE_SIZE)
-    summary = get_history_summary(session)
+    summary = get_history_summary(session, search=search)
 
     if sessions is None or summary is None:
         return None

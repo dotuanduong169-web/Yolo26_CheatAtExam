@@ -113,12 +113,17 @@ def change_password(
 
 @router.post("/logout", response_model=MessageResponse)
 def logout(
+    request: Request,
     response: Response,
     user: User = Depends(get_current_user),
     access_token: Optional[str] = Cookie(None),
     refresh_token: Optional[str] = Cookie(None),
 ):
     """Đăng xuất. Thu hồi token trên server rồi xóa cả hai cookie phiên."""
+    if not access_token:
+        auth = request.headers.get("authorization", "")
+        if auth.lower().startswith("bearer "):
+            access_token = auth[7:].strip() or None
     logout_user(user.PK_MaNguoiDung, access_token, refresh_token)
 
     cookie = get_cookie_settings()

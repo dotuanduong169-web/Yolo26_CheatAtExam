@@ -52,3 +52,8 @@ class StatsSummaryResponse(BaseModel):
     total_students: int
     avg_focus_rate: float
     sleeping_alerts: int
+    # Key mới cho frontend (giữ key cũ để tương thích ngược)
+    total_sessions: int = 0
+    total_cheats: int = 0
+    clean_rate: float = 100.0
+    most_common_behavior: str = "Chưa có vi phạm"

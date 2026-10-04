@@ -6,13 +6,15 @@ import streamlit as st
 
 _CSS = """
 <style>
-.sys-toast-wrap { position: fixed; top: 76px; right: 16px; z-index: 1000001; pointer-events: none; }
+.sys-toast-wrap { position: fixed; top: 76px; right: 16px; z-index: 1000001; pointer-events: none;
+    display: flex; flex-direction: column; align-items: flex-end; }
 .sys-toast {
     display: flex; align-items: center; gap: 8px;
-    min-width: 240px; max-width: 360px;
+    width: max-content; max-width: min(360px, calc(100vw - 32px));
     margin-bottom: 8px; padding: 10px 14px;
     border-radius: 10px; font-size: 13px; font-weight: 600; color: #fff;
     box-shadow: 0 4px 16px rgba(0,0,0,0.18);
+    overflow-wrap: anywhere;
     animation: sys-toast-life 4s ease forwards;
 }
 .sys-toast.success { background: #16a34a; }

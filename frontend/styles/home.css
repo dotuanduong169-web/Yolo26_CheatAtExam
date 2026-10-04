@@ -1,10 +1,4 @@
-/* ===== PAGE LAYOUT ===== */
-.block-container {
-    padding-top: 1rem;
-    padding-left: 1.5rem;
-    padding-right: 1.5rem;
-    max-width: 100%;
-}
+/* ===== PAGE LAYOUT: dùng chuẩn chung hide_sidebar + header ===== */
 
 /* Global header styles are now in styles/header.css */
 
@@ -115,29 +109,8 @@
     box-shadow: 0 3px 10px rgba(0,0,0,0.1);
 }
 
-/* START BUTTON (Primary) */
-div[data-testid="stColumn"]:nth-of-type(3) .stButton > button {
-    background-color: #10b981 !important; /* Emerald 500 */
-    color: white !important;
-    border: none !important;
-    transition: all 0.2s ease;
-}
-div[data-testid="stColumn"]:nth-of-type(3) .stButton > button:hover {
-    background-color: #059669 !important; /* Emerald 600 */
-    box-shadow: 0 4px 12px rgba(16, 185, 129, 0.35) !important;
-}
-
-/* STOP BUTTON (Secondary) */
-div[data-testid="stColumn"]:nth-of-type(4) .stButton > button {
-    background-color: #f43f5e !important; /* Rose 500 */
-    color: white !important;
-    border: none !important;
-    transition: all 0.2s ease;
-}
-div[data-testid="stColumn"]:nth-of-type(4) .stButton > button:hover {
-    background-color: #e11d48 !important; /* Rose 600 */
-    box-shadow: 0 4px 12px rgba(244, 63, 94, 0.35) !important;
-}
+/* Nút bắt đầu / kết thúc dùng màu chuẩn của Streamlit primary/secondary.
+   Không ép màu theo nth-of-type vì giòn khi DOM đổi. */
 
 /* ===== CAPTURE COUNTDOWN BAR ===== */
 .capture-countdown {

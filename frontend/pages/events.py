@@ -130,7 +130,7 @@ with tab_events:
             raw_label = ev.get("LoaiHanhVi", "?")
             friendly_label = get_friendly_behavior_label(raw_label)
             conf = round(float(ev.get("DoTinCay", 0)) * 100, 1)
-            time_str = str(ev.get("ThoiGianPhatHien", ""))[:19]
+            time_str = str(ev.get("ThoiGianPhatHien", ""))[:19].replace("T", " ")
             stt = ev.get("TrangThaiKiemTra", "cho_kiem_tra")
             user_label = ev.get("NhanNguoiDung")
             friendly_user_label = get_friendly_behavior_label(user_label) if user_label else "—"
@@ -154,20 +154,17 @@ with tab_events:
                 with c6:
                     st.markdown(stt_badge, unsafe_allow_html=True)
                 with c7:
-                    act1, act2, act3 = st.columns(3)
-                    with act1:
-                        if st.button("Xem", key=f"view_ev_{ev_id}", help="Xem chi tiết & xác minh lại nhãn đúng"):
+                    with st.popover("Thao tác", use_container_width=False):
+                        if st.button("Xem", key=f"view_ev_{ev_id}", help="Xem chi tiết & xác minh lại nhãn đúng", use_container_width=True):
                             show_evidence_dialog(ev_id)
-                    with act2:
-                        if st.button("Đúng", key=f"confirm_ev_{ev_id}", help="Xác nhận đúng vi phạm"):
+                        if st.button("Đúng", key=f"confirm_ev_{ev_id}", help="Xác nhận đúng vi phạm", use_container_width=True):
                             res = verify_event(client, ev_id, "dung", raw_label)
                             if res is not None and res.status_code == 200:
                                 notify.success(f"Đã xác nhận sự kiện EV-{ev_id:02d} là Vi phạm ({friendly_label})")
                                 st.rerun()
                             else:
                                 notify.error("Không thể cập nhật trạng thái sự kiện")
-                    with act3:
-                        if st.button("Sai", key=f"reject_ev_{ev_id}", help="Bác bỏ vi phạm (Báo sai: Giấy thi hợp lệ)"):
+                        if st.button("Sai", key=f"reject_ev_{ev_id}", help="Bác bỏ vi phạm (Báo sai: Giấy thi hợp lệ)", use_container_width=True):
                             res = verify_event(client, ev_id, "sai", "Answer_paper")
                             if res is not None and res.status_code == 200:
                                 notify.success(f"Đã bác bỏ sự kiện EV-{ev_id:02d} (Báo sai: Giấy thi hợp lệ)")
@@ -218,9 +215,9 @@ with tab_sessions:
             s_id = s.get("PK_MaPhienGiamSat")
             room = s.get("PhongThi") or "Chưa đặt phòng"
             subject = s.get("MonThi") or "Chưa đặt môn"
-            start_t = str(s.get("ThoiGianBatDau", ""))[:19]
+            start_t = str(s.get("ThoiGianBatDau", ""))[:19].replace("T", " ")
             is_active_sess = not s.get("ThoiGianKetThuc")
-            end_t = "Đang diễn ra" if is_active_sess else str(s.get("ThoiGianKetThuc", ""))[:19]
+            end_t = "Đang diễn ra" if is_active_sess else str(s.get("ThoiGianKetThuc", ""))[:19].replace("T", " ")
             event_count = s.get("so_su_kien", 0)
 
             status_badge = get_session_status_badge(s.get("TrangThai"), s.get("ThoiGianKetThuc"))

@@ -31,6 +31,7 @@ if "detail_page" not in st.session_state:
 # ── Sidebar & Styles ────────────────────────────────────────
 hide_sidebar()
 st.markdown(load_css("styles/sidebar.css"), unsafe_allow_html=True)
+st.markdown(load_css("styles/app_theme.css"), unsafe_allow_html=True)
 st.markdown(load_css("styles/session_detail.css"), unsafe_allow_html=True)
 
 # ── Session ID ──────────────────────────────────────────────
@@ -154,8 +155,8 @@ with top2:
     """, unsafe_allow_html=True)
 
 with top3:
-    start = str(sess.get("ThoiGianBatDau", ""))[:16]
-    end = str(sess.get("ThoiGianKetThuc", "") or "Đang chạy")[:16]
+    start = str(sess.get("ThoiGianBatDau", ""))[:16].replace("T", " ")
+    end = str(sess.get("ThoiGianKetThuc", "") or "Đang chạy")[:16].replace("T", " ")
     st.markdown(f"""
     <div class="kpi-card">
         <div class="kpi-label">Thời gian bắt đầu</div>
@@ -177,15 +178,6 @@ with top3:
     """, unsafe_allow_html=True)
 
 # ── Events Table ────────────────────────────────────────────
-BEHAVIOR_LABELS = {
-    "Cheat_Paper": "Tài liệu (Phao thi)",
-    "cellphone": "Điện thoại di động",
-    "Head_Turn": "Quay đầu / Nhìn bài",
-    "quay_dau": "Quay đầu bất thường",
-    "quay_sau": "Quay người về sau",
-    "cui_xuong": "Cúi đầu nhìn tài liệu",
-    "Answer_paper": "Giấy thi hợp lệ",
-}
 
 PAGE_SIZE = 5
 total_rows = len(events)
@@ -221,12 +213,12 @@ else:
         c1, c2, c3, c4, c5 = st.columns([1.2, 1.4, 0.9, 1.3, 0.8])
 
         c1.markdown(
-            f"<div class='tbl-cell'><b>{str(row.get('ThoiGianPhatHien', ''))[:19]}</b></div>",
+            f"<div class='tbl-cell'><b>{str(row.get('ThoiGianPhatHien', ''))[:19].replace('T', ' ')}</b></div>",
             unsafe_allow_html=True,
         )
 
         raw_bh = row.get("LoaiHanhVi", "?")
-        friendly_bh = BEHAVIOR_LABELS.get(raw_bh, raw_bh)
+        friendly_bh = get_friendly_behavior_label(raw_bh)
         c2.markdown(
             f"<div class='tbl-cell'><span style='color: var(--wf-danger); font-weight:600;'>{friendly_bh}</span></div>",
             unsafe_allow_html=True,
@@ -263,7 +255,14 @@ else:
         )
 
     with pg_cols:
-        pages_to_show = list(range(1, total_pages + 1))
+        if total_pages <= 7:
+            pages_to_show = list(range(1, total_pages + 1))
+        elif page <= 4:
+            pages_to_show = [1, 2, 3, 4, 5, "...", total_pages]
+        elif page >= total_pages - 3:
+            pages_to_show = [1, "..."] + list(range(total_pages - 4, total_pages + 1))
+        else:
+            pages_to_show = [1, "...", page - 1, page, page + 1, "...", total_pages]
         btn_cols = st.columns(len(pages_to_show) + 2)
 
         with btn_cols[0]:
@@ -273,6 +272,9 @@ else:
 
         for idx, p in enumerate(pages_to_show):
             with btn_cols[idx + 1]:
+                if p == "...":
+                    st.markdown("<div style='text-align: center; line-height: 38px; color: #94a3b8;'>…</div>", unsafe_allow_html=True)
+                    continue
                 is_active_p = (p == page)
                 btn_type = "primary" if is_active_p else "secondary"
                 if st.button(str(p), key=f"dt_page_{p}", type=btn_type, use_container_width=True):

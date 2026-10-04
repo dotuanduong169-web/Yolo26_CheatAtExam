@@ -132,8 +132,8 @@ if not is_running:
 
         # Trạng thái sẵn sàng phần cứng biên
         st.markdown("""
-        <div style="background: #f8fafc; border: 1px solid var(--wf-border); border-radius: var(--wf-radius); padding: 12px 16px; margin: 16px 0;">
-            <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; font-size: 11.5px;">
+        <div class="hw-status-grid" style="background: #f8fafc; border: 1px solid var(--wf-border); border-radius: var(--wf-radius); padding: 12px 16px; margin: 16px 0;">
+            <div class="hw-status-row" style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; font-size: 11.5px;">
                 <div>Thiết bị biên: <strong style="color: var(--wf-success);">Jetson Orin Online</strong></div>
                 <div>Camera IP: <strong style="color: var(--wf-success);">RTSP Ready (2ms)</strong></div>
                 <div>Bộ đệm RAM: <strong style="color: var(--wf-success);">1 Frame Ready</strong></div>
@@ -218,27 +218,9 @@ else:
             <img src="{CAMERA_URL}/video_feed?t={cache_bust}" alt="Live stream" style="width: 100%; height: auto; max-height: 480px; object-fit: contain; display: block;">
             <div class="rec-indicator" style="position: absolute; top: 12px; left: 14px; background: rgba(0,0,0,0.65); padding: 4px 10px; border-radius: 4px; color: #fff; font-size: 12px; font-weight: 600; display: flex; align-items: center; gap: 8px;">
                 <span style="width: 8px; height: 8px; background: #dc2626; border-radius: 50%; display: inline-block;"></span>
-                REC <span id="elapsed-timer">{elapsed_str}</span>
+                REC <span>{elapsed_str}</span>
             </div>
         </div>
-        <script>
-        (function() {{
-            var startEpoch = {start_time or 0};
-            if (!startEpoch) return;
-            var el = document.getElementById('elapsed-timer');
-            if (!el) return;
-            setInterval(function() {{
-                var elapsed = Math.floor(Date.now() / 1000 - startEpoch);
-                var h = Math.floor(elapsed / 3600);
-                var m = Math.floor((elapsed % 3600) / 60);
-                var s = elapsed % 60;
-                el.textContent =
-                    String(h).padStart(2,'0') + ':' +
-                    String(m).padStart(2,'0') + ':' +
-                    String(s).padStart(2,'0');
-            }}, 1000);
-        }})();
-        </script>
         """, unsafe_allow_html=True)
 
         st.caption("Đang phân tích luồng video với mô hình YOLO26-Seg trên thiết bị biên. Độ trễ: ~42ms | Ngưỡng tin cậy: 0.65")

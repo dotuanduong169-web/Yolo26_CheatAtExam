@@ -1,12 +1,4 @@
-/* ===== GLOBAL BACKGROUND ===== */
-.stApp,
-body {
-    background-color: #f8fafc !important;
-}
-
-.block-container {
-    padding: 1.2rem 2rem 2rem;
-}
+/* ===== PAGE LAYOUT: dùng chuẩn chung hide_sidebar + header + app_theme ===== */
 
 /* ===== BACK BUTTON ===== */
 .back-btn {

@@ -69,14 +69,12 @@ except Exception:
     pass
 
 # ── Header Banner ───────────────────────────────────────────
-st.markdown("""
+from utils.logo import logo_img
+
+st.markdown(f"""
 <div class="login-header">
     <div class="logo-box">
-        <svg width="26" height="26" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <path d="M3 3v18h18" stroke="white" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
-            <path d="M7 14l4-4 4 4 6-6" stroke="white" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
-            <path d="M21 8v-4h-4" stroke="white" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
-        </svg>
+        {logo_img(52, 14)}
     </div>
     <div class="logo-text">ExamCheat AI</div>
     <div class="welcome-title">Chào mừng trở lại</div>

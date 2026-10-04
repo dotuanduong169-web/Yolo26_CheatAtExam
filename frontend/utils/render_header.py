@@ -1,5 +1,6 @@
 import streamlit as st
 from utils.load_css import load_css
+from utils.logo import logo_img
 
 
 def render_page_header(title: str, active: str | None = None):
@@ -28,13 +29,7 @@ def render_page_header(title: str, active: str | None = None):
     header_html = (
         '<div class="global-top-bar">'
         '  <div class="top-logo-section">'
-        '    <div class="top-logo-box">'
-        '      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">'
-        '        <path d="M3 3v18h18" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>'
-        '        <path d="M7 14l4-4 4 4 6-6" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>'
-        '        <path d="M21 8v-4h-4" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>'
-        '      </svg>'
-        '    </div>'
+        f'    <div class="top-logo-box">{logo_img(36, 8)}</div>'
         '    <div class="top-logo-text">'
         '      <div class="top-logo-main">ExamCheat AI</div>'
         '      <div class="top-logo-sub">Giám sát thi thông minh</div>'

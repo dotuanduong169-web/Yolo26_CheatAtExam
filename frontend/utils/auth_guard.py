@@ -58,6 +58,36 @@ def require_auth() -> None:
         except Exception:
             pass
 
+    # Tự động dọn sạch token khỏi query params và thanh địa chỉ trình duyệt
+    if "auth" in st.query_params:
+        for k in ("auth", "role", "u", "refresh"):
+            if k in st.query_params:
+                try:
+                    del st.query_params[k]
+                except Exception:
+                    pass
+
+    st.markdown(
+        """
+        <script>
+        (function() {
+            try {
+                if (window.location.search && (window.location.search.indexOf("auth=") >= 0 || window.location.search.indexOf("token=") >= 0)) {
+                    var cur = new URL(window.location.href);
+                    cur.searchParams.delete("auth");
+                    cur.searchParams.delete("role");
+                    cur.searchParams.delete("u");
+                    cur.searchParams.delete("refresh");
+                    var cleanUrl = cur.pathname + (cur.search && cur.search !== "?" ? cur.search : "");
+                    window.history.replaceState({}, document.title, cleanUrl);
+                }
+            } catch (e) {}
+        })();
+        </script>
+        """,
+        unsafe_allow_html=True,
+    )
+
     # Bỏ qua xác thực backend với token demo
     if str(token).startswith("demo_token"):
         return

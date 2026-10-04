@@ -1,4 +1,4 @@
-"""Trang Thiết bị biên & Hệ thống (FR04): Quản lý camera IP/RTSP, tài nguyên biên và tham số nhận diện AI."""
+"""Trang Thiết bị biên & Hệ thống (FR04): Quản lý camera IP/RTSP và tài nguyên biên."""
 
 import streamlit as st
 from utils.notify import notify
@@ -6,9 +6,7 @@ from utils.notify import notify
 from services.device_api import (
     create_device,
     delete_device,
-    get_ai_config,
     list_devices,
-    save_ai_config,
     test_device,
     update_device,
 )
@@ -246,47 +244,3 @@ if is_admin:
                     st.rerun()
                 else:
                     notify.error("Lỗi khi thêm thiết bị")
-
-# ── Cấu hình tham số AI nhận diện (Sửa Lỗi 16: Lưu thực tế vào backend) ────
-st.markdown("""
-<div class="wf-box" style="margin-top: 20px;">
-    <div class="wf-box-header">
-        <div class="wf-box-title">Cấu hình tham số nhận diện AI</div>
-        <span style="font-size: 11px; color: var(--wf-text-muted);">YOLO26-Seg Model Engine</span>
-    </div>
-</div>
-""", unsafe_allow_html=True)
-
-# Lấy cấu hình AI thực tế đã lưu từ backend
-ai_cfg = get_ai_config(client)
-saved_conf = float(ai_cfg.get("conf_thresh", 0.75))
-saved_debounce = float(ai_cfg.get("time_thresh", 2.5))
-
-cf1, cf2, cf3 = st.columns([1.5, 1.5, 1])
-
-with cf1:
-    conf_thresh = st.slider(
-        "Ngưỡng tin cậy (Confidence Threshold):",
-        min_value=0.30,
-        max_value=0.95,
-        value=saved_conf,
-        step=0.05,
-    )
-
-with cf2:
-    time_thresh = st.slider(
-        "Thời gian nghi vấn tối thiểu (Debounce):",
-        min_value=1.0,
-        max_value=5.0,
-        value=saved_debounce,
-        step=0.5,
-    )
-
-with cf3:
-    st.markdown("<div style='height: 28px;'></div>", unsafe_allow_html=True)
-    if st.button("Lưu cấu hình tham số", type="primary", use_container_width=True):
-        ok = save_ai_config(client, conf_thresh, time_thresh)
-        if ok:
-            notify.success(f"Đã lưu cấu hình AI: Ngưỡng {conf_thresh:.2f}, Debounce {time_thresh:.1f}s!")
-        else:
-            notify.error("Không thể lưu cấu hình tham số AI vào hệ thống.")

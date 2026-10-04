@@ -75,6 +75,13 @@ def get_current_user(
                 detail="Invalid token",
             )
 
+        if payload.get("type") != "access":
+            logger.warning("Unauthorized: not an access token")
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Invalid token",
+            )
+
         logger.debug(f"User authenticated: {user_id}")
         
         user = db.query(User).filter(User.PK_MaNguoiDung == user_id).first()

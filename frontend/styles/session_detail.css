@@ -1,12 +1,4 @@
-/* ===== GLOBAL BACKGROUND ===== */
-.stApp,
-body {
-    background-color: #f8fafc !important;
-}
-
-.block-container {
-    padding: 1.2rem 2rem 2rem;
-}
+/* ===== PAGE LAYOUT: dùng chuẩn chung hide_sidebar + header + app_theme ===== */
 
 /* ===== BACK BUTTON ===== */
 .back-btn {
@@ -63,19 +55,19 @@ body {
 /* Unified Behavior Chart Card (Targeting column by its content) */
 [data-testid="stColumn"]:has(.card-title) {
     background: #ffffff !important;
-    border-radius: 16px !important;
+    border-radius: 10px !important;
     padding: 24px !important;
-    border: 1px solid #eef2f7 !important;
-    box-shadow: 0 1px 6px rgba(0, 0, 0, 0.04) !important;
+    border: 1px solid #e2e8f0 !important;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.03) !important;
 }
 
 /* Individual KPI Cards (for other columns) */
 .kpi-card {
     background: #ffffff !important;
-    border-radius: 16px !important;
+    border-radius: 10px !important;
     padding: 22px 24px !important;
-    border: 1px solid #eef2f7 !important;
-    box-shadow: 0 1px 6px rgba(0, 0, 0, 0.04) !important;
+    border: 1px solid #e2e8f0 !important;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.03) !important;
     margin-bottom: 16px !important;
     display: flex !important;
     flex-direction: column !important;

@@ -41,13 +41,14 @@ def get_sessions(
 
 @router.get("/summary", response_model=SessionSummaryResponse)
 def get_summary(
+    search: str = Query("", description="Search by class name"),
     user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
     """Lấy tổng số ca thi và số ca trong tháng. Phạm vi lọc theo quyền admin hay user thường."""
     try:
         user_id_filter = None if user.VaiTro == "admin" else user.PK_MaNguoiDung
-        return get_session_summary(db, user_id_filter)
+        return get_session_summary(db, user_id_filter, search or None)
     except Exception as exc:
         logger.error(f"Error fetching summary: {exc}", exc_info=True)
         raise HTTPException(status_code=500, detail="Failed to fetch summary")

@@ -2,6 +2,7 @@ import base64
 import io
 
 import streamlit as st
+from utils.notify import notify
 from PIL import Image
 
 from config import API_BASE_URL
@@ -22,19 +23,26 @@ require_auth()
 # ── Sidebar & Styles ───────────────────────────────────────
 hide_sidebar()
 st.markdown(load_css("styles/sidebar.css"), unsafe_allow_html=True)
+st.markdown(load_css("styles/app_theme.css"), unsafe_allow_html=True)
 st.markdown(load_css("styles/frame_detail.css"), unsafe_allow_html=True)
 
 # ── Event ID ────────────────────────────────────────────────
+if "id" in st.query_params:
+    try:
+        st.session_state["event_id"] = int(st.query_params["id"])
+    except Exception:
+        pass
+
 event_id = st.session_state.get("event_id")
 if not event_id:
-    st.warning("Không có sự kiện để xem.")
+    notify.inline("Không tìm thấy mã sự kiện cần xem. Vui lòng quay lại danh sách sự kiện.", kind="warning", title="Thiếu mã sự kiện")
     st.stop()
 
 
 # ── Load Data ───────────────────────────────────────────────
 data = get_event_detail(st.session_state.client, event_id)
 if not data:
-    st.error("Không lấy được dữ liệu sự kiện.")
+    notify.inline("Không lấy được dữ liệu chi tiết sự kiện từ máy chủ.", kind="error", title="Lỗi tải dữ liệu")
     st.stop()
 
 raw_label = data.get("LoaiHanhVi", "?")
@@ -47,10 +55,13 @@ friendly_label = get_friendly_behavior_label(raw_label)
 stt_text, stt_cls = get_event_status_info(trang_thai)
 
 # ── Header ──────────────────────────────────────────────────
-render_page_header(f"Chi tiết sự kiện #EV-{event_id:02d}", active="events")
+render_page_header(f"Chi tiết sự kiện #EV-{event_id:02d}", active="history")
 
 if st.button("Quay lại danh sách sự kiện"):
-    st.switch_page("pages/events.py")
+    st.session_state["history_active_tab"] = "events"
+    st.query_params["tab"] = "events"
+    st.switch_page("pages/history.py")
+
 
 # ── Main Layout ─────────────────────────────────────────────
 left_col, right_col = st.columns([1.6, 1], gap="medium")
@@ -128,7 +139,7 @@ with left_col:
     elif img_b64:
         st.image(f"data:image/jpeg;base64,{img_b64}", use_container_width=True)
     else:
-        st.warning("Không tải được ảnh bằng chứng.")
+        notify.warning("Không tải được ảnh bằng chứng.")
 
 # ── RIGHT: Info + Verify ────────────────────────────────────
 with right_col:
@@ -200,16 +211,16 @@ with right_col:
         if st.button("Xác nhận Vi phạm", use_container_width=True, type="primary"):
             res = verify_event(st.session_state.client, event_id, "dung", chosen_label)
             if res is not None and res.status_code == 200:
-                st.toast(f"Đã xác nhận sự kiện với nhãn: {label_names.get(chosen_label, chosen_label)}")
+                notify.success(f"Đã xác nhận sự kiện với nhãn: {label_names.get(chosen_label, chosen_label)}")
                 st.rerun()
             else:
-                st.error("Lỗi khi gửi xác minh tới hệ thống")
+                notify.error("Lỗi khi gửi xác minh tới hệ thống")
     with col_no:
         if st.button("Bác bỏ (Báo sai)", use_container_width=True):
             res = verify_event(st.session_state.client, event_id, "sai", "Answer_paper")
             if res is not None and res.status_code == 200:
-                st.toast("Đã ghi nhận bác bỏ sự kiện (Báo sai: Giấy thi hợp lệ)")
+                notify.success("Đã ghi nhận bác bỏ sự kiện (Báo sai: Giấy thi hợp lệ)")
                 st.rerun()
             else:
-                st.error("Lỗi khi gửi xác minh tới hệ thống")
+                notify.error("Lỗi khi gửi xác minh tới hệ thống")
 

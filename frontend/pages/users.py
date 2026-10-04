@@ -1,6 +1,7 @@
 """Trang Quản lý Tài khoản (FR01): Danh sách người dùng, phân quyền Admin/Giám thị và cài đặt hồ sơ cá nhân."""
 
 import streamlit as st
+from utils.notify import notify
 
 from services.user_api import (
     admin_create_user,
@@ -32,6 +33,47 @@ render_page_header("Quản lý người dùng", active="setting")
 client = st.session_state.client
 is_admin = st.session_state.get("user_role") == "admin"
 
+# ── Xử lý query params thao tác người dùng ─────────────────
+if "toggle_role" in st.query_params:
+    try:
+        t_uid = int(st.query_params["toggle_role"])
+        cur_role = st.query_params.get("cur_role", "teacher")
+        cur_stt = st.query_params.get("cur_stt", "hoat_dong")
+        user_login = st.query_params.get("user_login", f"user_{t_uid}")
+        del st.query_params["toggle_role"]
+        for p in ["cur_role", "cur_stt", "user_login"]:
+            if p in st.query_params:
+                del st.query_params[p]
+        new_role = "teacher" if cur_role == "admin" else "admin"
+        ok, res = admin_update_user(client, t_uid, new_role, cur_stt)
+        if ok:
+            notify.success(f"Đã đổi vai trò cho @{user_login}")
+            st.rerun()
+        else:
+            notify.error("Lỗi khi cập nhật vai trò")
+    except Exception:
+        pass
+
+if "toggle_status" in st.query_params:
+    try:
+        s_uid = int(st.query_params["toggle_status"])
+        cur_role = st.query_params.get("cur_role", "teacher")
+        cur_stt = st.query_params.get("cur_stt", "hoat_dong")
+        user_login = st.query_params.get("user_login", f"user_{s_uid}")
+        del st.query_params["toggle_status"]
+        for p in ["cur_role", "cur_stt", "user_login"]:
+            if p in st.query_params:
+                del st.query_params[p]
+        new_status = "khoa" if cur_stt == "hoat_dong" else "hoat_dong"
+        ok, res = admin_update_user(client, s_uid, cur_role, new_status)
+        if ok:
+            notify.success(f"Đã cập nhật trạng thái @{user_login}")
+            st.rerun()
+        else:
+            notify.error("Lỗi khi đổi trạng thái tài khoản")
+    except Exception:
+        pass
+
 
 def validate_password_rules(pwd: str) -> tuple[bool, list[str]]:
     """Kiểm tra quy chuẩn mật khẩu: tối thiểu 6 ký tự, có ít nhất 1 chữ in hoa và 1 chữ số."""
@@ -45,28 +87,107 @@ def validate_password_rules(pwd: str) -> tuple[bool, list[str]]:
     return len(errors) == 0, errors
 
 
-tab_users, tab_profile = st.tabs(["Danh sách người dùng & Phân quyền", "Hồ sơ cá nhân & Đổi mật khẩu"])
+@st.dialog("Tạo tài khoản người dùng mới")
+def create_user_dialog():
+    tc1, tc2 = st.columns(2)
+    with tc1:
+        new_username = st.text_input("Tên đăng nhập", placeholder="VD: gv_le_ngoc_an")
+        new_fullname = st.text_input("Họ và tên", placeholder="VD: ThS. Lê Ngọc An")
+    with tc2:
+        new_password = st.text_input("Mật khẩu ban đầu", type="password", placeholder="Tối thiểu 6 ký tự, 1 hoa, 1 số")
+        new_role = st.selectbox("Vai trò phân quyền", ["teacher", "admin"], format_func=lambda x: "Cán bộ coi thi (teacher)" if x == "teacher" else "Quản trị viên (admin)")
+
+    st.caption("Quy chuẩn an toàn mật khẩu: Tối thiểu 6 ký tự, chứa ít nhất 1 chữ in hoa (A-Z) và 1 chữ số (0-9).")
+    st.markdown("<div style='height: 8px;'></div>", unsafe_allow_html=True)
+    c1, c2 = st.columns(2)
+    with c1:
+        if st.button("Hủy bỏ", use_container_width=True):
+            st.rerun()
+    with c2:
+        if st.button("Tạo tài khoản", type="primary", use_container_width=True):
+            if not new_username.strip() or not new_fullname.strip() or not new_password.strip():
+                notify.warning("Vui lòng nhập đầy đủ các trường thông tin.")
+            else:
+                is_valid, errors = validate_password_rules(new_password)
+                if not is_valid:
+                    notify.error(f"Mật khẩu chưa đạt tiêu chuẩn an toàn: Thiếu {', '.join(errors)}.")
+                else:
+                    ok, res = admin_create_user(client, new_username.strip(), new_fullname.strip(), new_password, new_role)
+                    if ok:
+                        notify.success("Đã tạo tài khoản thành công!")
+                        st.rerun()
+                    else:
+                        notify.error(f"{res}")
+
+
+@st.dialog("Chỉnh sửa thông tin người dùng")
+def edit_user_name_dialog(u_id: int, cur_name: str, cur_role: str, cur_status: str):
+    edit_full_name = st.text_input("Họ và tên người dùng", value=cur_name)
+    st.markdown("<div style='height: 8px;'></div>", unsafe_allow_html=True)
+    c1, c2 = st.columns(2)
+    with c1:
+        if st.button("Hủy bỏ", use_container_width=True):
+            st.rerun()
+    with c2:
+        if st.button("Lưu thay đổi", type="primary", use_container_width=True):
+            if not edit_full_name.strip():
+                notify.warning("Họ tên không được để trống")
+            else:
+                ok, res = admin_update_user(client, u_id, cur_role, cur_status, ho_va_ten=edit_full_name.strip())
+                if ok:
+                    notify.success("Đã cập nhật họ tên thành công!")
+                    st.rerun()
+                else:
+                    notify.error("Lỗi khi cập nhật thông tin")
+
+
+tab_users, tab_profile = st.tabs(["Danh sách người dùng", "Hồ sơ cá nhân"])
 
 # =========================================================================
 # TAB 1: DANH SÁCH NGƯỜI DÙNG & PHÂN QUYỀN (CHỈ ADMIN HOẶC XEM QUYỀN)
 # =========================================================================
 with tab_users:
     if not is_admin:
-        st.info("Tính năng phân quyền và quản trị danh sách người dùng dành riêng cho Quản trị viên (Admin). Bạn đang đăng nhập với vai trò Cán bộ coi thi.")
+        notify.inline(
+            "Tính năng phân quyền và quản trị danh sách người dùng dành riêng cho Quản trị viên (Admin). Bạn đang đăng nhập với vai trò Cán bộ coi thi, vui lòng chuyển sang tab 'Hồ sơ cá nhân & Đổi mật khẩu' để xem và cập nhật thông tin của bạn.",
+            kind="warning",
+            title="Quyền truy cập bị giới hạn"
+        )
     else:
         users = list_all_users(client)
 
-        st.markdown(f"""
-        <div class="wf-box">
-            <div class="wf-box-header">
-                <div class="wf-box-title">Danh sách người dùng & phân quyền</div>
-                <span class="wf-badge danger">Tổng tài khoản: {len(users)}</span>
+        if "edit_user" in st.query_params:
+            try:
+                eu_id = int(st.query_params["edit_user"])
+                del st.query_params["edit_user"]
+                m_user = next((u for u in users if u.get("PK_MaNguoiDung") == eu_id), None)
+                if m_user:
+                    edit_user_name_dialog(
+                        eu_id,
+                        m_user.get("HoVaTen", ""),
+                        m_user.get("VaiTro", "teacher"),
+                        m_user.get("TrangThai", "hoat_dong"),
+                    )
+            except Exception:
+                pass
+
+        uh_col1, uh_col2 = st.columns([3.2, 1])
+        with uh_col1:
+            st.markdown(f"""
+            <div class="wf-box" style="margin-bottom: 0;">
+                <div class="wf-box-header">
+                    <div class="wf-box-title">Danh sách người dùng & phân quyền</div>
+                    <span class="wf-badge danger">Tổng tài khoản: {len(users)}</span>
+                </div>
             </div>
-        </div>
-        """, unsafe_allow_html=True)
+            """, unsafe_allow_html=True)
+
+        with uh_col2:
+            if st.button("+ Thêm tài khoản mới", type="primary", use_container_width=True):
+                create_user_dialog()
 
         if not users:
-            st.info("Không có dữ liệu người dùng.")
+            notify.empty_state("Không có dữ liệu người dùng", "Chưa có tài khoản nào được ghi nhận trong cơ sở dữ liệu.")
         else:
             # Header hàng bảng
             th1, th2, th3, th4, th5, th6 = st.columns([0.8, 1.6, 2.0, 1.6, 1.0, 1.8])
@@ -75,7 +196,7 @@ with tab_users:
             th3.caption("HỌ VÀ TÊN")
             th4.caption("VAI TRÒ")
             th5.caption("TRẠNG THÁI")
-            th6.caption("HÀNH ĐỘNG")
+            th6.markdown('<div style="text-align:right; font-size:11.5px; font-weight:700; color:#64748b; letter-spacing:0.5px;">THAO TÁC</div>', unsafe_allow_html=True)
 
             st.markdown("<hr style='margin: 4px 0 8px 0; border: none; border-top: 1px solid var(--wf-border);'>", unsafe_allow_html=True)
 
@@ -96,55 +217,49 @@ with tab_users:
                     with c2:
                         st.markdown(f"<code>{u_login}</code>", unsafe_allow_html=True)
                     with c3:
-                        st.markdown(f"<strong>{u_name}</strong>")
+                        st.markdown(f"<strong>{u_name}</strong>", unsafe_allow_html=True)
                     with c4:
                         st.markdown(role_badge, unsafe_allow_html=True)
                     with c5:
                         st.markdown(status_badge, unsafe_allow_html=True)
                     with c6:
-                        # 3 Nút nghiệp vụ tiếng Việt: Đổi quyền, Sửa họ tên, Khóa/Mở
-                        col_u1, col_u2, col_u3 = st.columns(3)
-                        with col_u1:
-                            new_role = "teacher" if u_role == "admin" else "admin"
-                            role_tooltip = "Hạ xuống Cán bộ coi thi" if u_role == "admin" else "Nâng quyền Quản trị viên"
-                            if st.button("Đổi quyền", key=f"role_btn_{u_id}", help=role_tooltip):
-                                ok, res = admin_update_user(client, u_id, new_role, u_status)
-                                if ok:
-                                    st.toast(f"Đã đổi vai trò cho @{u_login}")
-                                    st.rerun()
-                                else:
-                                    st.error("Lỗi khi cập nhật vai trò")
-                        with col_u2:
-                            if st.button("Sửa", key=f"edit_u_btn_{u_id}", help="Chỉnh sửa thông tin tài khoản"):
-                                st.session_state[f"editing_user_{u_id}"] = not st.session_state.get(f"editing_user_{u_id}", False)
-                        with col_u3:
-                            new_status = "khoa" if u_status == "hoat_dong" else "hoat_dong"
-                            lock_tooltip = "Tạm khóa tài khoản" if u_status == "hoat_dong" else "Kích hoạt lại tài khoản"
-                            lock_label = "Khóa" if u_status == "hoat_dong" else "Mở"
-                            if st.button(lock_label, key=f"lock_btn_{u_id}", help=lock_tooltip):
-                                ok, res = admin_update_user(client, u_id, u_role, new_status)
-                                if ok:
-                                    st.toast(f"Đã cập nhật trạng thái @{u_login}")
-                                    st.rerun()
-                                else:
-                                    st.error("Lỗi khi đổi trạng thái tài khoản")
+                        new_role = "teacher" if u_role == "admin" else "admin"
+                        role_tooltip = "Hạ xuống Cán bộ coi thi" if u_role == "admin" else "Nâng quyền Quản trị viên"
+                        new_status = "khoa" if u_status == "hoat_dong" else "hoat_dong"
+                        lock_tooltip = "Tạm khóa tài khoản" if u_status == "hoat_dong" else "Kích hoạt lại tài khoản"
+                        lock_cls = "lock-btn" if u_status == "hoat_dong" else "unlock-btn"
 
-                    # Form inline sửa tên người dùng
-                    if st.session_state.get(f"editing_user_{u_id}", False):
-                        with st.container():
-                            st.markdown("<div style='background: #f8fafc; padding: 10px 14px; border-radius: 6px; margin: 8px 0;'>", unsafe_allow_html=True)
-                            eu1, eu2 = st.columns([2.5, 1])
-                            with eu1:
-                                edit_full_name = st.text_input("Họ và tên", value=u_name, key=f"eu_name_{u_id}")
-                            with eu2:
-                                st.markdown("<div style='height: 28px;'></div>", unsafe_allow_html=True)
-                                if st.button("Lưu họ tên", key=f"save_eu_{u_id}", type="primary"):
-                                    ok, res = admin_update_user(client, u_id, u_role, u_status, ho_va_ten=edit_full_name.strip())
-                                    if ok:
-                                        st.session_state[f"editing_user_{u_id}"] = False
-                                        st.toast("Đã cập nhật họ tên thành công")
-                                        st.rerun()
-                            st.markdown("</div>", unsafe_allow_html=True)
+                        lock_svg = (
+                            '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">'
+                            '  <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>'
+                            '  <path d="M7 11V7a5 5 0 0 1 10 0v4"/>'
+                            '</svg>'
+                            if u_status == "hoat_dong" else
+                            '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">'
+                            '  <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>'
+                            '  <path d="M7 11V7a5 5 0 0 1 9.9-1"/>'
+                            '</svg>'
+                        )
+
+                        action_u_html = (
+                            f'<div style="display:flex; align-items:center; justify-content:flex-end; gap:6px;">'
+                            f'  <a href="/users?toggle_role={u_id}&cur_role={u_role}&cur_stt={u_status}&user_login={u_login}" class="action-svg-btn role-btn" title="{role_tooltip}">'
+                            f'    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">'
+                            f'      <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>'
+                            f'    </svg>'
+                            f'  </a>'
+                            f'  <a href="/users?edit_user={u_id}" class="action-svg-btn edit-btn" title="Chỉnh sửa họ tên người dùng">'
+                            f'    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">'
+                            f'      <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>'
+                            f'      <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>'
+                            f'    </svg>'
+                            f'  </a>'
+                            f'  <a href="/users?toggle_status={u_id}&cur_role={u_role}&cur_stt={u_status}&user_login={u_login}" class="action-svg-btn {lock_cls}" title="{lock_tooltip}">'
+                            f'    {lock_svg}'
+                            f'  </a>'
+                            f'</div>'
+                        )
+                        st.markdown(action_u_html, unsafe_allow_html=True)
 
                     st.markdown("<hr style='margin: 4px 0 8px 0; border: none; border-top: 1px solid var(--wf-border);'>", unsafe_allow_html=True)
 
@@ -152,28 +267,28 @@ with tab_users:
         with st.expander("Tạo tài khoản người dùng mới", expanded=False):
             tc1, tc2 = st.columns(2)
             with tc1:
-                new_username = st.text_input("Tên đăng nhập", placeholder="VD: gv_le_ngoc_an")
-                new_fullname = st.text_input("Họ và tên", placeholder="VD: ThS. Lê Ngọc An")
+                new_username = st.text_input("Tên đăng nhập :red[(*)]", placeholder="VD: gv_le_ngoc_an")
+                new_fullname = st.text_input("Họ và tên :red[(*)]", placeholder="VD: ThS. Lê Ngọc An")
             with tc2:
-                new_password = st.text_input("Mật khẩu ban đầu", type="password", placeholder="Tối thiểu 6 ký tự, 1 chữ hoa, 1 số")
+                new_password = st.text_input("Mật khẩu ban đầu :red[(*)]", type="password", placeholder="Tối thiểu 6 ký tự, 1 chữ hoa, 1 số")
                 new_role = st.selectbox("Vai trò phân quyền", ["teacher", "admin"], format_func=lambda x: "Cán bộ coi thi (teacher)" if x == "teacher" else "Quản trị viên (admin)")
 
             st.caption("Quy chuẩn an toàn mật khẩu: Tối thiểu 6 ký tự, chứa ít nhất 1 chữ in hoa (A-Z) và ít nhất 1 chữ số (0-9).")
 
             if st.button("Tạo tài khoản", type="primary"):
                 if not new_username or not new_fullname or not new_password:
-                    st.warning("Vui lòng nhập đầy đủ các trường thông tin.")
+                    notify.warning("Vui lòng nhập đầy đủ các trường thông tin.")
                 else:
                     is_valid, errors = validate_password_rules(new_password)
                     if not is_valid:
-                        st.error(f"Mật khẩu chưa đạt tiêu chuẩn an toàn: Thiếu {', '.join(errors)}.")
+                        notify.error(f"Mật khẩu chưa đạt tiêu chuẩn an toàn: Thiếu {', '.join(errors)}.")
                     else:
                         ok, res = admin_create_user(client, new_username.strip(), new_fullname.strip(), new_password, new_role)
                         if ok:
-                            st.toast("Đã tạo tài khoản thành công!")
+                            notify.success("Đã tạo tài khoản thành công!")
                             st.rerun()
                         else:
-                            st.error(f"{res}")
+                            notify.error(f"{res}")
 
 
 # =========================================================================
@@ -182,77 +297,94 @@ with tab_users:
 with tab_profile:
     user = get_user(client)
     if not user:
-        st.warning("Không thể tải thông tin tài khoản hiện tại.")
+        notify.warning("Không thể tải thông tin tài khoản hiện tại.")
     else:
         full_name = user.get("HoVaTen", "")
         username = user.get("TenDangNhap", "")
         role = user.get("VaiTro", "teacher")
+        first_letter = full_name.strip()[:1].upper() if full_name.strip() else username[:1].upper()
 
-        st.markdown("""
-        <div class="wf-box">
-            <div class="wf-box-header">
-                <div class="wf-box-title">Thông tin hồ sơ cá nhân</div>
-            </div>
-        </div>
-        """, unsafe_allow_html=True)
+        col_profile_card, col_security_card = st.columns([1, 1], gap="medium")
 
-        col_p1, col_p2 = st.columns([1, 2])
-        with col_p1:
+        # Cột 1: Thông tin hồ sơ
+        with col_profile_card:
             my_role_badge = get_user_role_badge(role)
             st.markdown(f"""
-            <div style="font-size: 13px; line-height: 2;">
-                <div>Tên đăng nhập: <strong>@{username}</strong></div>
-                <div>Vai trò hiện tại: {my_role_badge}</div>
+            <div style="background: #ffffff; border: 1px solid #e2e8f0; border-radius: 12px; padding: 20px; box-shadow: 0 1px 3px rgba(0,0,0,0.03); height: 100%;">
+                <div style="display: flex; align-items: center; gap: 14px; margin-bottom: 20px; padding-bottom: 14px; border-bottom: 1px solid #f1f5f9;">
+                    <div style="width: 48px; height: 48px; border-radius: 50%; background: #eff6ff; color: #2563eb; display: flex; align-items: center; justify-content: center; font-size: 20px; font-weight: 700; border: 2px solid #bfdbfe;">
+                        {first_letter}
+                    </div>
+                    <div>
+                        <div style="font-size: 16px; font-weight: 700; color: #0f172a;">{full_name}</div>
+                        <div style="font-size: 12px; color: #64748b; margin-top: 2px;">
+                            <span style="background: #f1f5f9; padding: 2px 8px; border-radius: 10px; font-family: monospace;">@{username}</span>
+                            <span style="margin-left: 6px;">{my_role_badge}</span>
+                        </div>
+                    </div>
+                </div>
+                <div style="font-size: 13.5px; font-weight: 600; color: #334155; margin-bottom: 12px;">Cập nhật thông tin cá nhân</div>
             </div>
             """, unsafe_allow_html=True)
 
-        with col_p2:
-            new_name_val = st.text_input("Họ và tên hiển thị", value=full_name)
-            if st.button("Lưu thay đổi họ tên", type="primary"):
+            new_name_val = st.text_input("Họ và tên hiển thị", value=full_name, key="profile_fullname_input")
+            if st.button("Lưu thay đổi họ tên", type="primary", use_container_width=True, key="btn_save_profile_name"):
                 if not new_name_val.strip():
-                    st.warning("Họ tên không được để trống")
+                    notify.warning("Họ tên không được để trống")
                 else:
                     ok, res = update_user(client, new_name_val.strip())
                     if ok:
                         st.session_state["user_fullname"] = new_name_val.strip()
-                        st.toast("Đã cập nhật họ tên!")
+                        notify.success("Đã cập nhật họ tên thành công!")
                         st.rerun()
                     else:
-                        st.error("Lỗi khi cập nhật")
+                        notify.error("Lỗi khi cập nhật thông tin")
 
-        st.markdown("<hr style='margin: 20px 0;'>", unsafe_allow_html=True)
-
-        st.markdown("""
-        <div class="wf-box">
-            <div class="wf-box-header">
-                <div class="wf-box-title">Bảo mật & Đổi mật khẩu</div>
+        # Cột 2: Bảo mật & Đổi mật khẩu
+        with col_security_card:
+            st.markdown("""
+            <div style="background: #ffffff; border: 1px solid #e2e8f0; border-radius: 12px; padding: 20px 20px 10px 20px; box-shadow: 0 1px 3px rgba(0,0,0,0.03);">
+                <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 16px; padding-bottom: 14px; border-bottom: 1px solid #f1f5f9;">
+                    <div style="width: 36px; height: 36px; border-radius: 8px; background: #fef2f2; color: #dc2626; display: flex; align-items: center; justify-content: center;">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
+                            <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+                        </svg>
+                    </div>
+                    <div>
+                        <div style="font-size: 15px; font-weight: 700; color: #0f172a;">Bảo mật & Đổi mật khẩu</div>
+                        <div style="font-size: 12px; color: #64748b;">Quản lý mật khẩu đăng nhập tài khoản</div>
+                    </div>
+                </div>
             </div>
-        </div>
-        """, unsafe_allow_html=True)
+            """, unsafe_allow_html=True)
 
-        pw1, pw2, pw3 = st.columns(3)
-        with pw1:
-            old_p = st.text_input("Mật khẩu hiện tại", type="password")
-        with pw2:
-            new_p = st.text_input("Mật khẩu mới", type="password", help="Tối thiểu 6 ký tự, ít nhất 1 chữ hoa và 1 chữ số")
-        with pw3:
-            confirm_p = st.text_input("Xác nhận mật khẩu mới", type="password")
+            old_p = st.text_input("Mật khẩu hiện tại :red[(*)]", type="password", key="sec_old_pass")
+            new_p = st.text_input("Mật khẩu mới :red[(*)]", type="password", help="Tối thiểu 6 ký tự, ít nhất 1 chữ hoa và 1 chữ số", key="sec_new_pass")
+            confirm_p = st.text_input("Xác nhận mật khẩu mới :red[(*)]", type="password", key="sec_confirm_pass")
 
-        st.caption("Tiêu chuẩn mật khẩu an toàn: Tối thiểu 6 ký tự, phải có ít nhất 1 chữ cái in hoa (A-Z) và ít nhất 1 chữ số (0-9).")
+            st.markdown("""
+            <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 8px 12px; margin: 10px 0; font-size: 12px; color: #64748b; display: flex; align-items: center; gap: 8px;">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#2563eb" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;">
+                    <circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/>
+                </svg>
+                <span>Yêu cầu an toàn: Tối thiểu 6 ký tự, có ít nhất 1 chữ cái in hoa (A-Z) và 1 chữ số (0-9).</span>
+            </div>
+            """, unsafe_allow_html=True)
 
-        if st.button("Cập nhật mật khẩu", type="secondary"):
-            if not old_p or not new_p or not confirm_p:
-                st.warning("Vui lòng điền đầy đủ tất cả các trường mật khẩu.")
-            elif new_p != confirm_p:
-                st.error("Mật khẩu xác nhận không khớp với mật khẩu mới.")
-            else:
-                is_valid, errors = validate_password_rules(new_p)
-                if not is_valid:
-                    st.error(f"Mật khẩu mới không hợp lệ: Cần bổ sung {', '.join(errors)}.")
+            if st.button("Cập nhật mật khẩu", type="primary", use_container_width=True, key="btn_update_password"):
+                if not old_p or not new_p or not confirm_p:
+                    notify.warning("Vui lòng điền đầy đủ tất cả các trường mật khẩu.")
+                elif new_p != confirm_p:
+                    notify.error("Mật khẩu xác nhận không khớp với mật khẩu mới.")
                 else:
-                    ok, res = change_password(client, old_p, new_p)
-                    if ok:
-                        st.toast("Đổi mật khẩu thành công! Mật khẩu mới đã được lưu.")
+                    is_valid, errors = validate_password_rules(new_p)
+                    if not is_valid:
+                        notify.error(f"Mật khẩu mới không hợp lệ: Cần bổ sung {', '.join(errors)}.")
                     else:
-                        st.error(f"{res}")
+                        ok, res = change_password(client, old_p, new_p)
+                        if ok:
+                            notify.success("Đổi mật khẩu thành công! Mật khẩu mới đã được lưu.")
+                        else:
+                            notify.error(f"{res}")
 

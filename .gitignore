@@ -111,3 +111,8 @@ videos/*.mp4
 !videos/test_exam.mp4
 !videos/test_exam_2.mp4
 train*.log
+
+
+# AI
+*.md
+*opencode.json

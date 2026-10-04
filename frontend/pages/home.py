@@ -2,6 +2,7 @@
 
 import time
 import streamlit as st
+from utils.notify import notify
 from streamlit_autorefresh import st_autorefresh
 
 from components.evidence_dialog import show_evidence_dialog
@@ -44,6 +45,7 @@ if status_res and status_res.status_code == 200:
 
         st.session_state["running"] = backend_running
         st.session_state["session_id"] = backend_session
+        st.session_state["current_fps"] = data.get("fps")
 
         if backend_running and not old_running:
             st.session_state["capture_start_time"] = time.time()
@@ -51,8 +53,10 @@ if status_res and status_res.status_code == 200:
             st.session_state["capture_start_time"] = time.time()
         if not backend_running:
             st.session_state["capture_start_time"] = None
+            st.session_state["current_fps"] = None
     except Exception:
         pass
+
 
 # ── Ẩn Sidebar trái & Vẽ Top Header ────────────────────────
 hide_sidebar()
@@ -66,7 +70,7 @@ is_running = st.session_state["running"]
 # =========================================================================
 if not is_running:
     st.markdown("""
-    <div class="wf-box" style="max-width: 900px; margin: 16px auto 8px auto;">
+    <div class="wf-box" style="max-width: 900px; margin: 0 auto 16px auto;">
         <div class="wf-box-header">
             <div class="wf-box-title">
                 <span>Thiết lập phiên giám sát ca thi</span>
@@ -79,15 +83,15 @@ if not is_running:
     with st.container():
         st.caption("Thiết lập thông tin phòng thi và kết nối luồng camera xử lý thời gian thực với mô hình YOLO26 trên thiết bị biên.")
 
-        # Xử lý tự động điền dữ liệu mặc định (Sửa Lỗi 4)
-        def_phong = st.session_state.get("prefill_phong_thi") or "Phòng P.302"
-        def_mon = st.session_state.get("prefill_mon_thi") or "Toán cao cấp - Học kỳ 1 (2026)"
+        # Xử lý tự động điền dữ liệu nếu có từ phiên trước, không dùng mock hardcode
+        def_phong = st.session_state.get("prefill_phong_thi") or ""
+        def_mon = st.session_state.get("prefill_mon_thi") or ""
 
         c_room, c_sub = st.columns(2)
         with c_room:
-            phong_thi = st.text_input("Mã phòng thi (*):", value=def_phong, placeholder="VD: Phòng P.302", key="input_phong_thi")
+            phong_thi = st.text_input("Mã phòng thi :red[(*)]", value=def_phong, placeholder="VD: Phòng P.302", key="input_phong_thi")
         with c_sub:
-            mon_thi = st.text_input("Tên môn thi (*):", value=def_mon, placeholder="VD: Toán cao cấp", key="input_mon_thi")
+            mon_thi = st.text_input("Tên môn thi :red[(*)]", value=def_mon, placeholder="VD: Toán cao cấp", key="input_mon_thi")
 
         c_dev, c_mode = st.columns([1.4, 1])
         with c_dev:
@@ -101,7 +105,7 @@ if not is_running:
                     break
 
             selected = st.selectbox(
-                "Chọn camera phòng thi (*):",
+                "Chọn camera phòng thi :red[(*)]",
                 options,
                 index=default_cam_idx,
                 format_func=lambda x: f"{x.get('TenThietBi')} ({x.get('MoTaViTri') or '—'})"
@@ -121,25 +125,23 @@ if not is_running:
                 ["Luồng RTSP Camera trực tiếp", "Video mẫu kiểm thử (videos/test_exam.mp4)"]
             )
 
-        # Tiện ích tự động điền nhanh dữ liệu ca thi
-        col_autofill, col_space2 = st.columns([1.5, 2])
-        with col_autofill:
-            if st.button("Tự động điền dữ liệu mẫu ca thi", use_container_width=True):
-                st.session_state["prefill_phong_thi"] = "Phòng P.302"
-                st.session_state["prefill_mon_thi"] = "Toán cao cấp - Học kỳ 1 (2026)"
-                st.rerun()
+        # Hiển thị thông số kết nối thực tế của camera được chọn từ CSDL
+        sel_name = selected.get("TenThietBi", "—")
+        sel_loc = selected.get("MoTaViTri") or "Chưa cấu hình vị trí"
+        sel_rtsp = "Nguồn camera cục bộ máy chủ (0)" if selected.get("_machine") else (selected.get("DuongDanRTSP") or "—")
+        sel_stt = "Sẵn sàng kết nối" if selected.get("TrangThai") != "tat" else "Thiết bị đang tắt"
 
-        # Trạng thái sẵn sàng phần cứng biên
-        st.markdown("""
-        <div style="background: #f8fafc; border: 1px solid var(--wf-border); border-radius: var(--wf-radius); padding: 12px 16px; margin: 16px 0;">
-            <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; font-size: 11.5px;">
-                <div>Thiết bị biên: <strong style="color: var(--wf-success);">Jetson Orin Online</strong></div>
-                <div>Camera IP: <strong style="color: var(--wf-success);">RTSP Ready (2ms)</strong></div>
-                <div>Bộ đệm RAM: <strong style="color: var(--wf-success);">1 Frame Ready</strong></div>
-                <div>Mô hình AI: <strong style="color: var(--wf-success);">YOLO26-Seg Ready</strong></div>
+        st.markdown(f"""
+        <div style="background: #f8fafc; border: 1px solid var(--wf-border); border-radius: var(--wf-radius); padding: 10px 14px; margin: 12px 0 16px 0; font-size: 12px;">
+            <div style="display: flex; flex-wrap: wrap; gap: 16px; align-items: center; color: var(--wf-text-muted);">
+                <div>Thiết bị: <strong style="color: var(--wf-text);">{sel_name}</strong></div>
+                <div>Vị trí: <strong style="color: var(--wf-text);">{sel_loc}</strong></div>
+                <div>Nguồn luồng: <code style="color: var(--wf-primary); font-size: 11px;">{sel_rtsp}</code></div>
+                <div>Trạng thái: <strong style="color: var(--wf-success);">{sel_stt}</strong></div>
             </div>
         </div>
         """, unsafe_allow_html=True)
+
 
         col_space, col_start = st.columns([2, 1.4])
         with col_start:
@@ -163,11 +165,11 @@ if not is_running:
                     st.session_state["session_id"] = data.get("session_id")
                     st.session_state["capture_start_time"] = time.time()
                     st.session_state["refresh_key"] += 1
-                    st.toast("Đã khởi tạo phiên thi thành công!")
+                    notify.success("Đã khởi tạo phiên thi thành công!")
                     st.rerun()
                 else:
                     err_msg = res.json().get("detail", "Không thể khởi động camera") if res else "Không thể kết nối đến máy chủ"
-                    st.error(f"Khởi động thất bại: {err_msg}")
+                    notify.error(f"Khởi động thất bại: {err_msg}")
 
 # =========================================================================
 # GIAI ĐOẠN 2: KHI PHIÊN THI ĐANG HOẠT ĐỘNG -> GIAO DIỆN CAMERA & CẢNH BÁO
@@ -177,7 +179,9 @@ else:
     c_info, c_stop = st.columns([3, 1.2])
     with c_info:
         sid = st.session_state.get("session_id")
-        st.markdown(f"Đang giám sát ca thi: **Phiên #{sid}** | Tốc độ xử lý: **24.5 FPS**")
+        cur_fps = st.session_state.get("current_fps")
+        fps_info = f"{cur_fps} FPS" if cur_fps and cur_fps > 0 else "Đang truyền trực tiếp"
+        st.markdown(f"Đang giám sát ca thi: **Phiên #{sid}** | Trạng thái luồng: **{fps_info}**")
     with c_stop:
         if st.button("Kết thúc ca thi & Đóng camera", type="secondary", use_container_width=True):
             safe_post(f"{CAMERA_URL}/stop", timeout=6)
@@ -185,7 +189,7 @@ else:
             st.session_state["session_id"] = None
             st.session_state["capture_start_time"] = None
             st.session_state["refresh_key"] += 1
-            st.toast("Đã kết thúc ca thi!")
+            notify.success("Đã kết thúc ca thi!")
             st.rerun()
 
     # Layout 2 cột cân đối: Cột camera 65%, Cột cảnh báo 35%
@@ -193,13 +197,15 @@ else:
 
     # Cột trái: Luồng Camera thời gian thực
     with left_col:
-        st.markdown("""
+        cur_fps = st.session_state.get("current_fps")
+        fps_badge = f"{cur_fps} FPS" if cur_fps and cur_fps > 0 else "Trực tiếp"
+        st.markdown(f"""
         <div class="wf-box" style="margin-bottom: 0;">
             <div class="wf-box-header">
                 <div class="wf-box-title">
                     <span>Khung camera trực tiếp</span>
                 </div>
-                <div><span class="wf-badge success">Tốc độ: 24.5 FPS</span></div>
+                <div><span class="wf-badge success">Tốc độ: {fps_badge}</span></div>
             </div>
         </div>
         """, unsafe_allow_html=True)
@@ -217,30 +223,13 @@ else:
             <img src="{CAMERA_URL}/video_feed?t={cache_bust}" alt="Live stream" style="width: 100%; height: auto; max-height: 480px; object-fit: contain; display: block;">
             <div class="rec-indicator" style="position: absolute; top: 12px; left: 14px; background: rgba(0,0,0,0.65); padding: 4px 10px; border-radius: 4px; color: #fff; font-size: 12px; font-weight: 600; display: flex; align-items: center; gap: 8px;">
                 <span style="width: 8px; height: 8px; background: #dc2626; border-radius: 50%; display: inline-block;"></span>
-                REC <span id="elapsed-timer">{elapsed_str}</span>
+                REC <span>{elapsed_str}</span>
             </div>
         </div>
-        <script>
-        (function() {{
-            var startEpoch = {start_time or 0};
-            if (!startEpoch) return;
-            var el = document.getElementById('elapsed-timer');
-            if (!el) return;
-            setInterval(function() {{
-                var elapsed = Math.floor(Date.now() / 1000 - startEpoch);
-                var h = Math.floor(elapsed / 3600);
-                var m = Math.floor((elapsed % 3600) / 60);
-                var s = elapsed % 60;
-                el.textContent =
-                    String(h).padStart(2,'0') + ':' +
-                    String(m).padStart(2,'0') + ':' +
-                    String(s).padStart(2,'0');
-            }}, 1000);
-        }})();
-        </script>
         """, unsafe_allow_html=True)
 
-        st.caption("Đang phân tích luồng video với mô hình YOLO26-Seg trên thiết bị biên. Độ trễ: ~42ms | Ngưỡng tin cậy: 0.65")
+        st.caption("Đang phân tích luồng video phát hiện gian lận thời gian thực qua mô hình YOLO26 trên máy chủ.")
+
 
     # Cột phải: Cảnh báo Nghi vấn Thời gian thực (Sửa Lỗi 5 tràn màn hình & Sửa Lỗi 6 điều kiện hiển thị cảnh báo mới)
     with right_col:
@@ -265,7 +254,7 @@ else:
         """, unsafe_allow_html=True)
 
         if not all_events:
-            st.info("Chưa có cảnh báo nghi vấn nào trong ca thi.")
+            notify.inline("Chưa có cảnh báo nghi vấn nào trong ca thi.", kind="info", title="Thời gian thực")
         else:
             # Sửa Lỗi 5: Bọc trong container có thanh cuộn và khống chế chiều cao, không làm tràn trang
             st.markdown('<div class="record-scroll-container" style="max-height: 440px; overflow-y: auto; padding-right: 4px;">', unsafe_allow_html=True)
@@ -305,7 +294,12 @@ else:
 
             st.markdown("<div style='height: 8px;'></div>", unsafe_allow_html=True)
             if st.button("Xem toàn bộ sự kiện ca thi", use_container_width=True):
-                st.switch_page("pages/events.py")
+                st.session_state["history_selected_sid"] = st.session_state.get("session_id")
+                st.query_params["tab"] = "events"
+                if st.session_state.get("session_id"):
+                    st.query_params["select_session"] = str(st.session_state.get("session_id"))
+                st.switch_page("pages/history.py")
+
 
     # Tự động refresh khi đang chạy
     st_autorefresh(interval=8000, key=f"refresh_{st.session_state['refresh_key']}")

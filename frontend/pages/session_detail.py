@@ -4,6 +4,7 @@
 import math
 
 import streamlit as st
+from utils.notify import notify
 import plotly.graph_objects as go
 
 from services.history_api import get_session_detail
@@ -30,12 +31,26 @@ if "detail_page" not in st.session_state:
 # ── Sidebar & Styles ────────────────────────────────────────
 hide_sidebar()
 st.markdown(load_css("styles/sidebar.css"), unsafe_allow_html=True)
+st.markdown(load_css("styles/app_theme.css"), unsafe_allow_html=True)
 st.markdown(load_css("styles/session_detail.css"), unsafe_allow_html=True)
 
-# ── Session ID ──────────────────────────────────────────────
+# ── Query params & Session ID ──────────────────────────────
+if "id" in st.query_params:
+    try:
+        st.session_state["selected_session"] = int(st.query_params["id"])
+        st.session_state["session_id"] = int(st.query_params["id"])
+    except Exception:
+        pass
+
+if "p" in st.query_params:
+    try:
+        st.session_state["detail_page"] = max(1, int(st.query_params["p"]))
+    except Exception:
+        pass
+
 session_id = st.session_state.get("selected_session") or st.session_state.get("session_id")
 if not session_id:
-    st.error("Không tìm thấy mã phiên giám sát cần xem.")
+    notify.inline("Không tìm thấy mã phiên giám sát cần xem. Vui lòng quay lại danh sách lịch sử ca thi.", kind="warning", title="Thiếu thông tin phiên")
     if st.button("Về danh sách lịch sử"):
         st.switch_page("pages/history.py")
     st.stop()
@@ -44,7 +59,7 @@ if not session_id:
 # ── Load Data ───────────────────────────────────────────────
 data = get_session_detail(st.session_state.client, session_id)
 if not data:
-    st.error("Không lấy được dữ liệu của phiên giám sát.")
+    notify.inline("Không lấy được dữ liệu của phiên giám sát từ máy chủ.", kind="error", title="Lỗi tải dữ liệu")
     st.stop()
 
 sess = data.get("session", {})
@@ -153,8 +168,8 @@ with top2:
     """, unsafe_allow_html=True)
 
 with top3:
-    start = str(sess.get("ThoiGianBatDau", ""))[:16]
-    end = str(sess.get("ThoiGianKetThuc", "") or "Đang chạy")[:16]
+    start = str(sess.get("ThoiGianBatDau", ""))[:16].replace("T", " ")
+    end = str(sess.get("ThoiGianKetThuc", "") or "Đang chạy")[:16].replace("T", " ")
     st.markdown(f"""
     <div class="kpi-card">
         <div class="kpi-label">Thời gian bắt đầu</div>
@@ -176,15 +191,6 @@ with top3:
     """, unsafe_allow_html=True)
 
 # ── Events Table ────────────────────────────────────────────
-BEHAVIOR_LABELS = {
-    "Cheat_Paper": "Tài liệu (Phao thi)",
-    "cellphone": "Điện thoại di động",
-    "Head_Turn": "Quay đầu / Nhìn bài",
-    "quay_dau": "Quay đầu bất thường",
-    "quay_sau": "Quay người về sau",
-    "cui_xuong": "Cúi đầu nhìn tài liệu",
-    "Answer_paper": "Giấy thi hợp lệ",
-}
 
 PAGE_SIZE = 5
 total_rows = len(events)
@@ -204,7 +210,7 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 if not events:
-    st.info("Phiên thi này không có sự kiện vi phạm nào được ghi nhận.")
+    notify.empty_state("Phiên thi này không có sự kiện vi phạm nào", "Hệ thống camera AI không phát hiện bất kỳ hành vi nghi vấn gian lận nào trong suốt ca thi này.")
 else:
     st.markdown("""
         <div class="tbl-head-row">
@@ -220,12 +226,12 @@ else:
         c1, c2, c3, c4, c5 = st.columns([1.2, 1.4, 0.9, 1.3, 0.8])
 
         c1.markdown(
-            f"<div class='tbl-cell'><b>{str(row.get('ThoiGianPhatHien', ''))[:19]}</b></div>",
+            f"<div class='tbl-cell'><b>{str(row.get('ThoiGianPhatHien', ''))[:19].replace('T', ' ')}</b></div>",
             unsafe_allow_html=True,
         )
 
         raw_bh = row.get("LoaiHanhVi", "?")
-        friendly_bh = BEHAVIOR_LABELS.get(raw_bh, raw_bh)
+        friendly_bh = get_friendly_behavior_label(raw_bh)
         c2.markdown(
             f"<div class='tbl-cell'><span style='color: var(--wf-danger); font-weight:600;'>{friendly_bh}</span></div>",
             unsafe_allow_html=True,
@@ -244,43 +250,47 @@ else:
         )
 
         with c5:
-            if st.button("Xem", key=f"view_ev_btn_{row['PK_MaSuKien']}", use_container_width=True, type="secondary"):
-                st.session_state["event_id"] = row["PK_MaSuKien"]
-                st.switch_page("pages/event_detail.py")
+            ev_pk = row["PK_MaSuKien"]
+            view_action_html = (
+                f'<div style="display:flex; align-items:center; justify-content:flex-end; gap:6px;">'
+                f'  <a href="/event_detail?id={ev_pk}" class="action-svg-btn view-btn" title="Xem chi tiết vi phạm">'
+                f'    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">'
+                f'      <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8z"/>'
+                f'      <circle cx="12" cy="12" r="3"/>'
+                f'    </svg>'
+                f'  </a>'
+                f'</div>'
+            )
+            st.markdown(view_action_html, unsafe_allow_html=True)
 
-    # Phân trang native bằng Streamlit button
+    # Phân trang nhỏ gọn Figma Standard
     showing = len(page_events)
-    st.markdown("<div style='height: 12px;'></div>", unsafe_allow_html=True)
-    info_col, pg_cols = st.columns([5, 5])
+    st.markdown("<div style='height: 18px;'></div>", unsafe_allow_html=True)
+    pg_left, pg_spacer, pg_right = st.columns([5, 2, 5])
 
-    with info_col:
+    with pg_left:
         st.markdown(
-            f"<div style='font-size: 13px; color: var(--wf-text-muted); padding-top: 6px;'>"
-            f"Hiển thị {start_idx + 1} – {start_idx + showing} trong tổng số {total_rows} sự kiện"
+            f"<div style='font-size: 13px; color: #64748b; line-height: 32px;'>"
+            f"Hiển thị <strong>{start_idx + 1} – {start_idx + showing}</strong> trong tổng số <strong>{total_rows}</strong> sự kiện"
             f"</div>",
             unsafe_allow_html=True,
         )
 
-    with pg_cols:
-        pages_to_show = list(range(1, total_pages + 1))
-        btn_cols = st.columns(len(pages_to_show) + 2)
+    with pg_right:
+        pag_items = []
+        prev_disabled = "opacity: 0.35; pointer-events: none;" if page <= 1 else ""
+        pag_items.append(f'<a href="/session_detail?id={session_id}&p={page - 1}" style="{prev_disabled}">‹</a>')
 
-        with btn_cols[0]:
-            if st.button("‹", key="dt_prev_btn", disabled=(page <= 1), use_container_width=True):
-                st.session_state.detail_page -= 1
-                st.rerun()
+        for p_idx in range(1, total_pages + 1):
+            if total_pages > 7 and abs(p_idx - page) > 2 and p_idx != 1 and p_idx != total_pages:
+                if p_idx == 2 or p_idx == total_pages - 1:
+                    pag_items.append('<span style="color: #94a3b8; line-height: 32px; padding: 0 4px;">…</span>')
+                continue
+            active_cls = "active" if p_idx == page else ""
+            pag_items.append(f'<a href="/session_detail?id={session_id}&p={p_idx}" class="{active_cls}">{p_idx}</a>')
 
-        for idx, p in enumerate(pages_to_show):
-            with btn_cols[idx + 1]:
-                is_active_p = (p == page)
-                btn_type = "primary" if is_active_p else "secondary"
-                if st.button(str(p), key=f"dt_page_{p}", type=btn_type, use_container_width=True):
-                    if p != page:
-                        st.session_state.detail_page = p
-                        st.rerun()
+        next_disabled = "opacity: 0.35; pointer-events: none;" if page >= total_pages else ""
+        pag_items.append(f'<a href="/session_detail?id={session_id}&p={page + 1}" style="{next_disabled}">›</a>')
 
-        with btn_cols[-1]:
-            if st.button("›", key="dt_next_btn", disabled=(page >= total_pages), use_container_width=True):
-                st.session_state.detail_page += 1
-                st.rerun()
+        st.markdown(f'<div class="history-pagination">{"".join(pag_items)}</div>', unsafe_allow_html=True)
 

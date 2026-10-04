@@ -60,3 +60,8 @@ class SessionDetailResponse(BaseModel):
 
     session: SessionResponse
     events: list = []
+    # Thống kê service trả về (giữ default để tương thích ngược)
+    tong_su_kien: int = 0
+    da_xac_minh: int = 0
+    cho_kiem_tra: int = 0
+    ty_le_sach: float = 1.0

@@ -141,7 +141,7 @@ def edit_user_name_dialog(u_id: int, cur_name: str, cur_role: str, cur_status: s
                     notify.error("Lỗi khi cập nhật thông tin")
 
 
-tab_users, tab_profile = st.tabs(["Danh sách người dùng & Phân quyền", "Hồ sơ cá nhân & Đổi mật khẩu"])
+tab_users, tab_profile = st.tabs(["Danh sách người dùng", "Hồ sơ cá nhân"])
 
 # =========================================================================
 # TAB 1: DANH SÁCH NGƯỜI DÙNG & PHÂN QUYỀN (CHỈ ADMIN HOẶC XEM QUYỀN)

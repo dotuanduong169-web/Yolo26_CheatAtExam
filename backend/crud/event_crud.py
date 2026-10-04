@@ -92,6 +92,24 @@ def list_events_by_session(
     )
 
 
+def list_all_events_crud(
+    db: DBSession,
+    trang_thai: Optional[str] = None,
+    skip: int = 0,
+    limit: int = 200,
+) -> list[DetectedEvent]:
+    """Liệt kê toàn bộ sự kiện của tất cả các phiên, mới nhất trước."""
+    query = db.query(DetectedEvent).options(joinedload(DetectedEvent.evidences))
+    if trang_thai is not None:
+        query = query.filter(DetectedEvent.TrangThaiKiemTra == trang_thai)
+    return (
+        query.order_by(DetectedEvent.PK_MaSuKien.desc())
+        .offset(skip)
+        .limit(limit)
+        .all()
+    )
+
+
 def count_events_by_session(db: DBSession, session_id: int) -> int:
     """Đếm sự kiện của một phiên."""
     return (

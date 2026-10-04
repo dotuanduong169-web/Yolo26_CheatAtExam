@@ -108,9 +108,14 @@ def camera_info():
 
 @router.get("/status", response_model=CameraStatusResponse)
 def camera_status():
-    """Lấy trạng thái camera hiện tại. Kèm session_id của phiên đang chạy nếu có."""
+    """Lấy trạng thái camera hiện tại. Kèm session_id của phiên đang chạy và FPS thực tế nếu có."""
     state = CameraState()
-    return {"running": state.running, "session_id": state.current_session_id}
+    return {
+        "running": state.running,
+        "session_id": state.current_session_id,
+        "fps": state.fps if state.running else None,
+    }
+
 
 
 @router.get("/snapshot")

@@ -76,6 +76,7 @@ def capture_loop() -> None:
 
                 state.frame_count += 1
                 frame_count += 1
+                state.update_fps()
                 # Chỉ giao frame mới nhất cho worker, không chờ infer xong
                 state.raw_frame = frame
 

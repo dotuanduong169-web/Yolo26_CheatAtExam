@@ -35,6 +35,23 @@ def get_session_events(
         raise HTTPException(status_code=500, detail="Failed to fetch events")
 
 
+@router.get("", response_model=list[EventResponse])
+def get_all_system_events(
+    trang_thai: str | None = Query(None, pattern="^(cho_kiem_tra|dung|sai)$"),
+    skip: int = Query(0, ge=0),
+    limit: int = Query(200, ge=1, le=500),
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Liệt kê toàn bộ sự kiện gian lận của tất cả các ca thi, mới nhất trước."""
+    try:
+        from crud.event_crud import list_all_events_crud
+        return list_all_events_crud(db, trang_thai, skip, limit)
+    except Exception as exc:
+        logger.error(f"Error fetching all events: {exc}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Failed to fetch all events")
+
+
 @router.get("/system/notifications")
 def get_system_notifications_endpoint(
     user: User = Depends(get_current_user),

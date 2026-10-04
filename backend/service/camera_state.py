@@ -47,6 +47,9 @@ class CameraState:
         # True/False gian lận từng frame gần nhất; snapshot chỉ ghi cheat đã xác nhận
         self.cheat_window: deque[bool] = deque(maxlen=CHEAT_WINDOW_MAXLEN)
         self.behavior_window: deque[bool] = deque(maxlen=CHEAT_WINDOW_MAXLEN)
+        self.fps: float = 0.0
+        self._fps_last_time: float = 0.0
+        self._fps_last_count: int = 0
         self._initialized = True
 
     def reset(self) -> None:
@@ -62,6 +65,9 @@ class CameraState:
         self.device_id = None
         self.raw_frame = None
         self.latest_results = []
+        self.fps = 0.0
+        self._fps_last_time = 0.0
+        self._fps_last_count = 0
         self.recent.clear()
         self.cheat_window.clear()
         self.behavior_window.clear()
@@ -70,6 +76,22 @@ class CameraState:
             reset_tracker()
         except Exception:
             pass
+
+    def update_fps(self) -> None:
+        """Tính toán FPS thời gian thực dựa trên số khung hình xử lý."""
+        import time
+        now = time.time()
+        if self._fps_last_time == 0.0:
+            self._fps_last_time = now
+            self._fps_last_count = self.frame_count
+            return
+        dt = now - self._fps_last_time
+        if dt >= 1.0:
+            df = self.frame_count - self._fps_last_count
+            self.fps = round(df / dt, 1)
+            self._fps_last_time = now
+            self._fps_last_count = self.frame_count
+
 
     def note_frame_cheat(self, has_cheat: bool) -> None:
         """Ghi nhận frame hiện tại có/không có gian lận vào cửa sổ debounce."""

@@ -51,3 +51,5 @@ class CameraStatusResponse(BaseModel):
 
     running: bool
     session_id: Optional[int] = None
+    fps: Optional[float] = None
+

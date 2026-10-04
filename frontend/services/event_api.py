@@ -36,6 +36,31 @@ def list_session_events(
         return []
 
 
+def list_all_events(
+    session: requests.Session,
+    trang_thai: str = "",
+    skip: int = 0,
+    limit: int = 200,
+) -> list:
+    """Liệt kê toàn bộ sự kiện của tất cả các phiên trong hệ thống. Lỗi trả []."""
+    try:
+        params = {"skip": skip, "limit": limit}
+        if trang_thai:
+            params["trang_thai"] = trang_thai
+        res = session.get(
+            f"{API_BASE_URL}/events",
+            params=params,
+            headers=get_auth_headers(),
+        )
+        if res.status_code == 200:
+            return res.json()
+        logger.warning(f"list_all_events failed: {res.status_code}")
+        return []
+    except requests.RequestException as exc:
+        logger.warning(f"list_all_events error: {exc}")
+        return []
+
+
 def get_event_detail(session: requests.Session, event_id: int) -> dict | None:
     """Chi tiết một sự kiện kèm bằng chứng và tọa độ. Lỗi trả None."""
     try:

@@ -20,6 +20,7 @@ class _LiveScreenState extends State<LiveScreen> {
   final _mon = TextEditingController();
   bool _running = false;
   int? _sessionId;
+  double? _fps;
   String _streamKey = '';
   List _alerts = [];
   Uint8List? _shot;
@@ -41,6 +42,7 @@ class _LiveScreenState extends State<LiveScreen> {
         _loading = false;
         _running = st['running'] == true;
         _sessionId = st['session_id'] as int?;
+        _fps = (st['fps'] as num?)?.toDouble();
         _devs = devs;
         _devId = devs.isNotEmpty
             ? (devs.first['PK_MaThietBi']).toString()
@@ -105,7 +107,7 @@ class _LiveScreenState extends State<LiveScreen> {
         child: Column(children: [
           ListTile(
               title: Text(_running
-                  ? 'Đang chạy — phiên #$_sessionId'
+                  ? 'Đang chạy — phiên #$_sessionId${_fps != null ? ' · ${_fps!.toStringAsFixed(1)} fps' : ''}'
                   : 'Chưa chạy')),
           if (_running)
             FutureBuilder<String>(

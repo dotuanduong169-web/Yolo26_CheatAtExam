@@ -17,8 +17,6 @@ class _MoreScreenState extends State<MoreScreen> {
   final _nn = TextEditingController();
   final _nr = TextEditingController();
   final _nl = TextEditingController();
-  final _conf = TextEditingController();
-  final _time = TextEditingController();
   final _meName = TextEditingController();
   final _pwOld = TextEditingController();
   final _pwNew = TextEditingController();
@@ -42,10 +40,6 @@ class _MoreScreenState extends State<MoreScreen> {
       if (admin) {
         users = await Api.get('/users/list', {'limit': '20'}) as List;
       }
-      Map ai = {};
-      try {
-        ai = await Api.get('/devices/ai-config/get') as Map;
-      } catch (_) {}
       if (!mounted) return;
       setState(() {
         _loading = false;
@@ -54,8 +48,6 @@ class _MoreScreenState extends State<MoreScreen> {
         _isAdmin = admin;
         _users = users;
         _meName.text = (me['HoVaTen'] ?? '') as String;
-        _conf.text = (ai['conf_thresh'] ?? '').toString();
-        _time.text = (ai['time_thresh'] ?? '').toString();
       });
       _host.text = await Session.baseUrl();
     } on ApiException catch (e) {
@@ -101,18 +93,6 @@ class _MoreScreenState extends State<MoreScreen> {
           : 'Offline: ${d['message']}');
     } on ApiException catch (e) {
       toast(context, e.detail);
-    }
-  }
-
-  Future<void> _aiSave() async {
-    try {
-      await Api.post('/devices/ai-config/save', {
-        'conf_thresh': double.parse(_conf.text.trim()),
-        'time_thresh': double.parse(_time.text.trim()),
-      });
-      if (mounted) toast(context, 'Đã lưu');
-    } catch (e) {
-      toast(context, e is ApiException ? e.detail : 'Số không hợp lệ');
     }
   }
 
@@ -250,25 +230,6 @@ class _MoreScreenState extends State<MoreScreen> {
                 const InputDecoration(labelText: 'Vị trí (tùy chọn)')),
         const SizedBox(height: 8),
         OutlinedButton(onPressed: _devCreate, child: const Text('Thêm')),
-      ]),
-      _section('Ngưỡng AI', [
-        Row(children: [
-          Expanded(
-              child: TextField(
-                  controller: _conf,
-                  keyboardType: TextInputType.number,
-                  decoration:
-                      const InputDecoration(labelText: 'conf (0.75)'))),
-          const SizedBox(width: 8),
-          Expanded(
-              child: TextField(
-                  controller: _time,
-                  keyboardType: TextInputType.number,
-                  decoration:
-                      const InputDecoration(labelText: 'time (2.5)'))),
-        ]),
-        const SizedBox(height: 8),
-        OutlinedButton(onPressed: _aiSave, child: const Text('Lưu')),
       ]),
       if (_isAdmin)
         _section('Người dùng (admin)', [

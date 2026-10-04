@@ -16,6 +16,7 @@ class EventsScreen extends StatefulWidget {
 class _EventsScreenState extends State<EventsScreen> {
   final _sid = TextEditingController();
   String _f = '';
+  bool _global = false;
   List _list = [];
   bool _loading = false;
 
@@ -37,15 +38,14 @@ class _EventsScreenState extends State<EventsScreen> {
   }
 
   Future<void> _load() async {
-    if (_sid.text.trim().isEmpty) {
-      setState(() => _list = []);
-      return toast(context, 'Nhập ID phiên');
-    }
+    final q = _f.isEmpty ? '' : '&trang_thai=$_f';
     setState(() => _loading = true);
     try {
-      final q = _f.isEmpty ? '' : '&trang_thai=$_f';
-      final l = await Api.get('/events/session/${_sid.text.trim()}?limit=20$q') as List;
-      if (mounted) setState(() => _list = l);
+      final dynamic l = _global
+          ? await Api.get('/events', {'limit': '20', if (_f.isNotEmpty) 'trang_thai': _f})
+          : await Api.get(
+              '/events/session/${_sid.text.trim()}?limit=20$q');
+      if (mounted) setState(() => _list = l as List);
     } on ApiException catch (e) {
       toast(context, e.detail);
     } finally {
@@ -57,11 +57,29 @@ class _EventsScreenState extends State<EventsScreen> {
   Widget build(BuildContext context) {
     return Column(children: [
       Padding(
+        padding: const EdgeInsets.fromLTRB(12, 12, 12, 0),
+        child: Row(children: [
+          ChoiceChip(
+              label: const Text('Phiên này'),
+              selected: !_global,
+              onSelected: (_) => setState(() => _global = false)),
+          const SizedBox(width: 6),
+          ChoiceChip(
+              label: const Text('Tất cả'),
+              selected: _global,
+              onSelected: (_) {
+                setState(() => _global = true);
+                _load();
+              }),
+        ]),
+      ),
+      Padding(
         padding: const EdgeInsets.all(12),
         child: Row(children: [
           Expanded(
               child: TextField(
                   controller: _sid,
+                  enabled: !_global,
                   keyboardType: TextInputType.number,
                   decoration: const InputDecoration(
                       labelText: 'ID phiên', border: OutlineInputBorder()),

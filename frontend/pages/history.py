@@ -89,6 +89,20 @@ def confirm_delete(session_id: int):
             handle_delete(session_id)
 
 
+# ── Xử lý query params phân trang và xóa phiên ──────────────
+if "p" in st.query_params:
+    try:
+        st.session_state.hist_page = max(1, int(st.query_params["p"]))
+    except Exception:
+        pass
+
+if "confirm_delete" in st.query_params:
+    try:
+        target_sid = int(st.query_params["confirm_delete"])
+        confirm_delete(target_sid)
+    except Exception:
+        pass
+
 # ── Session state for pagination ────────────────────────────
 if "hist_page" not in st.session_state:
     st.session_state.hist_page = 1
@@ -151,18 +165,23 @@ if st.session_state.hist_page > total_pages:
 current_page = st.session_state.hist_page
 
 # ── Table ───────────────────────────────────────────────────
-st.markdown('<div class="table-card">', unsafe_allow_html=True)
+st.markdown('<div class="table-card" style="background:#ffffff; border:1px solid #e2e8f0; border-radius:10px; padding:16px; box-shadow:0 1px 3px rgba(0,0,0,0.03);">', unsafe_allow_html=True)
 
-st.markdown("""
-<div class="table-header-row">
-    <span>MÃ PHIÊN</span>
-    <span>PHÒNG / MÔN THI</span>
-    <span>THỜI GIAN BẮT ĐẦU</span>
-    <span>TRẠNG THÁI</span>
-    <span>SỰ KIỆN</span>
-    <span style="text-align:right">THAO TÁC</span>
-</div>
-""", unsafe_allow_html=True)
+th_cols = st.columns([1.2, 3.4, 1.8, 1.4, 0.8, 1.0])
+with th_cols[0]:
+    st.markdown('<span style="font-size:11.5px; font-weight:700; color:#64748b; letter-spacing:0.5px;">MÃ PHIÊN</span>', unsafe_allow_html=True)
+with th_cols[1]:
+    st.markdown('<span style="font-size:11.5px; font-weight:700; color:#64748b; letter-spacing:0.5px;">PHÒNG / MÔN THI</span>', unsafe_allow_html=True)
+with th_cols[2]:
+    st.markdown('<span style="font-size:11.5px; font-weight:700; color:#64748b; letter-spacing:0.5px;">THỜI GIAN BẮT ĐẦU</span>', unsafe_allow_html=True)
+with th_cols[3]:
+    st.markdown('<span style="font-size:11.5px; font-weight:700; color:#64748b; letter-spacing:0.5px;">TRẠNG THÁI</span>', unsafe_allow_html=True)
+with th_cols[4]:
+    st.markdown('<span style="font-size:11.5px; font-weight:700; color:#64748b; letter-spacing:0.5px;">SỰ KIỆN</span>', unsafe_allow_html=True)
+with th_cols[5]:
+    st.markdown('<div style="text-align:right; font-size:11.5px; font-weight:700; color:#64748b; letter-spacing:0.5px;">THAO TÁC</div>', unsafe_allow_html=True)
+
+st.markdown("<hr style='margin: 8px 0 12px 0; border: none; border-top: 1px solid #f1f5f9;'>", unsafe_allow_html=True)
 
 if not sessions:
     st.markdown("""
@@ -180,86 +199,72 @@ else:
         ev_count = sess.get("so_su_kien", 0)
         status_badge = get_session_status_badge(sess.get("TrangThai"), sess.get("ThoiGianKetThuc"))
 
-        row_cols = st.columns([1.1, 2.0, 1.4, 1.2, 0.8, 1.0])
+        row_cols = st.columns([1.2, 3.4, 1.8, 1.4, 0.8, 1.0])
         with row_cols[0]:
-            st.markdown(f'<span class="cell-session-id">#SESS-{sid}</span>', unsafe_allow_html=True)
+            st.markdown(f'<span style="font-size:13px; font-weight:600; color:#2563eb;">#SESS-{sid}</span>', unsafe_allow_html=True)
         with row_cols[1]:
-            st.markdown(f'<span class="cell-class">{room_subject_label}</span>', unsafe_allow_html=True)
+            st.markdown(f'<span style="font-size:13.5px; font-weight:500; color:#0f172a;">{room_subject_label}</span>', unsafe_allow_html=True)
         with row_cols[2]:
-            st.markdown(f'<span class="cell-date">{date_str}</span>', unsafe_allow_html=True)
+            st.markdown(f'<span style="font-size:13px; color:#64748b;">{date_str}</span>', unsafe_allow_html=True)
         with row_cols[3]:
             st.markdown(status_badge, unsafe_allow_html=True)
         with row_cols[4]:
-            st.markdown(f'<span class="cell-count">{ev_count}</span>', unsafe_allow_html=True)
+            st.markdown(f'<span style="font-size:13px; font-weight:600; color:#0f172a;">{ev_count}</span>', unsafe_allow_html=True)
         with row_cols[5]:
-            h_col1, h_col2 = st.columns([1, 1])
-            with h_col1:
-                st.markdown('<div class="btn-icon-action btn-icon-view">', unsafe_allow_html=True)
-                if st.button("Xem", key=f"view_{sid}", help="Xem chi tiết phiên giám sát", use_container_width=True):
-                    st.session_state.selected_session = sid
-                    st.switch_page("pages/session_detail.py")
-                st.markdown('</div>', unsafe_allow_html=True)
-            with h_col2:
-                st.markdown('<div class="btn-icon-action btn-icon-delete">', unsafe_allow_html=True)
-                if st.button("Xóa", key=f"del_{sid}", help="Xóa phiên giám sát", use_container_width=True):
-                    confirm_delete(sid)
-                st.markdown('</div>', unsafe_allow_html=True)
+            action_html = (
+                f'<div style="display:flex; align-items:center; justify-content:flex-end; gap:6px;">'
+                f'  <a href="/session_detail?id={sid}" class="action-svg-btn view-btn" title="Xem chi tiết ca thi">'
+                f'    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">'
+                f'      <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8z"/>'
+                f'      <circle cx="12" cy="12" r="3"/>'
+                f'    </svg>'
+                f'  </a>'
+                f'  <a href="/history?confirm_delete={sid}" class="action-svg-btn del-btn" title="Xóa phiên giám sát">'
+                f'    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">'
+                f'      <polyline points="3 6 5 6 21 6"/>'
+                f'      <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>'
+                f'      <line x1="10" y1="11" x2="10" y2="17"/>'
+                f'      <line x1="14" y1="11" x2="14" y2="17"/>'
+                f'    </svg>'
+                f'  </a>'
+                f'</div>'
+            )
+            st.markdown(action_html, unsafe_allow_html=True)
+
+        st.markdown("<hr style='margin: 8px 0; border: none; border-top: 1px solid #f8fafc;'>", unsafe_allow_html=True)
 
 st.markdown("</div>", unsafe_allow_html=True)
 
-# ── Pagination (Native Streamlit Buttons - Không dùng JS hack) ──
+# ── Phân trang nhỏ gọn Figma Standard ─────────────────────
 start_idx = (current_page - 1) * PAGE_SIZE + 1 if total_sessions_count > 0 else 0
 end_idx = min(current_page * PAGE_SIZE, total_sessions_count)
 
-st.markdown("<div style='height: 14px;'></div>", unsafe_allow_html=True)
-pg_left, pg_right = st.columns([4, 6])
+st.markdown("<div style='height: 18px;'></div>", unsafe_allow_html=True)
+pg_left, pg_spacer, pg_right = st.columns([5, 2, 5])
 
 with pg_left:
     st.markdown(
-        f"<div style='font-size: 13px; color: var(--wf-text-muted); padding-top: 6px;'>"
-        f"Hiển thị {start_idx} – {end_idx} trong tổng số {total_sessions_count} phiên"
+        f"<div style='font-size: 13px; color: #64748b; line-height: 32px;'>"
+        f"Hiển thị <strong>{start_idx} – {end_idx}</strong> trong tổng số <strong>{total_sessions_count}</strong> phiên"
         f"</div>",
         unsafe_allow_html=True,
     )
 
 with pg_right:
-    # Xây dựng các trang hiển thị
-    pages_to_show = []
-    if total_pages <= 7:
-        pages_to_show = list(range(1, total_pages + 1))
-    else:
-        if current_page <= 4:
-            pages_to_show = [1, 2, 3, 4, 5, "...", total_pages]
-        elif current_page >= total_pages - 3:
-            pages_to_show = [1, "..."] + list(range(total_pages - 4, total_pages + 1))
-        else:
-            pages_to_show = [1, "...", current_page - 1, current_page, current_page + 1, "...", total_pages]
+    pag_items = []
+    prev_disabled = "opacity: 0.35; pointer-events: none;" if current_page <= 1 else ""
+    pag_items.append(f'<a href="/history?p={current_page - 1}" style="{prev_disabled}">‹</a>')
 
-    num_btn_cols = len(pages_to_show) + 2
-    btn_cols = st.columns(num_btn_cols)
+    for p in range(1, total_pages + 1):
+        if total_pages > 7 and abs(p - current_page) > 2 and p != 1 and p != total_pages:
+            if p == 2 or p == total_pages - 1:
+                pag_items.append('<span style="color: #94a3b8; line-height: 32px; padding: 0 4px;">…</span>')
+            continue
+        active_cls = "active" if p == current_page else ""
+        pag_items.append(f'<a href="/history?p={p}" class="{active_cls}">{p}</a>')
 
-    # Nút Previous (‹)
-    with btn_cols[0]:
-        if st.button("‹", key="btn_prev_page", disabled=(current_page <= 1), use_container_width=True):
-            st.session_state.hist_page -= 1
-            st.rerun()
+    next_disabled = "opacity: 0.35; pointer-events: none;" if current_page >= total_pages else ""
+    pag_items.append(f'<a href="/history?p={current_page + 1}" style="{next_disabled}">›</a>')
 
-    # Các nút số trang
-    for idx, p in enumerate(pages_to_show):
-        with btn_cols[idx + 1]:
-            if p == "...":
-                st.markdown("<div style='text-align: center; line-height: 38px; color: #94a3b8;'>…</div>", unsafe_allow_html=True)
-            else:
-                is_active = (p == current_page)
-                btn_type = "primary" if is_active else "secondary"
-                if st.button(str(p), key=f"page_num_{p}", type=btn_type, use_container_width=True):
-                    if p != current_page:
-                        st.session_state.hist_page = p
-                        st.rerun()
-
-    # Nút Next (›)
-    with btn_cols[-1]:
-        if st.button("›", key="btn_next_page", disabled=(current_page >= total_pages), use_container_width=True):
-            st.session_state.hist_page += 1
-            st.rerun()
+    st.markdown(f'<div class="history-pagination">{"".join(pag_items)}</div>', unsafe_allow_html=True)
 

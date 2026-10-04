@@ -3,9 +3,8 @@ from utils.load_css import load_css
 
 
 def render_page_header(title: str, active: str | None = None):
-    """Vẽ thanh header chung: logo ExamCheat AI + tiêu đề trang.
-    active: key trang hiện tại (home/events/statistics/history/devices/setting)
-    để vẽ hàng tab điều hướng ngay dưới header.
+    """Vẽ thanh header chung: logo ExamCheat AI + tiêu đề trang + thanh tab điều hướng cố định.
+    active: key trang hiện tại (home/events/statistics/history/devices/setting).
     """
     st.markdown(load_css("styles/header.css"), unsafe_allow_html=True)
     st.markdown(load_css("styles/app_theme.css"), unsafe_allow_html=True)
@@ -24,6 +23,15 @@ def render_page_header(title: str, active: str | None = None):
         session_text = "Chưa mở ca thi"
         session_badge_cls = ""
         session_badge_text = "Hệ thống sẵn sàng"
+
+    # Xác định class active cho từng tab điều hướng
+    active_key = (active or "").lower()
+    cls_home = "active" if active_key in ("home", "giamsat") else ""
+    cls_events = "active" if active_key in ("events", "sukien") else ""
+    cls_stats = "active" if active_key in ("statistics", "thongke") else ""
+    cls_hist = "active" if active_key in ("history", "lichsu") else ""
+    cls_dev = "active" if active_key in ("devices", "thietbi") else ""
+    cls_set = "active" if active_key in ("setting", "users", "caidat") else ""
 
     header_html = (
         '<div class="global-top-bar">'
@@ -45,7 +53,7 @@ def render_page_header(title: str, active: str | None = None):
         f'    <div>Ca thi: <strong>{session_text}</strong></div>'
         f'    <div>{role_label}: <strong>{user_name}</strong></div>'
         f'    <div>Trạng thái: <span class="badge {session_badge_cls}">{session_badge_text}</span></div>'
-        '    <a href="/login" class="header-logout-btn" onclick="try{window.parent.localStorage.removeItem(\'examcheat_auth\');}catch(e){};try{localStorage.removeItem(\'examcheat_auth\');}catch(e){};" title="Đăng xuất khỏi hệ thống">'
+        '    <a href="/login?logout=1" class="header-logout-btn" onclick="try{localStorage.removeItem(\'examcheat_auth\');}catch(e){};try{window.localStorage.removeItem(\'examcheat_auth\');}catch(e){};try{window.parent.localStorage.removeItem(\'examcheat_auth\');}catch(e){};try{window.top.localStorage.removeItem(\'examcheat_auth\');}catch(e){};window.top.location.href=\'/login?logout=1\';return false;" title="Đăng xuất khỏi hệ thống">'
         '      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">'
         '        <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>'
         '        <polyline points="16 17 21 12 16 7"/>'
@@ -55,9 +63,15 @@ def render_page_header(title: str, active: str | None = None):
         '    </a>'
         '  </div>'
         '</div>'
+        '<div class="global-nav-bar">'
+        '  <div class="nav-container">'
+        f'    <a href="/home" class="nav-tab-btn {cls_home}">Giám sát</a>'
+        f'    <a href="/events" class="nav-tab-btn {cls_events}">Sự kiện</a>'
+        f'    <a href="/statistics" class="nav-tab-btn {cls_stats}">Thống kê</a>'
+        f'    <a href="/history" class="nav-tab-btn {cls_hist}">Lịch sử</a>'
+        f'    <a href="/devices" class="nav-tab-btn {cls_dev}">Thiết bị</a>'
+        f'    <a href="/users" class="nav-tab-btn {cls_set}">Cài đặt</a>'
+        '  </div>'
+        '</div>'
     )
     st.markdown(header_html, unsafe_allow_html=True)
-
-    if active:
-        from components.nav_tabs import render_nav_tabs
-        render_nav_tabs(active)

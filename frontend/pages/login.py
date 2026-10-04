@@ -12,8 +12,34 @@ st.set_page_config(layout="centered", initial_sidebar_state="collapsed", page_ti
 
 init_session_state()
 
-# Tự động chuyển vào trang chủ nếu đã có phiên hợp lệ trong localStorage
-if not st.session_state.get("access_token_value") and not st.query_params.get("auth"):
+# ── Xử lý khi người dùng yêu cầu Đăng xuất ────────────────────
+is_logout_requested = st.query_params.get("logout") == "1"
+if is_logout_requested:
+    # Xóa sạch phiên và các query parameters
+    for k in list(st.session_state.keys()):
+        del st.session_state[k]
+    for qk in list(st.query_params.keys()):
+        del st.query_params[qk]
+    init_session_state()
+    st.components.v1.html(
+        """
+        <script>
+        (function() {
+            try { localStorage.removeItem("examcheat_auth"); } catch(e) {}
+            try { window.localStorage.removeItem("examcheat_auth"); } catch(e) {}
+            try { window.parent.localStorage.removeItem("examcheat_auth"); } catch(e) {}
+            try { window.top.localStorage.removeItem("examcheat_auth"); } catch(e) {}
+            if (window.top.location.search.includes("logout")) {
+                window.top.history.replaceState({}, document.title, "/login");
+            }
+        })();
+        </script>
+        """,
+        height=0,
+        width=0,
+    )
+elif not st.session_state.get("access_token_value") and not st.query_params.get("auth"):
+    # Chỉ tự động khôi phục phiên nếu KHÔNG phải hành động logout
     st.components.v1.html(
         """
         <script>

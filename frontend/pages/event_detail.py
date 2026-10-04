@@ -27,6 +27,12 @@ st.markdown(load_css("styles/app_theme.css"), unsafe_allow_html=True)
 st.markdown(load_css("styles/frame_detail.css"), unsafe_allow_html=True)
 
 # ── Event ID ────────────────────────────────────────────────
+if "id" in st.query_params:
+    try:
+        st.session_state["event_id"] = int(st.query_params["id"])
+    except Exception:
+        pass
+
 event_id = st.session_state.get("event_id")
 if not event_id:
     notify.warning("Không có sự kiện để xem.")

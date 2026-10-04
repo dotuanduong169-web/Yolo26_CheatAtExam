@@ -279,65 +279,198 @@ div[data-baseweb="input"], div[data-baseweb="select"] {
   border-color: var(--wf-border) !important;
 }
 
-/* Tabs */
-div[data-baseweb="tab-list"] {
-  border-bottom: none !important;
-  box-shadow: none !important;
-  gap: 8px !important;
+/* Sub-Tabs (Chuẩn phong cách phẳng Govita / Med Working theo Ảnh 3) */
+div[data-baseweb="tab-list"],
+div[data-testid="stTabs"] > div:first-child {
+  border-bottom: 2px solid #e2e8f0 !important;
+  background: transparent !important;
+  gap: 32px !important;
+  padding: 0 4px !important;
+  margin-bottom: 20px !important;
 }
 
-button[data-baseweb="tab"] {
-  font-size: 13px !important;
+button[data-baseweb="tab"],
+div[data-testid="stTabs"] button[role="tab"] {
+  background: transparent !important;
+  background-color: transparent !important;
+  border: none !important;
+  border-bottom: 3px solid transparent !important;
+  border-radius: 0 !important;
+  font-size: 15px !important;
   font-weight: 500 !important;
-  color: var(--wf-text-muted) !important;
-  padding: 8px 16px !important;
-  border-radius: 6px !important;
-  border-bottom: none !important;
+  color: #475569 !important;
+  padding: 10px 4px 14px 4px !important;
+  margin-bottom: -2px !important;
   transition: all 0.2s ease !important;
+  box-shadow: none !important;
+  outline: none !important;
 }
 
-button[data-baseweb="tab"]:hover {
-  background-color: #f1f5f9 !important;
-  color: var(--wf-text) !important;
+button[data-baseweb="tab"] p,
+div[data-testid="stTabs"] button[role="tab"] p {
+  font-size: 15px !important;
+  font-weight: inherit !important;
+  color: inherit !important;
+  margin: 0 !important;
 }
 
-button[data-baseweb="tab"][aria-selected="true"] {
-  color: var(--wf-accent) !important;
-  font-weight: 600 !important;
-  border-bottom: none !important;
-  background-color: var(--wf-accent-bg) !important;
+button[data-baseweb="tab"]:hover,
+div[data-testid="stTabs"] button[role="tab"]:hover {
+  background: transparent !important;
+  background-color: transparent !important;
+  color: #0f172a !important;
+  border-bottom: 3px solid #cbd5e1 !important;
 }
 
-/* Tắt hoàn toàn các vạch gạch ngang đáy của Streamlit tabs */
+button[data-baseweb="tab"][aria-selected="true"],
+div[data-testid="stTabs"] button[role="tab"][aria-selected="true"] {
+  background: transparent !important;
+  background-color: transparent !important;
+  color: #1e3a8a !important;
+  font-weight: 700 !important;
+  border-bottom: 3px solid #1e3a8a !important;
+  box-shadow: none !important;
+}
+
+/* Tắt vạch đỏ mặc định của BaseWeb để dùng underline tùy biến */
 div[data-baseweb="tab-highlight"],
 div[data-baseweb="tab-border"] {
   display: none !important;
 }
 
 /* ==========================================================================
-   ACTION ICON BUTTONS TRONG BẢNG BIỂU (FIGMA / ENTERPRISE SVG ICONS)
-   Thay thế các nút bấm text thô bằng vector icon trực quan sắc nét
+   ACTION SVG BUTTONS TRỰC TIẾP (VECTOR ICONS THEO ĐÚNG MẪU ĐĂNG XUẤT / ĐỔI MK)
+   Hiển thị icon SVG vector trực quan, không phụ thuộc vào widget Streamlit button
    ========================================================================== */
-.btn-icon-action {
-    display: inline-block !important;
-}
-
-.btn-icon-action button {
-    width: 32px !important;
-    height: 32px !important;
-    min-height: 32px !important;
-    max-width: 32px !important;
-    padding: 0 !important;
-    border-radius: 6px !important;
+.action-svg-btn {
     display: inline-flex !important;
     align-items: center !important;
     justify-content: center !important;
+    width: 32px !important;
+    height: 32px !important;
+    min-width: 32px !important;
+    min-height: 32px !important;
+    border-radius: 6px !important;
+    border: 1px solid #e2e8f0 !important;
+    background: #ffffff !important;
+    color: #475569 !important;
+    text-decoration: none !important;
     transition: all 0.15s ease-in-out !important;
     cursor: pointer !important;
+    margin: 0 2px !important;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.03) !important;
+    outline: none !important;
 }
 
-.btn-icon-action button p {
-    display: none !important;
+.action-svg-btn:hover {
+    transform: translateY(-1px) !important;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.08) !important;
+}
+
+.action-svg-btn.view-btn {
+    color: #2563eb !important;
+    background: #eff6ff !important;
+    border-color: #bfdbfe !important;
+}
+.action-svg-btn.view-btn:hover {
+    background: #dbeafe !important;
+    border-color: #93c5fd !important;
+}
+
+.action-svg-btn.del-btn, .action-svg-btn.reject-btn {
+    color: #dc2626 !important;
+    background: #fef2f2 !important;
+    border-color: #fecaca !important;
+}
+.action-svg-btn.del-btn:hover, .action-svg-btn.reject-btn:hover {
+    background: #fee2e2 !important;
+    border-color: #fca5a5 !important;
+}
+
+.action-svg-btn.edit-btn {
+    color: #2563eb !important;
+    background: #eff6ff !important;
+    border-color: #bfdbfe !important;
+}
+.action-svg-btn.edit-btn:hover {
+    background: #dbeafe !important;
+    border-color: #93c5fd !important;
+}
+
+.action-svg-btn.test-btn, .action-svg-btn.confirm-btn, .action-svg-btn.unlock-btn {
+    color: #16a34a !important;
+    background: #f0fdf4 !important;
+    border-color: #bbf7d0 !important;
+}
+.action-svg-btn.test-btn:hover, .action-svg-btn.confirm-btn:hover, .action-svg-btn.unlock-btn:hover {
+    background: #dcfce7 !important;
+    border-color: #86efac !important;
+}
+
+.action-svg-btn.role-btn {
+    color: #7c3aed !important;
+    background: #f5f3ff !important;
+    border-color: #ddd6fe !important;
+}
+.action-svg-btn.role-btn:hover {
+    background: #ede9fe !important;
+    border-color: #c4b5fd !important;
+}
+
+.action-svg-btn.lock-btn {
+    color: #d97706 !important;
+    background: #fffbeb !important;
+    border-color: #fde68a !important;
+}
+.action-svg-btn.lock-btn:hover {
+    background: #fef3c7 !important;
+    border-color: #fcd34d !important;
+}
+
+.action-svg-btn.event-btn {
+    color: #e11d48 !important;
+    background: #fff1f2 !important;
+    border-color: #fecdd3 !important;
+}
+.action-svg-btn.event-btn:hover {
+    background: #ffe4e6 !important;
+    border-color: #fda4af !important;
+}
+
+/* PHÂN TRANG NHỎ GỌN FIGMA STANDARD */
+.history-pagination {
+    display: flex !important;
+    align-items: center !important;
+    justify-content: flex-end !important;
+    gap: 6px !important;
+}
+
+.history-pagination a {
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    width: 32px !important;
+    height: 32px !important;
+    border: 1px solid #cbd5e1 !important;
+    border-radius: 6px !important;
+    background: #ffffff !important;
+    color: #334155 !important;
+    font-size: 13px !important;
+    font-weight: 500 !important;
+    text-decoration: none !important;
+    transition: all 0.15s ease !important;
+}
+
+.history-pagination a:hover {
+    background: #f1f5f9 !important;
+    border-color: #94a3b8 !important;
+}
+
+.history-pagination a.active {
+    background: #2563eb !important;
+    border-color: #2563eb !important;
+    color: #ffffff !important;
+    font-weight: 700 !important;
 }
 
 /* 1. NÚT TEST / CHẠY THỬ CAMERA: Icon Play ▶ */

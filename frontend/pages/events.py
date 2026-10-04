@@ -36,6 +36,47 @@ from utils.status_helpers import (
 
 # ── Lấy danh sách phiên thi ─────────────────────────────────
 client = st.session_state.client
+
+# ── Xử lý query params thao tác sự kiện ─────────────────────
+if "confirm_ev" in st.query_params:
+    try:
+        c_ev_id = int(st.query_params["confirm_ev"])
+        c_raw_label = st.query_params.get("raw_label", "")
+        del st.query_params["confirm_ev"]
+        if "raw_label" in st.query_params:
+            del st.query_params["raw_label"]
+        res = verify_event(client, c_ev_id, "dung", c_raw_label)
+        if res is not None and res.status_code == 200:
+            notify.success(f"Đã xác nhận sự kiện EV-{c_ev_id:02d} là Vi phạm")
+            st.rerun()
+        else:
+            notify.error("Không thể cập nhật trạng thái sự kiện")
+    except Exception:
+        pass
+
+if "reject_ev" in st.query_params:
+    try:
+        r_ev_id = int(st.query_params["reject_ev"])
+        del st.query_params["reject_ev"]
+        res = verify_event(client, r_ev_id, "sai", "Answer_paper")
+        if res is not None and res.status_code == 200:
+            notify.success(f"Đã bác bỏ sự kiện EV-{r_ev_id:02d} (Báo sai: Giấy thi hợp lệ)")
+            st.rerun()
+        else:
+            notify.error("Không thể cập nhật trạng thái sự kiện")
+    except Exception:
+        pass
+
+if "select_session" in st.query_params:
+    try:
+        s_id = int(st.query_params["select_session"])
+        del st.query_params["select_session"]
+        st.session_state["session_id"] = s_id
+        st.session_state["selected_session"] = s_id
+        st.rerun()
+    except Exception:
+        pass
+
 all_sessions = get_all_sessions(client)
 
 if not all_sessions:
@@ -154,32 +195,28 @@ with tab_events:
                 with c6:
                     st.markdown(stt_badge, unsafe_allow_html=True)
                 with c7:
-                    ev_b1, ev_b2, ev_b3 = st.columns([1, 1, 1])
-                    with ev_b1:
-                        st.markdown('<div class="btn-icon-action btn-icon-view">', unsafe_allow_html=True)
-                        if st.button("Xem", key=f"view_ev_{ev_id}", help="Xem chi tiết bằng chứng & tọa độ vi phạm", use_container_width=True):
-                            show_evidence_dialog(ev_id)
-                        st.markdown('</div>', unsafe_allow_html=True)
-                    with ev_b2:
-                        st.markdown('<div class="btn-icon-action btn-icon-confirm">', unsafe_allow_html=True)
-                        if st.button("Đúng", key=f"confirm_ev_{ev_id}", help=f"Xác nhận đúng vi phạm ({friendly_label})", use_container_width=True):
-                            res = verify_event(client, ev_id, "dung", raw_label)
-                            if res is not None and res.status_code == 200:
-                                notify.success(f"Đã xác nhận sự kiện EV-{ev_id:02d} là Vi phạm ({friendly_label})")
-                                st.rerun()
-                            else:
-                                notify.error("Không thể cập nhật trạng thái sự kiện")
-                        st.markdown('</div>', unsafe_allow_html=True)
-                    with ev_b3:
-                        st.markdown('<div class="btn-icon-action btn-icon-reject">', unsafe_allow_html=True)
-                        if st.button("Sai", key=f"reject_ev_{ev_id}", help="Bác bỏ vi phạm (Báo sai: Giấy thi hợp lệ)", use_container_width=True):
-                            res = verify_event(client, ev_id, "sai", "Answer_paper")
-                            if res is not None and res.status_code == 200:
-                                notify.success(f"Đã bác bỏ sự kiện EV-{ev_id:02d} (Báo sai: Giấy thi hợp lệ)")
-                                st.rerun()
-                            else:
-                                notify.error("Không thể cập nhật trạng thái sự kiện")
-                        st.markdown('</div>', unsafe_allow_html=True)
+                    action_html = (
+                        f'<div style="display:flex; align-items:center; justify-content:flex-end; gap:6px;">'
+                        f'  <a href="/event_detail?id={ev_id}" class="action-svg-btn view-btn" title="Xem chi tiết bằng chứng & tọa độ vi phạm">'
+                        f'    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">'
+                        f'      <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8z"/>'
+                        f'      <circle cx="12" cy="12" r="3"/>'
+                        f'    </svg>'
+                        f'  </a>'
+                        f'  <a href="/events?confirm_ev={ev_id}&raw_label={raw_label}" class="action-svg-btn confirm-btn" title="Xác nhận đúng vi phạm ({friendly_label})">'
+                        f'    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">'
+                        f'      <polyline points="20 6 9 17 4 12"/>'
+                        f'    </svg>'
+                        f'  </a>'
+                        f'  <a href="/events?reject_ev={ev_id}" class="action-svg-btn reject-btn" title="Bác bỏ vi phạm (Báo sai: Giấy thi hợp lệ)">'
+                        f'    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">'
+                        f'      <line x1="18" y1="6" x2="6" y2="18"/>'
+                        f'      <line x1="6" y1="6" x2="18" y2="18"/>'
+                        f'    </svg>'
+                        f'  </a>'
+                        f'</div>'
+                    )
+                    st.markdown(action_html, unsafe_allow_html=True)
 
                 st.markdown("<hr style='margin: 4px 0 8px 0; border: none; border-top: 1px solid var(--wf-border);'>", unsafe_allow_html=True)
 
@@ -242,20 +279,23 @@ with tab_sessions:
                 with sc4:
                     st.markdown(f"<span class='wf-badge danger'>Sự kiện: {event_count}</span><br>{status_badge}", unsafe_allow_html=True)
                 with sc5:
-                    btn_detail_col, btn_select_col = st.columns(2)
-                    with btn_detail_col:
-                        st.markdown('<div class="btn-icon-action btn-icon-view">', unsafe_allow_html=True)
-                        if st.button("Xem", key=f"btn_detail_sess_{s_id}", help="Xem báo cáo chi tiết ca thi"):
-                            st.session_state["selected_session"] = s_id
-                            st.switch_page("pages/session_detail.py")
-                        st.markdown('</div>', unsafe_allow_html=True)
-                    with btn_select_col:
-                        st.markdown('<div class="btn-icon-action btn-icon-events">', unsafe_allow_html=True)
-                        if st.button("Sự kiện", key=f"btn_events_sess_{s_id}", help="Xem các sự kiện vi phạm của ca thi này"):
-                            st.session_state["session_id"] = s_id
-                            st.session_state["selected_session"] = s_id
-                            st.rerun()
-                        st.markdown('</div>', unsafe_allow_html=True)
+                    action_sess_html = (
+                        f'<div style="display:flex; align-items:center; justify-content:flex-end; gap:6px;">'
+                        f'  <a href="/session_detail?id={s_id}" class="action-svg-btn view-btn" title="Xem báo cáo chi tiết ca thi #{s_id}">'
+                        f'    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">'
+                        f'      <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8z"/>'
+                        f'      <circle cx="12" cy="12" r="3"/>'
+                        f'    </svg>'
+                        f'  </a>'
+                        f'  <a href="/events?select_session={s_id}" class="action-svg-btn event-btn" title="Xem các sự kiện vi phạm của ca thi này">'
+                        f'    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">'
+                        f'      <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/>'
+                        f'      <path d="M13.73 21a2 2 0 0 1-3.46 0"/>'
+                        f'    </svg>'
+                        f'  </a>'
+                        f'</div>'
+                    )
+                    st.markdown(action_sess_html, unsafe_allow_html=True)
 
                 st.markdown("<hr style='margin: 4px 0 10px 0; border: none; border-top: 1px solid var(--wf-border);'>", unsafe_allow_html=True)
 

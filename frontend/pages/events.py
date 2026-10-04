@@ -77,6 +77,13 @@ if "select_session" in st.query_params:
     except Exception:
         pass
 
+if "view_ev" in st.query_params:
+    try:
+        target_ev_id = int(st.query_params["view_ev"])
+        show_evidence_dialog(target_ev_id)
+    except Exception:
+        pass
+
 all_sessions = get_all_sessions(client)
 
 if not all_sessions:
@@ -162,7 +169,7 @@ with tab_events:
         th4.caption("ĐỘ TIN CẬY")
         th5.caption("KẾT LUẬN XÁC MINH")
         th6.caption("TRẠNG THÁI")
-        th7.caption("THAO TÁC")
+        th7.markdown('<div style="text-align:right; font-size:11.5px; font-weight:700; color:#64748b; letter-spacing:0.5px;">THAO TÁC</div>', unsafe_allow_html=True)
 
         st.markdown("<hr style='margin: 4px 0 8px 0; border: none; border-top: 1px solid var(--wf-border);'>", unsafe_allow_html=True)
 
@@ -197,7 +204,7 @@ with tab_events:
                 with c7:
                     action_html = (
                         f'<div style="display:flex; align-items:center; justify-content:flex-end; gap:6px;">'
-                        f'  <a href="/event_detail?id={ev_id}" class="action-svg-btn view-btn" title="Xem chi tiết bằng chứng & tọa độ vi phạm">'
+                        f'  <a href="/events?view_ev={ev_id}" class="action-svg-btn view-btn" title="Xem nhanh bằng chứng & xác minh vi phạm">'
                         f'    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">'
                         f'      <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8z"/>'
                         f'      <circle cx="12" cy="12" r="3"/>'
@@ -257,6 +264,15 @@ with tab_sessions:
     if not filtered_sessions:
         notify.empty_state("Không tìm thấy ca thi nào phù hợp", "Vui lòng thử điều chỉnh lại bộ lọc trạng thái hoặc từ khóa tìm kiếm phòng/môn thi.")
     else:
+        # Tiêu đề hàng bảng ca thi
+        sh1, sh2, sh3, sh4, sh5 = st.columns([1, 2, 2, 1.2, 1.4])
+        sh1.caption("MÃ CA")
+        sh2.caption("PHÒNG / MÔN THI")
+        sh3.caption("THỜI GIAN")
+        sh4.caption("TRẠNG THÁI")
+        sh5.markdown('<div style="text-align:right; font-size:11.5px; font-weight:700; color:#64748b; letter-spacing:0.5px;">THAO TÁC</div>', unsafe_allow_html=True)
+        st.markdown("<hr style='margin: 4px 0 8px 0; border: none; border-top: 1px solid var(--wf-border);'>", unsafe_allow_html=True)
+
         for s in filtered_sessions:
             s_id = s.get("PK_MaPhienGiamSat")
             room = s.get("PhongThi") or "Chưa đặt phòng"

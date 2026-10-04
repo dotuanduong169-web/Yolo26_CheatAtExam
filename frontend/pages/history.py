@@ -168,8 +168,6 @@ if st.session_state.hist_page > total_pages:
 current_page = st.session_state.hist_page
 
 # ── Table ───────────────────────────────────────────────────
-st.markdown('<div class="table-card" style="background:#ffffff; border:1px solid #e2e8f0; border-radius:10px; padding:16px; box-shadow:0 1px 3px rgba(0,0,0,0.03);">', unsafe_allow_html=True)
-
 th_cols = st.columns([1.2, 3.4, 1.8, 1.4, 0.8, 1.0])
 with th_cols[0]:
     st.markdown('<span style="font-size:11.5px; font-weight:700; color:#64748b; letter-spacing:0.5px;">MÃ PHIÊN</span>', unsafe_allow_html=True)
@@ -231,8 +229,6 @@ else:
             st.markdown(action_html, unsafe_allow_html=True)
 
         st.markdown("<hr style='margin: 8px 0; border: none; border-top: 1px solid #f8fafc;'>", unsafe_allow_html=True)
-
-st.markdown("</div>", unsafe_allow_html=True)
 
 # ── Phân trang nhỏ gọn Figma Standard ─────────────────────
 start_idx = (current_page - 1) * PAGE_SIZE + 1 if total_sessions_count > 0 else 0

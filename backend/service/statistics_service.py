@@ -135,20 +135,33 @@ def get_weekly_stats(db: DBSession, user_id: Optional[int], weeks: int = 4) -> l
 
 def get_behavior_distribution(db: DBSession, user_id: Optional[int] = None) -> list[dict]:
     """Tổng hợp phân bố hành vi gian lận thực tế từ cơ sở dữ liệu."""
-    label_map = {
-        "Cheat_Paper": "Tài liệu giấy (Cheat_Paper)",
-        "cellphone": "Điện thoại di động (cellphone)",
-        "quay_dau": "Quay đầu bất thường (>45°)",
-        "quay_sau": "Quay người về sau",
-        "cui_xuong": "Cúi đầu nhìn xuống bàn",
-    }
+    def _normalize_name(raw: Optional[str]) -> str:
+        if not raw:
+            return "Điện thoại di động"
+        low = str(raw).strip().lower()
+        if "phone" in low or "thoai" in low:
+            return "Điện thoại di động"
+        if "paper" in low or "lieu" in low or "cheat" in low:
+            return "Tài liệu trái phép"
+        if "head" in low or "quay_dau" in low or "trao doi" in low:
+            return "Quay đầu trao đổi"
+        if "sau" in low:
+            return "Quay người về sau"
+        if "cui" in low or "xuong" in low:
+            return "Cúi đầu nhìn xuống bàn"
+        if "hop_le" in low or "answer" in low:
+            return "Giấy thi hợp lệ"
+        return str(raw).strip()
+
+    # Gom nhóm theo nhãn xác minh của người dùng, hoặc nhãn AI, hoặc loại hành vi
+    target_col = func.coalesce(DetectedEvent.NhanNguoiDung, DetectedEvent.LoaiHanhVi, DetectedEvent.NhanAI, 'cellphone')
     q = _filter_events_user(
         db.query(
-            DetectedEvent.LoaiHanhVi,
-            func.count(DetectedEvent.PK_MaSuKien),
+            target_col.label("beh"),
+            func.count(DetectedEvent.PK_MaSuKien).label("cnt"),
         ),
         user_id,
-    ).group_by(DetectedEvent.LoaiHanhVi).all()
+    ).group_by(target_col).all()
 
     total = sum(int(r[1] or 0) for r in q)
     if total == 0:
@@ -156,12 +169,12 @@ def get_behavior_distribution(db: DBSession, user_id: Optional[int] = None) -> l
 
     distribution = []
     for r in q:
-        beh = r[0]
+        raw_beh = r[0] or "cellphone"
         cnt = int(r[1] or 0)
         pct = round((cnt / total) * 100, 1)
         distribution.append({
-            "behavior_code": beh,
-            "behavior_name": label_map.get(beh, beh),
+            "behavior_code": str(raw_beh),
+            "behavior_name": _normalize_name(raw_beh),
             "count": cnt,
             "percentage": pct,
         })

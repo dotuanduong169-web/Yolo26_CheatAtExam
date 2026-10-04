@@ -58,6 +58,81 @@ st.markdown(f"""
 client = st.session_state.client
 is_admin = st.session_state.get("user_role") == "admin"
 
+# ── Dialogs cho thao tác Thiết bị biên ───────────────────────
+@st.dialog("Đăng ký thiết bị camera IP / RTSP mới")
+def create_device_dialog():
+    new_name = st.text_input("Tên thiết bị", placeholder="VD: Jetson Orin - Cam 01")
+    new_rtsp = st.text_input("Đường dẫn luồng RTSP / Camera index", placeholder="rtsp://192.168.1.120:554/stream1 hoặc 0")
+    new_loc = st.text_input("Vị trí lắp đặt phòng thi", placeholder="VD: Phòng P.302 (Chính diện)")
+
+    st.markdown("<div style='height: 8px;'></div>", unsafe_allow_html=True)
+    c1, c2 = st.columns(2)
+    with c1:
+        if st.button("Hủy bỏ", use_container_width=True):
+            st.rerun()
+    with c2:
+        if st.button("Lưu thiết bị mới", type="primary", use_container_width=True):
+            if not new_name.strip() or not new_rtsp.strip():
+                notify.warning("Vui lòng điền đầy đủ tên thiết bị và đường dẫn RTSP")
+            else:
+                res = create_device(client, new_name.strip(), new_rtsp.strip(), new_loc.strip())
+                if res and res.status_code == 200:
+                    notify.success("Đăng ký thiết bị thành công")
+                    st.rerun()
+                else:
+                    notify.error("Lỗi khi thêm thiết bị")
+
+
+@st.dialog("Chỉnh sửa thông tin thiết bị")
+def edit_device_dialog(dev_id: int, cur_name: str, cur_rtsp: str, cur_loc: str):
+    e_name = st.text_input("Tên thiết bị", value=cur_name)
+    e_rtsp = st.text_input("Đường dẫn RTSP", value=cur_rtsp)
+    e_loc = st.text_input("Vị trí lắp đặt", value=cur_loc)
+
+    st.markdown("<div style='height: 8px;'></div>", unsafe_allow_html=True)
+    c1, c2 = st.columns(2)
+    with c1:
+        if st.button("Hủy bỏ", use_container_width=True):
+            st.rerun()
+    with c2:
+        if st.button("Lưu thay đổi", type="primary", use_container_width=True):
+            up_res = update_device(client, dev_id, {
+                "TenThietBi": e_name.strip(),
+                "DuongDanRTSP": e_rtsp.strip(),
+                "MoTaViTri": e_loc.strip(),
+            })
+            if up_res and up_res.status_code == 200:
+                notify.success("Đã cập nhật thiết bị thành công")
+                st.rerun()
+            else:
+                notify.error("Lỗi khi cập nhật thiết bị")
+
+
+@st.dialog("Xác nhận xóa thiết bị")
+def delete_device_dialog(dev_id: int, dev_name: str):
+    notify.inline(
+        f"Bạn có chắc chắn muốn xóa thiết bị <strong>{dev_name}</strong> (#{dev_id})? Lưu ý: Không thể xóa thiết bị đang được gắn với ca thi hoặc có phiên giám sát lịch sử.",
+        kind="warning",
+        title="Xác nhận xóa thiết bị"
+    )
+    st.markdown("<div style='height: 8px;'></div>", unsafe_allow_html=True)
+    col_d1, col_d2 = st.columns(2)
+    with col_d1:
+        if st.button("Hủy bỏ", use_container_width=True):
+            st.rerun()
+    with col_d2:
+        if st.button("Xác nhận xóa", type="primary", use_container_width=True):
+            del_res = delete_device(client, dev_id)
+            if del_res is not None and del_res.status_code == 200:
+                notify.success(f"Đã xóa thiết bị #{dev_id} thành công!")
+                st.rerun()
+            elif del_res is not None and del_res.status_code == 400:
+                notify.error("Không thể xóa thiết bị đang gắn ca thi hoặc có phiên giám sát.")
+            else:
+                err_text = del_res.text if del_res else "Lỗi kết nối máy chủ"
+                notify.error(f"Xóa thiết bị thất bại: {err_text}")
+
+
 # ── Xử lý query params thao tác thiết bị ───────────────────
 if "test_dev" in st.query_params:
     try:
@@ -72,11 +147,21 @@ if "test_dev" in st.query_params:
     except Exception:
         pass
 
+# ── Danh mục Camera & Thiết bị biên ─────────────────────────
+devices = list_devices(client)
+
 if "edit_dev" in st.query_params:
     try:
         e_id = int(st.query_params["edit_dev"])
         del st.query_params["edit_dev"]
-        st.session_state[f"editing_device_{e_id}"] = not st.session_state.get(f"editing_device_{e_id}", False)
+        matched_dev = next((d for d in devices if d.get("PK_MaThietBi") == e_id), None)
+        if matched_dev:
+            edit_device_dialog(
+                e_id,
+                matched_dev.get("TenThietBi", ""),
+                matched_dev.get("DuongDanRTSP", ""),
+                matched_dev.get("MoTaViTri", ""),
+            )
     except Exception:
         pass
 
@@ -84,53 +169,31 @@ if "del_dev" in st.query_params:
     try:
         d_id = int(st.query_params["del_dev"])
         del st.query_params["del_dev"]
-        st.session_state[f"confirm_del_{d_id}"] = True
+        matched_dev = next((d for d in devices if d.get("PK_MaThietBi") == d_id), None)
+        d_name = matched_dev.get("TenThietBi", f"Thiết bị #{d_id}") if matched_dev else f"Thiết bị #{d_id}"
+        delete_device_dialog(d_id, d_name)
     except Exception:
         pass
 
-
-
-# ── Dialog xác nhận xóa thiết bị ───────────────────────────
-def show_delete_device_dialog(dev_id: int, dev_name: str):
-    """Hộp thoại xác nhận xóa thiết bị."""
-    notify.inline(
-        f"Bạn có chắc chắn muốn xóa thiết bị <strong>{dev_name}</strong> (#{dev_id})? Lưu ý: Không thể xóa thiết bị đang được gắn với ca thi hoặc có phiên giám sát lịch sử.",
-        kind="warning",
-        title="Xác nhận xóa thiết bị"
-    )
-    col_d1, col_d2 = st.columns(2)
-    with col_d1:
-        if st.button("Hủy bỏ", key=f"cancel_del_{dev_id}", use_container_width=True):
-            st.session_state[f"confirm_del_{dev_id}"] = False
-            st.rerun()
-    with col_d2:
-        if st.button("Xác nhận xóa", key=f"confirm_del_btn_{dev_id}", type="primary", use_container_width=True):
-            del_res = delete_device(client, dev_id)
-            st.session_state[f"confirm_del_{dev_id}"] = False
-            if del_res is not None and del_res.status_code == 200:
-                notify.success(f"Đã xóa thiết bị #{dev_id} thành công!")
-                st.rerun()
-            elif del_res is not None and del_res.status_code == 400:
-                notify.error("Không thể xóa thiết bị đang gắn ca thi hoặc có phiên giám sát.")
-            else:
-                err_text = del_res.text if del_res else "Lỗi kết nối máy chủ"
-                notify.error(f"Xóa thiết bị thất bại: {err_text}")
-
-
-# ── Danh mục Camera & Thiết bị biên ─────────────────────────
-devices = list_devices(client)
-
-st.markdown(f"""
-<div class="wf-box">
-    <div class="wf-box-header">
-        <div class="wf-box-title">Danh mục thiết bị biên & camera</div>
-        <span class="wf-badge">Tổng thiết bị: {len(devices)}</span>
+# Header bảng kèm nút Thêm mới
+h_col1, h_col2 = st.columns([3.2, 1])
+with h_col1:
+    st.markdown(f"""
+    <div class="wf-box" style="margin-bottom: 0;">
+        <div class="wf-box-header">
+            <div class="wf-box-title">Danh mục thiết bị biên & camera</div>
+            <span class="wf-badge">Tổng thiết bị: {len(devices)}</span>
+        </div>
     </div>
-</div>
-""", unsafe_allow_html=True)
+    """, unsafe_allow_html=True)
+
+with h_col2:
+    if is_admin:
+        if st.button("+ Thêm thiết bị mới", type="primary", use_container_width=True):
+            create_device_dialog()
 
 if not devices:
-    notify.empty_state("Chưa có thiết bị camera nào trong danh mục", "Vui lòng mở rộng phần 'Đăng ký thiết bị camera IP / RTSP mới' ở bên dưới để thêm camera vào hệ thống.")
+    notify.empty_state("Chưa có thiết bị camera nào trong danh mục", "Vui lòng bấm nút '+ Thêm thiết bị mới' ở góc trên để cấu hình camera vào hệ thống.")
 else:
     # Header hàng bảng
     th1, th2, th3, th4, th5, th6 = st.columns([0.8, 1.6, 2.2, 1.6, 1.0, 1.8])
@@ -139,7 +202,7 @@ else:
     th3.caption("ĐƯỜNG DẪN RTSP")
     th4.caption("VỊ TRÍ LẮP ĐẶT")
     th5.caption("TRẠNG THÁI")
-    th6.caption("HÀNH ĐỘNG")
+    th6.markdown('<div style="text-align:right; font-size:11.5px; font-weight:700; color:#64748b; letter-spacing:0.5px;">THAO TÁC</div>', unsafe_allow_html=True)
 
     st.markdown("<hr style='margin: 4px 0 8px 0; border: none; border-top: 1px solid var(--wf-border);'>", unsafe_allow_html=True)
 
@@ -156,7 +219,6 @@ else:
             with c1:
                 st.markdown(f"**#{dev_id}**")
             with c2:
-                # Sửa Lỗi 1: Hiển thị tên thiết bị in đậm chuẩn Markdown, không in text thô <strong>
                 st.markdown(f"**{name}**")
             with c3:
                 st.code(rtsp, language=None)
@@ -193,54 +255,4 @@ else:
                 else:
                     st.caption("Cán bộ")
 
-            # Hộp thoại xác nhận xóa thiết bị inline
-            if st.session_state.get(f"confirm_del_{dev_id}", False):
-                with st.container():
-                    st.markdown("<div style='background: #fef2f2; border: 1px solid #fecaca; padding: 12px; border-radius: 6px; margin: 8px 0;'>", unsafe_allow_html=True)
-                    show_delete_device_dialog(dev_id, name)
-                    st.markdown("</div>", unsafe_allow_html=True)
-
-            # Form inline chỉnh sửa khi bấm Sửa
-            if st.session_state.get(f"editing_device_{dev_id}", False):
-                with st.container():
-                    st.markdown("<div style='background: #f8fafc; padding: 12px; border-radius: 6px; margin: 8px 0;'>", unsafe_allow_html=True)
-                    e_c1, e_c2, e_c3 = st.columns(3)
-                    with e_c1:
-                        e_name = st.text_input("Tên thiết bị", value=name, key=f"e_name_{dev_id}")
-                    with e_c2:
-                        e_rtsp = st.text_input("Đường dẫn RTSP", value=rtsp, key=f"e_rtsp_{dev_id}")
-                    with e_c3:
-                        e_loc = st.text_input("Vị trí", value=loc, key=f"e_loc_{dev_id}")
-                    if st.button("Lưu thay đổi", key=f"save_e_{dev_id}", type="primary"):
-                        up_res = update_device(client, dev_id, {"TenThietBi": e_name.strip(), "DuongDanRTSP": e_rtsp.strip(), "MoTaViTri": e_loc.strip()})
-                        if up_res and up_res.status_code == 200:
-                            st.session_state[f"editing_device_{dev_id}"] = False
-                            notify.success("Đã cập nhật thiết bị thành công")
-                            st.rerun()
-                        else:
-                            notify.error("Lỗi khi cập nhật thiết bị")
-                    st.markdown("</div>", unsafe_allow_html=True)
-
             st.markdown("<hr style='margin: 4px 0 10px 0; border: none; border-top: 1px solid var(--wf-border);'>", unsafe_allow_html=True)
-
-# ── Đăng ký thiết bị biên mới (Dành cho Admin) ──────────────
-if is_admin:
-    with st.expander("Đăng ký thiết bị camera IP / RTSP mới", expanded=False):
-        c_name, c_rtsp = st.columns(2)
-        with c_name:
-            new_name = st.text_input("Tên thiết bị", placeholder="VD: Jetson Orin - Cam 01")
-        with c_rtsp:
-            new_rtsp = st.text_input("Đường dẫn luồng RTSP / Camera index", placeholder="rtsp://192.168.1.120:554/stream1 hoặc 0")
-
-        new_loc = st.text_input("Vị trí lắp đặt phòng thi", placeholder="VD: Phòng P.302 (Chính diện)")
-
-        if st.button("Lưu thiết bị mới", type="primary"):
-            if not new_name or not new_rtsp:
-                notify.warning("Vui lòng điền đầy đủ tên và đường dẫn RTSP")
-            else:
-                res = create_device(client, new_name.strip(), new_rtsp.strip(), new_loc.strip())
-                if res and res.status_code == 200:
-                    notify.success("Đăng ký thiết bị thành công")
-                    st.rerun()
-                else:
-                    notify.error("Lỗi khi thêm thiết bị")

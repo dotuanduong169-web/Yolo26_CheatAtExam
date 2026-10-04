@@ -85,8 +85,8 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # ── Form ────────────────────────────────────────────────────
-username = st.text_input("Tên đăng nhập", placeholder="Nhập tên đăng nhập")
-password = st.text_input("Mật khẩu", type="password", placeholder="Nhập mật khẩu")
+username = st.text_input("Tên đăng nhập :red[(*)]", placeholder="Nhập tên đăng nhập")
+password = st.text_input("Mật khẩu :red[(*)]", type="password", placeholder="Nhập mật khẩu")
 
 if st.button("Đăng nhập", type="primary", use_container_width=True):
     if not username or not password:

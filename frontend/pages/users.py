@@ -263,6 +263,33 @@ with tab_users:
 
                     st.markdown("<hr style='margin: 4px 0 8px 0; border: none; border-top: 1px solid var(--wf-border);'>", unsafe_allow_html=True)
 
+        # Form tạo tài khoản mới
+        with st.expander("Tạo tài khoản người dùng mới", expanded=False):
+            tc1, tc2 = st.columns(2)
+            with tc1:
+                new_username = st.text_input("Tên đăng nhập :red[(*)]", placeholder="VD: gv_le_ngoc_an")
+                new_fullname = st.text_input("Họ và tên :red[(*)]", placeholder="VD: ThS. Lê Ngọc An")
+            with tc2:
+                new_password = st.text_input("Mật khẩu ban đầu :red[(*)]", type="password", placeholder="Tối thiểu 6 ký tự, 1 chữ hoa, 1 số")
+                new_role = st.selectbox("Vai trò phân quyền", ["teacher", "admin"], format_func=lambda x: "Cán bộ coi thi (teacher)" if x == "teacher" else "Quản trị viên (admin)")
+
+            st.caption("Quy chuẩn an toàn mật khẩu: Tối thiểu 6 ký tự, chứa ít nhất 1 chữ in hoa (A-Z) và ít nhất 1 chữ số (0-9).")
+
+            if st.button("Tạo tài khoản", type="primary"):
+                if not new_username or not new_fullname or not new_password:
+                    notify.warning("Vui lòng nhập đầy đủ các trường thông tin.")
+                else:
+                    is_valid, errors = validate_password_rules(new_password)
+                    if not is_valid:
+                        notify.error(f"Mật khẩu chưa đạt tiêu chuẩn an toàn: Thiếu {', '.join(errors)}.")
+                    else:
+                        ok, res = admin_create_user(client, new_username.strip(), new_fullname.strip(), new_password, new_role)
+                        if ok:
+                            notify.success("Đã tạo tài khoản thành công!")
+                            st.rerun()
+                        else:
+                            notify.error(f"{res}")
+
 
 # =========================================================================
 # TAB 2: HỒ SƠ CÁ NHÂN & BẢO MẬT
@@ -332,9 +359,9 @@ with tab_profile:
             </div>
             """, unsafe_allow_html=True)
 
-            old_p = st.text_input("Mật khẩu hiện tại", type="password", key="sec_old_pass")
-            new_p = st.text_input("Mật khẩu mới", type="password", help="Tối thiểu 6 ký tự, ít nhất 1 chữ hoa và 1 chữ số", key="sec_new_pass")
-            confirm_p = st.text_input("Xác nhận mật khẩu mới", type="password", key="sec_confirm_pass")
+            old_p = st.text_input("Mật khẩu hiện tại :red[(*)]", type="password", key="sec_old_pass")
+            new_p = st.text_input("Mật khẩu mới :red[(*)]", type="password", help="Tối thiểu 6 ký tự, ít nhất 1 chữ hoa và 1 chữ số", key="sec_new_pass")
+            confirm_p = st.text_input("Xác nhận mật khẩu mới :red[(*)]", type="password", key="sec_confirm_pass")
 
             st.markdown("""
             <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 8px 12px; margin: 10px 0; font-size: 12px; color: #64748b; display: flex; align-items: center; gap: 8px;">

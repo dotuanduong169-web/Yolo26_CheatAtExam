@@ -89,9 +89,9 @@ if not is_running:
 
         c_room, c_sub = st.columns(2)
         with c_room:
-            phong_thi = st.text_input("Mã phòng thi (*):", value=def_phong, placeholder="VD: Phòng P.302", key="input_phong_thi")
+            phong_thi = st.text_input("Mã phòng thi :red[(*)]", value=def_phong, placeholder="VD: Phòng P.302", key="input_phong_thi")
         with c_sub:
-            mon_thi = st.text_input("Tên môn thi (*):", value=def_mon, placeholder="VD: Toán cao cấp", key="input_mon_thi")
+            mon_thi = st.text_input("Tên môn thi :red[(*)]", value=def_mon, placeholder="VD: Toán cao cấp", key="input_mon_thi")
 
         c_dev, c_mode = st.columns([1.4, 1])
         with c_dev:
@@ -105,7 +105,7 @@ if not is_running:
                     break
 
             selected = st.selectbox(
-                "Chọn camera phòng thi (*):",
+                "Chọn camera phòng thi :red[(*)]",
                 options,
                 index=default_cam_idx,
                 format_func=lambda x: f"{x.get('TenThietBi')} ({x.get('MoTaViTri') or '—'})"

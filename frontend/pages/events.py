@@ -80,7 +80,7 @@ if "select_session" in st.query_params:
 all_sessions = get_all_sessions(client)
 
 if not all_sessions:
-    notify.info("Chưa có phiên thi nào được ghi nhận trong cơ sở dữ liệu.")
+    notify.inline("Chưa có ca thi nào được ghi nhận trong cơ sở dữ liệu. Vui lòng khởi tạo ca thi mới tại trang Giám sát trực tiếp để bắt đầu thu thập sự kiện.", kind="info", title="Chưa có dữ liệu ca thi")
     st.stop()
 
 # Tab phân tách: Danh sách sự kiện & Tra cứu lịch sử phiên thi
@@ -152,7 +152,7 @@ with tab_events:
     """, unsafe_allow_html=True)
 
     if not events:
-        notify.info("Không có sự kiện nào khớp với tiêu chí lọc.")
+        notify.empty_state("Không có sự kiện vi phạm nào", "Không tìm thấy sự kiện nào khớp với tiêu chí lọc hoặc phiên thi này chưa ghi nhận vi phạm gian lận.")
     else:
         # Tiêu đề hàng bảng
         th1, th2, th3, th4, th5, th6, th7 = st.columns([0.8, 1.3, 1.8, 0.8, 1.4, 1.1, 1.8])
@@ -255,7 +255,7 @@ with tab_sessions:
         filtered_sessions = [s for s in filtered_sessions if s.get("ThoiGianKetThuc")]
 
     if not filtered_sessions:
-        notify.info("Không tìm thấy ca thi nào phù hợp với điều kiện tìm kiếm.")
+        notify.empty_state("Không tìm thấy ca thi nào phù hợp", "Vui lòng thử điều chỉnh lại bộ lọc trạng thái hoặc từ khóa tìm kiếm phòng/môn thi.")
     else:
         for s in filtered_sessions:
             s_id = s.get("PK_MaPhienGiamSat")

@@ -77,8 +77,11 @@ def handle_delete(session_id: int) -> None:
 
 @st.dialog("Xác nhận xóa phiên giám sát")
 def confirm_delete(session_id: int):
-    notify.warning("Bạn có chắc chắn muốn xóa phiên giám sát này không?")
-    st.caption("Hành động này sẽ xóa vĩnh viễn toàn bộ sự kiện và hình ảnh bằng chứng liên quan.")
+    notify.inline(
+        "Bạn có chắc chắn muốn xóa phiên giám sát này không? Toàn bộ sự kiện và hình ảnh bằng chứng liên quan sẽ bị xóa vĩnh viễn khỏi hệ thống.",
+        kind="warning",
+        title="Cảnh báo xóa dữ liệu"
+    )
 
     c1, c2 = st.columns(2)
     with c1:
@@ -184,11 +187,7 @@ with th_cols[5]:
 st.markdown("<hr style='margin: 8px 0 12px 0; border: none; border-top: 1px solid #f1f5f9;'>", unsafe_allow_html=True)
 
 if not sessions:
-    st.markdown("""
-    <div style="padding:40px 24px; text-align:center; color:#9ca3af;">
-        <div style="font-size:14px; font-weight:500;">Không tìm thấy phiên giám sát nào phù hợp.</div>
-    </div>
-    """, unsafe_allow_html=True)
+    notify.empty_state("Không tìm thấy phiên giám sát nào phù hợp", "Vui lòng thử tìm kiếm với từ khóa khác hoặc kiểm tra lại bộ lọc để hiển thị toàn bộ ca thi.")
 else:
     for sess in sessions:
         sid = sess["PK_MaPhienGiamSat"]

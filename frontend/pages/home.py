@@ -67,7 +67,7 @@ is_running = st.session_state["running"]
 # =========================================================================
 if not is_running:
     st.markdown("""
-    <div class="wf-box" style="max-width: 900px; margin: 16px auto 8px auto;">
+    <div class="wf-box" style="max-width: 900px; margin: 0 auto 16px auto;">
         <div class="wf-box-header">
             <div class="wf-box-title">
                 <span>Thiết lập phiên giám sát ca thi</span>
@@ -240,7 +240,7 @@ else:
         """, unsafe_allow_html=True)
 
         if not all_events:
-            notify.info("Chưa có cảnh báo nghi vấn nào trong ca thi.")
+            notify.inline("Chưa có cảnh báo nghi vấn nào trong ca thi.", kind="info", title="Thời gian thực")
         else:
             # Sửa Lỗi 5: Bọc trong container có thanh cuộn và khống chế chiều cao, không làm tràn trang
             st.markdown('<div class="record-scroll-container" style="max-height: 440px; overflow-y: auto; padding-right: 4px;">', unsafe_allow_html=True)

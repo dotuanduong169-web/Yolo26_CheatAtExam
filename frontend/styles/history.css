@@ -11,17 +11,17 @@
 
 /* ===== SUMMARY CARDS ===== */
 .summary-card {
-    background: white;
-    border: 1px solid #e8eaed;
-    border-radius: 14px;
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
+    border-radius: 10px;
     padding: 20px 24px;
-    box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+    box-shadow: 0 1px 3px rgba(0,0,0,0.03);
     transition: box-shadow 0.2s ease, transform 0.2s ease;
 }
 
 .summary-card:hover {
-    box-shadow: 0 4px 16px rgba(0,0,0,0.08);
-    transform: translateY(-2px);
+    box-shadow: 0 2px 6px rgba(0,0,0,0.06);
+    transform: translateY(-1px);
 }
 
 .summary-card .label {

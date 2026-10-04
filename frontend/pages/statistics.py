@@ -86,7 +86,7 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 if not distribution or all(d.get("count", d.get("so_luot", 0)) == 0 for d in distribution):
-    notify.info("Chưa có vi phạm gian lận nào được ghi nhận trong cơ sở dữ liệu để vẽ biểu đồ phân bố.")
+    notify.empty_state("Chưa có dữ liệu vi phạm gian lận", "Chưa có hành vi gian lận nào được hệ thống camera AI ghi nhận trong cơ sở dữ liệu để vẽ biểu đồ phân bố.")
 else:
     chart_rows = []
     for d in distribution:

@@ -50,7 +50,7 @@ if "p" in st.query_params:
 
 session_id = st.session_state.get("selected_session") or st.session_state.get("session_id")
 if not session_id:
-    notify.error("Không tìm thấy mã phiên giám sát cần xem.")
+    notify.inline("Không tìm thấy mã phiên giám sát cần xem. Vui lòng quay lại danh sách lịch sử ca thi.", kind="warning", title="Thiếu thông tin phiên")
     if st.button("Về danh sách lịch sử"):
         st.switch_page("pages/history.py")
     st.stop()
@@ -59,7 +59,7 @@ if not session_id:
 # ── Load Data ───────────────────────────────────────────────
 data = get_session_detail(st.session_state.client, session_id)
 if not data:
-    notify.error("Không lấy được dữ liệu của phiên giám sát.")
+    notify.inline("Không lấy được dữ liệu của phiên giám sát từ máy chủ.", kind="error", title="Lỗi tải dữ liệu")
     st.stop()
 
 sess = data.get("session", {})
@@ -210,7 +210,7 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 if not events:
-    notify.info("Phiên thi này không có sự kiện vi phạm nào được ghi nhận.")
+    notify.empty_state("Phiên thi này không có sự kiện vi phạm nào", "Hệ thống camera AI không phát hiện bất kỳ hành vi nghi vấn gian lận nào trong suốt ca thi này.")
 else:
     st.markdown("""
         <div class="tbl-head-row">

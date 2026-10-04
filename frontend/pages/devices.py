@@ -95,8 +95,11 @@ if "del_dev" in st.query_params:
 # ── Dialog xác nhận xóa thiết bị ───────────────────────────
 def show_delete_device_dialog(dev_id: int, dev_name: str):
     """Hộp thoại xác nhận xóa thiết bị."""
-    notify.warning(f"Bạn có chắc chắn muốn xóa thiết bị **{dev_name}** (#{dev_id})?")
-    st.caption("Lưu ý: Không thể xóa thiết bị đang được gắn với ca thi hoặc có phiên giám sát lịch sử.")
+    notify.inline(
+        f"Bạn có chắc chắn muốn xóa thiết bị <strong>{dev_name}</strong> (#{dev_id})? Lưu ý: Không thể xóa thiết bị đang được gắn với ca thi hoặc có phiên giám sát lịch sử.",
+        kind="warning",
+        title="Xác nhận xóa thiết bị"
+    )
     col_d1, col_d2 = st.columns(2)
     with col_d1:
         if st.button("Hủy bỏ", key=f"cancel_del_{dev_id}", use_container_width=True):
@@ -129,7 +132,7 @@ st.markdown(f"""
 """, unsafe_allow_html=True)
 
 if not devices:
-    notify.info("Chưa có thiết bị camera nào trong danh mục.")
+    notify.empty_state("Chưa có thiết bị camera nào trong danh mục", "Vui lòng mở rộng phần 'Đăng ký thiết bị camera IP / RTSP mới' ở bên dưới để thêm camera vào hệ thống.")
 else:
     # Header hàng bảng
     th1, th2, th3, th4, th5, th6 = st.columns([0.8, 1.6, 2.2, 1.6, 1.0, 1.8])

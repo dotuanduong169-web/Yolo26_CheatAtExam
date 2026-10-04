@@ -35,14 +35,14 @@ if "id" in st.query_params:
 
 event_id = st.session_state.get("event_id")
 if not event_id:
-    notify.warning("Không có sự kiện để xem.")
+    notify.inline("Không tìm thấy mã sự kiện cần xem. Vui lòng quay lại danh sách sự kiện.", kind="warning", title="Thiếu mã sự kiện")
     st.stop()
 
 
 # ── Load Data ───────────────────────────────────────────────
 data = get_event_detail(st.session_state.client, event_id)
 if not data:
-    notify.error("Không lấy được dữ liệu sự kiện.")
+    notify.inline("Không lấy được dữ liệu chi tiết sự kiện từ máy chủ.", kind="error", title="Lỗi tải dữ liệu")
     st.stop()
 
 raw_label = data.get("LoaiHanhVi", "?")

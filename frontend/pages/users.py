@@ -102,7 +102,11 @@ tab_users, tab_profile = st.tabs(["Danh sách người dùng & Phân quyền", "
 # =========================================================================
 with tab_users:
     if not is_admin:
-        notify.info("Tính năng phân quyền và quản trị danh sách người dùng dành riêng cho Quản trị viên (Admin). Bạn đang đăng nhập với vai trò Cán bộ coi thi.")
+        notify.inline(
+            "Tính năng phân quyền và quản trị danh sách người dùng dành riêng cho Quản trị viên (Admin). Bạn đang đăng nhập với vai trò Cán bộ coi thi, vui lòng chuyển sang tab 'Hồ sơ cá nhân & Đổi mật khẩu' để xem và cập nhật thông tin của bạn.",
+            kind="warning",
+            title="Quyền truy cập bị giới hạn"
+        )
     else:
         users = list_all_users(client)
 
@@ -116,7 +120,7 @@ with tab_users:
         """, unsafe_allow_html=True)
 
         if not users:
-            notify.info("Không có dữ liệu người dùng.")
+            notify.empty_state("Không có dữ liệu người dùng", "Chưa có tài khoản nào được ghi nhận trong cơ sở dữ liệu.")
         else:
             # Header hàng bảng
             th1, th2, th3, th4, th5, th6 = st.columns([0.8, 1.6, 2.0, 1.6, 1.0, 1.8])

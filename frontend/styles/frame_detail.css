@@ -1,11 +1,4 @@
-/* ===== GLOBAL ===== */
-body {
-    background: #f0f4fa;
-}
-
-.block-container {
-    padding: 1.2rem 2rem 2rem;
-}
+/* ===== PAGE LAYOUT: dùng chuẩn chung hide_sidebar + header + app_theme ===== */
 
 /* ===== BACK BUTTON AREA ===== */
 .back-title {
@@ -317,22 +310,6 @@ div[data-testid="stVerticalBlock"] > div {
     transform: scale(1.03);
     box-shadow: 0 0 16px rgba(0, 0, 0, 0.35);
     z-index: 3;
-}
-
-.bbox-overlay:hover::after {
-    content: "Click để đổi";
-    position: absolute;
-    bottom: -22px;
-    left: 50%;
-    transform: translateX(-50%);
-    font-size: 10px;
-    font-weight: 600;
-    color: #fff;
-    background: rgba(0,0,0,0.7);
-    padding: 2px 8px;
-    border-radius: 4px;
-    white-space: nowrap;
-    pointer-events: none;
 }
 
 /* Label tag */

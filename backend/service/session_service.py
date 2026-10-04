@@ -45,9 +45,10 @@ def get_session_list(
     ]
 
 
-def get_session_summary(db: DBSession, user_id: Optional[int]) -> dict:
-    """Tóm tắt toàn hệ thống: tổng phiên, phiên đang chạy, tổng sự kiện, sự kiện chờ kiểm tra."""
-    total = get_session_count_by_user(db, user_id)
+def get_session_summary(db: DBSession, user_id: Optional[int], search: str | None = None) -> dict:
+    """Tóm tắt toàn hệ thống: tổng phiên, phiên đang chạy, tổng sự kiện, sự kiện chờ kiểm tra.
+    search chỉ lọc tong_phien để phân trang đúng khi tìm kiếm, các thẻ tổng giữ toàn cục."""
+    total = get_session_count_by_user(db, user_id, search)
 
     q_running = db.query(MonitoringSession).filter(
         MonitoringSession.TrangThai == "dang_giam_sat"

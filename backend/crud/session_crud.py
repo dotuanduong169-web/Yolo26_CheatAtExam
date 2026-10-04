@@ -116,11 +116,16 @@ def get_sessions_with_event_count(
     )
 
 
-def get_session_count_by_user(db: DBSession, user_id: Optional[int] = None) -> int:
-    """Đếm tổng số phiên, lọc theo user khi cần."""
+def get_session_count_by_user(db: DBSession, user_id: Optional[int] = None, search: Optional[str] = None) -> int:
+    """Đếm tổng số phiên, lọc theo user và từ khóa phòng/môn khi cần."""
     query = db.query(func.count(MonitoringSession.PK_MaPhienGiamSat))
     if user_id is not None:
         query = query.filter(MonitoringSession.FK_MaNguoiDung == user_id)
+    if search:
+        like = f"%{search}%"
+        query = query.filter(
+            (MonitoringSession.PhongThi.ilike(like)) | (MonitoringSession.MonThi.ilike(like))
+        )
     return query.scalar() or 0
 
 

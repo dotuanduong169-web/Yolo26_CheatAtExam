@@ -186,6 +186,7 @@ button[kind="primary"] p::after {
     background-repeat: no-repeat;
 }
 
+/* Ensure no dividers or other unexpected margins break the design */
 hr {
     display: none !important;
 }

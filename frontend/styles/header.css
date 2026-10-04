@@ -2,7 +2,7 @@
 
 /* 1. APP RESET */
 .stApp {
-    background-color: #f8f9fa !important;
+    background-color: #f8fafc !important;
 }
 
 header[data-testid="stHeader"] {
@@ -21,7 +21,9 @@ button[kind="header"] {
     position: fixed;
     top: 0;
     left: 0;
-    width: 100vw;
+    right: 0;
+    width: 100%;
+    max-width: 100vw;
     height: 60px;
     background-color: #ffffff;
     border-bottom: 1px solid #cbd5e1;
@@ -104,12 +106,48 @@ button[kind="header"] {
 
 /* 2.1 NOTIFICATION POPOVER STYLING */
 div[data-testid="stPopoverBody"] {
-    max-width: 440px !important;
-    min-width: 360px !important;
+    max-width: min(440px, calc(100vw - 32px)) !important;
+    min-width: min(360px, calc(100vw - 32px)) !important;
     border-radius: 12px !important;
     box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1) !important;
     border: 1px solid #e2e8f0 !important;
     padding: 16px !important;
+}
+
+/* Header responsive: thu gọn meta phải trên màn hẹp */
+@media (max-width: 900px) {
+    .global-top-bar {
+        padding: 0 12px;
+        height: 56px;
+    }
+    .top-logo-section {
+        min-width: 0;
+    }
+    .top-logo-sub {
+        display: none;
+    }
+    .top-page-title {
+        font-size: 14px;
+        padding: 0 8px;
+    }
+    .top-meta-right {
+        gap: 8px;
+        font-size: 11px;
+        overflow: hidden;
+    }
+    .top-meta-right > div:first-child {
+        display: none;
+    }
+}
+
+@media (max-width: 640px) {
+    .top-meta-right {
+        display: none;
+    }
+    .top-page-title {
+        text-align: right;
+        font-size: 13px;
+    }
 }
 
 
@@ -224,7 +262,7 @@ section[data-testid="stSidebar"] {
 
 /* 5. MAIN CONTENT OFFSET */
 .main .block-container {
-    padding-top: 85px !important;
+    padding-top: 76px !important;
 }
 
 /* 6. NAV TABS ĐỒNG NHẤT MỌI TRANG */
@@ -238,6 +276,6 @@ div.element-container:has(div[data-testid="stSegmentedControl"]) {
     position: sticky !important;
     top: 64px !important;
     z-index: 90 !important;
-    background: #f8f9fa !important;
+    background: #f8fafc !important;
     padding: 6px 0 8px !important;
 }

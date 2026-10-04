@@ -97,32 +97,29 @@ with tab_users:
                     with c2:
                         st.markdown(f"<code>{u_login}</code>", unsafe_allow_html=True)
                     with c3:
-                        st.markdown(f"<strong>{u_name}</strong>")
+                        st.markdown(f"<strong>{u_name}</strong>", unsafe_allow_html=True)
                     with c4:
                         st.markdown(role_badge, unsafe_allow_html=True)
                     with c5:
                         st.markdown(status_badge, unsafe_allow_html=True)
                     with c6:
-                        # 3 Nút nghiệp vụ tiếng Việt: Đổi quyền, Sửa họ tên, Khóa/Mở
-                        col_u1, col_u2, col_u3 = st.columns(3)
-                        with col_u1:
+                        with st.popover("Thao tác", use_container_width=False):
+                            # 3 nghiệp vụ tiếng Việt: Đổi quyền, Sửa họ tên, Khóa/Mở
                             new_role = "teacher" if u_role == "admin" else "admin"
                             role_tooltip = "Hạ xuống Cán bộ coi thi" if u_role == "admin" else "Nâng quyền Quản trị viên"
-                            if st.button("Đổi quyền", key=f"role_btn_{u_id}", help=role_tooltip):
+                            if st.button("Đổi quyền", key=f"role_btn_{u_id}", help=role_tooltip, use_container_width=True):
                                 ok, res = admin_update_user(client, u_id, new_role, u_status)
                                 if ok:
                                     notify.success(f"Đã đổi vai trò cho @{u_login}")
                                     st.rerun()
                                 else:
                                     notify.error("Lỗi khi cập nhật vai trò")
-                        with col_u2:
-                            if st.button("Sửa", key=f"edit_u_btn_{u_id}", help="Chỉnh sửa thông tin tài khoản"):
+                            if st.button("Sửa", key=f"edit_u_btn_{u_id}", help="Chỉnh sửa thông tin tài khoản", use_container_width=True):
                                 st.session_state[f"editing_user_{u_id}"] = not st.session_state.get(f"editing_user_{u_id}", False)
-                        with col_u3:
                             new_status = "khoa" if u_status == "hoat_dong" else "hoat_dong"
                             lock_tooltip = "Tạm khóa tài khoản" if u_status == "hoat_dong" else "Kích hoạt lại tài khoản"
                             lock_label = "Khóa" if u_status == "hoat_dong" else "Mở"
-                            if st.button(lock_label, key=f"lock_btn_{u_id}", help=lock_tooltip):
+                            if st.button(lock_label, key=f"lock_btn_{u_id}", help=lock_tooltip, use_container_width=True):
                                 ok, res = admin_update_user(client, u_id, u_role, new_status)
                                 if ok:
                                     notify.success(f"Đã cập nhật trạng thái @{u_login}")

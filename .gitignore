@@ -115,3 +115,4 @@ train*.log
 
 # AI
 *.md
+*opencode.json

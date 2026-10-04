@@ -23,6 +23,7 @@ require_auth()
 # ── Sidebar & Styles ───────────────────────────────────────
 hide_sidebar()
 st.markdown(load_css("styles/sidebar.css"), unsafe_allow_html=True)
+st.markdown(load_css("styles/app_theme.css"), unsafe_allow_html=True)
 st.markdown(load_css("styles/frame_detail.css"), unsafe_allow_html=True)
 
 # ── Event ID ────────────────────────────────────────────────

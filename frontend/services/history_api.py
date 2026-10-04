@@ -36,11 +36,15 @@ def get_history(
         return []
 
 
-def get_history_summary(session: requests.Session) -> dict:
+def get_history_summary(session: requests.Session, search: str = "") -> dict:
     """Tóm tắt phiên và sự kiện. Lỗi trả {}."""
     try:
+        params = {}
+        if search.strip():
+            params["search"] = search.strip()
         res = session.get(
             f"{API_BASE_URL}/history/summary",
+            params=params,
             headers=get_auth_headers(),
         )
         if res.status_code == 200:

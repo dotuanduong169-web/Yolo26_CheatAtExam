@@ -4,6 +4,8 @@ import streamlit as st
 from config import API_BASE_URL
 from utils.http import init_session_state
 
+st.set_page_config(layout="wide", initial_sidebar_state="collapsed", page_title="ExamCheat AI")
+
 # ── Khôi phục session & HTTP Client ─────────────────────────
 init_session_state()
 

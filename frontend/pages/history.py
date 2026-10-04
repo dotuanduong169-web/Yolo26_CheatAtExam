@@ -21,6 +21,7 @@ from utils.status_helpers import get_session_status_badge
 st.set_page_config(layout="wide", initial_sidebar_state="collapsed", page_title="Lịch sử")
 
 st.markdown(load_css("styles/sidebar.css"), unsafe_allow_html=True)
+st.markdown(load_css("styles/app_theme.css"), unsafe_allow_html=True)
 st.markdown(load_css("styles/history.css"), unsafe_allow_html=True)
 
 init_session_state()
@@ -33,7 +34,7 @@ def _fetch_history(session, search: str = "", page: int = 1) -> dict | None:
     """Lấy danh sách phiên và tóm tắt qua service."""
     skip = (page - 1) * PAGE_SIZE
     sessions = get_history(session, search=search, skip=skip, limit=PAGE_SIZE)
-    summary = get_history_summary(session)
+    summary = get_history_summary(session, search=search)
 
     if sessions is None or summary is None:
         return None
@@ -98,7 +99,7 @@ if not data:
     st.stop()
 
 # ── Summary Cards ───────────────────────────────────────────
-col_s1, col_s2, col_s3 = st.columns([1, 1, 2])
+col_s1, col_s2 = st.columns(2)
 
 with col_s1:
     st.markdown(f"""
@@ -169,11 +170,11 @@ else:
         room = sess.get("PhongThi") or "Chưa đặt"
         subject = sess.get("MonThi") or "Chưa đặt"
         room_subject_label = f"{room} — {subject}"
-        date_str = str(sess.get("ThoiGianBatDau", ""))[:16]
+        date_str = str(sess.get("ThoiGianBatDau", ""))[:16].replace("T", " ")
         ev_count = sess.get("so_su_kien", 0)
         status_badge = get_session_status_badge(sess.get("TrangThai"), sess.get("ThoiGianKetThuc"))
 
-        row_cols = st.columns([1.1, 2.0, 1.4, 1.2, 0.8, 0.7])
+        row_cols = st.columns([1.1, 2.0, 1.4, 1.2, 0.8, 1.0])
         with row_cols[0]:
             st.markdown(f'<span class="cell-session-id">#SESS-{sid}</span>', unsafe_allow_html=True)
         with row_cols[1]:

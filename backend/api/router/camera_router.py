@@ -63,6 +63,8 @@ def start(
             "status": "running",
             "user_id": user.PK_MaNguoiDung,
         }
+    except HTTPException:
+        raise
     except Exception as exc:
         logger.error(f"Failed to start camera: {exc}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Failed to start camera: {exc}")

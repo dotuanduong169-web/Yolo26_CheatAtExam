@@ -315,3 +315,19 @@ div[data-testid="column"] button {
   align-items: center !important;
   justify-content: center !important;
 }
+
+/* Responsive: grid wireframe xếp 1 cột trên màn hẹp */
+@media (max-width: 768px) {
+  .wf-grid-3,
+  .wf-grid-4,
+  .hw-status-row {
+    grid-template-columns: 1fr !important;
+  }
+}
+
+@media (max-width: 1024px) {
+  .wf-grid-4,
+  .hw-status-row {
+    grid-template-columns: repeat(2, 1fr) !important;
+  }
+}

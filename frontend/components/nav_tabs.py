@@ -76,6 +76,18 @@ def render_nav_tabs(active: str = "home") -> None:
             for _k in ("auth", "refresh", "role", "u"):
                 if _k in st.query_params:
                     del st.query_params[_k]
-            st.switch_page("pages/login.py")
+            st.components.v1.html(
+                """
+                <script>
+                try {
+                    window.parent.localStorage.removeItem("examcheat_auth");
+                } catch (e) {}
+                window.parent.eval("window.location.replace('/login')");
+                </script>
+                """,
+                height=0,
+                width=0,
+            )
+            st.stop()
         else:
             st.switch_page(TARGETS[sel])

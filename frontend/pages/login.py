@@ -12,6 +12,31 @@ st.set_page_config(layout="centered", initial_sidebar_state="collapsed", page_ti
 
 init_session_state()
 
+# Tự động chuyển vào trang chủ nếu đã có phiên hợp lệ trong localStorage
+if not st.session_state.get("access_token_value") and not st.query_params.get("auth"):
+    st.components.v1.html(
+        """
+        <script>
+        (function() {
+            try {
+                const raw = window.parent.localStorage.getItem("examcheat_auth");
+                if (raw) {
+                    const data = JSON.parse(raw);
+                    if (data && data.token) {
+                        const target = "/home?auth=" + encodeURIComponent(data.token) +
+                            "&role=" + encodeURIComponent(data.role || "") +
+                            "&u=" + encodeURIComponent(data.username || "");
+                        window.parent.eval("window.location.replace('" + target + "')");
+                    }
+                }
+            } catch (e) {}
+        })();
+        </script>
+        """,
+        height=0,
+        width=0,
+    )
+
 try:
     st.markdown(load_css("styles/login.css"), unsafe_allow_html=True)
 except Exception:
@@ -19,24 +44,23 @@ except Exception:
 
 # ── Header Banner ───────────────────────────────────────────
 st.markdown("""
-<div class="login-banner">
+<div class="login-header">
     <div class="logo-box">
-        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <path d="M3 3v18h18" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-            <path d="M7 14l4-4 4 4 6-6" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-            <path d="M21 8v-4h-4" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+        <svg width="26" height="26" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M3 3v18h18" stroke="white" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
+            <path d="M7 14l4-4 4 4 6-6" stroke="white" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
+            <path d="M21 8v-4h-4" stroke="white" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
         </svg>
     </div>
     <div class="logo-text">ExamCheat AI</div>
+    <div class="welcome-title">Chào mừng trở lại</div>
+    <div class="welcome-subtitle">Hệ thống giám sát thi thông minh thời gian thực</div>
 </div>
-<div class="welcome-title">Chào mừng trở lại</div>
 """, unsafe_allow_html=True)
 
 # ── Form ────────────────────────────────────────────────────
 username = st.text_input("Tên đăng nhập", placeholder="Nhập tên đăng nhập")
 password = st.text_input("Mật khẩu", type="password", placeholder="Nhập mật khẩu")
-
-st.markdown('<div></div>', unsafe_allow_html=True)
 
 if st.button("Đăng nhập", type="primary", use_container_width=True):
     if not username or not password:
@@ -57,15 +81,6 @@ if st.button("Đăng nhập", type="primary", use_container_width=True):
             st.session_state["username"] = username
             st.session_state["is_login"] = True
 
-            # Lưu vào query params để giữ phiên khi F5 / Refresh trang
-            # (kể cả refresh token để tự gia hạn sau reload; chỉ dùng demo local)
-            if tok:
-                st.query_params["auth"] = tok
-                if data.get("refresh_token"):
-                    st.query_params["refresh"] = data.get("refresh_token")
-                st.query_params["role"] = role
-                st.query_params["u"] = username
-
             # Lấy họ tên hiển thị
             try:
                 from services.user_api import get_user
@@ -75,8 +90,31 @@ if st.button("Đăng nhập", type="primary", use_container_width=True):
             except Exception:
                 pass
 
-            notify.success("Đăng nhập thành công")
-            st.switch_page("pages/home.py")
+            fullname = st.session_state.get("user_fullname") or username
+
+            # Lưu vào localStorage của trình duyệt và điều hướng vào trang chủ
+            import json
+
+            auth_json = json.dumps({
+                "token": tok,
+                "refresh_token": data.get("refresh_token") or "",
+                "role": role,
+                "username": username,
+                "full_name": fullname,
+            })
+            st.components.v1.html(
+                f"""
+                <script>
+                try {{
+                    window.parent.localStorage.setItem("examcheat_auth", JSON.stringify({auth_json}));
+                }} catch (e) {{}}
+                window.parent.eval("window.location.replace('/home?auth={tok}&role={role}&u={username}')");
+                </script>
+                """,
+                height=0,
+                width=0,
+            )
+            st.stop()
 
         elif res.status_code in (401, 403):
             detail_msg = ""

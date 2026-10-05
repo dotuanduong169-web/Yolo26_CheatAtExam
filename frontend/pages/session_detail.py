@@ -267,11 +267,11 @@ else:
     # Phân trang nhỏ gọn Figma Standard
     showing = len(page_events)
     st.markdown("<div style='height: 18px;'></div>", unsafe_allow_html=True)
-    pg_left, pg_spacer, pg_right = st.columns([5, 2, 5])
+    pg_left, pg_right = st.columns([1, 1])
 
     with pg_left:
         st.markdown(
-            f"<div style='font-size: 13px; color: #64748b; line-height: 32px;'>"
+            f"<div style='font-size: 13px; color: #64748b; line-height: 32px; font-weight: 500;'>"
             f"Hiển thị <strong>{start_idx + 1} – {start_idx + showing}</strong> trong tổng số <strong>{total_rows}</strong> sự kiện"
             f"</div>",
             unsafe_allow_html=True,
@@ -280,19 +280,28 @@ else:
     with pg_right:
         aqs = auth_query_params()
         pag_items = []
-        prev_disabled = "opacity: 0.35; pointer-events: none;" if page <= 1 else ""
-        pag_items.append(f'<a href="/session_detail?id={session_id}&{aqs}&p={page - 1}" style="{prev_disabled}">‹</a>')
+        btn_base = "display: inline-flex; align-items: center; justify-content: center; min-width: 32px; height: 32px; padding: 0 6px; border-radius: 6px; font-size: 13px; text-decoration: none; margin: 0 2px; box-sizing: border-box; transition: all 0.15s ease;"
+
+        if page <= 1:
+            pag_items.append(f'<span style="{btn_base} border: 1px solid #e2e8f0; background: #f8fafc; color: #cbd5e1; cursor: not-allowed;">‹</span>')
+        else:
+            pag_items.append(f'<a href="/session_detail?id={session_id}&{aqs}&p={page - 1}" style="{btn_base} border: 1px solid #cbd5e1; background: #ffffff; color: #334155;">‹</a>')
 
         for p_idx in range(1, total_pages + 1):
             if total_pages > 7 and abs(p_idx - page) > 2 and p_idx != 1 and p_idx != total_pages:
                 if p_idx == 2 or p_idx == total_pages - 1:
-                    pag_items.append('<span style="color: #94a3b8; line-height: 32px; padding: 0 4px;">…</span>')
+                    pag_items.append('<span style="display: inline-flex; align-items: center; justify-content: center; width: 18px; height: 32px; color: #94a3b8; font-size: 13px;">…</span>')
                 continue
-            active_cls = "active" if p_idx == page else ""
-            pag_items.append(f'<a href="/session_detail?id={session_id}&{aqs}&p={p_idx}" class="{active_cls}">{p_idx}</a>')
+            if p_idx == page:
+                pag_items.append(f'<span style="{btn_base} border: 1px solid #2563eb; background: #2563eb; color: #ffffff; font-weight: 700;">{p_idx}</span>')
+            else:
+                pag_items.append(f'<a href="/session_detail?id={session_id}&{aqs}&p={p_idx}" style="{btn_base} border: 1px solid #cbd5e1; background: #ffffff; color: #334155; font-weight: 500;">{p_idx}</a>')
 
-        next_disabled = "opacity: 0.35; pointer-events: none;" if page >= total_pages else ""
-        pag_items.append(f'<a href="/session_detail?id={session_id}&{aqs}&p={page + 1}" style="{next_disabled}">›</a>')
+        if page >= total_pages:
+            pag_items.append(f'<span style="{btn_base} border: 1px solid #e2e8f0; background: #f8fafc; color: #cbd5e1; cursor: not-allowed;">›</span>')
+        else:
+            pag_items.append(f'<a href="/session_detail?id={session_id}&{aqs}&p={page + 1}" style="{btn_base} border: 1px solid #cbd5e1; background: #ffffff; color: #334155;">›</a>')
 
-        st.markdown(f'<div class="history-pagination">{"".join(pag_items)}</div>', unsafe_allow_html=True)
+        st.markdown(f'<div class="history-pagination" style="display: flex !important; align-items: center !important; justify-content: flex-end !important; gap: 4px !important; width: 100% !important;">{"".join(pag_items)}</div>', unsafe_allow_html=True)
+
 

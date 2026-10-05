@@ -262,24 +262,3 @@ else:
 
             st.markdown("<hr style='margin: 4px 0 10px 0; border: none; border-top: 1px solid var(--wf-border);'>", unsafe_allow_html=True)
 
-# ── Đăng ký thiết bị biên mới (Dành cho Admin) ──────────────
-if is_admin:
-    with st.expander("Đăng ký thiết bị camera IP / RTSP mới", expanded=False):
-        c_name, c_rtsp = st.columns(2)
-        with c_name:
-            new_name = st.text_input("Tên thiết bị :red[(*)]", placeholder="VD: Jetson Orin - Cam 01")
-        with c_rtsp:
-            new_rtsp = st.text_input("Đường dẫn luồng RTSP / Camera index :red[(*)]", placeholder="rtsp://192.168.1.120:554/stream1 hoặc 0")
-
-        new_loc = st.text_input("Vị trí lắp đặt phòng thi", placeholder="VD: Phòng P.302 (Chính diện)")
-
-        if st.button("Lưu thiết bị mới", type="primary"):
-            if not new_name or not new_rtsp:
-                notify.warning("Vui lòng điền đầy đủ tên và đường dẫn RTSP")
-            else:
-                res = create_device(client, new_name.strip(), new_rtsp.strip(), new_loc.strip())
-                if res and res.status_code == 200:
-                    notify.defer_success("Đăng ký thiết bị thành công")
-                    st.rerun()
-                else:
-                    notify.inline_error("Lỗi khi thêm thiết bị")

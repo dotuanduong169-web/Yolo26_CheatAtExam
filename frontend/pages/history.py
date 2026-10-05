@@ -259,12 +259,6 @@ with tab_sessions:
                         f'      <circle cx="12" cy="12" r="3"/>'
                         f'    </svg>'
                         f'  </a>'
-                        f'  <a href="/history?tab=events&select_session={s_id}&{aqs}" class="action-svg-btn event-btn" title="Xem các sự kiện gian lận của ca thi này">'
-                        f'    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">'
-                        f'      <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/>'
-                        f'      <path d="M13.73 21a2 2 0 0 1-3.46 0"/>'
-                        f'    </svg>'
-                        f'  </a>'
                         f'  <a href="/history?{aqs}&confirm_delete={s_id}" class="action-svg-btn del-btn" title="Xóa ca thi này khỏi hệ thống">'
                         f'    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">'
                         f'      <polyline points="3 6 5 6 21 6"/>'
@@ -283,11 +277,11 @@ with tab_sessions:
         start_idx = (current_page - 1) * PAGE_SIZE + 1 if total_sessions_count > 0 else 0
         end_idx = min(current_page * PAGE_SIZE, total_sessions_count)
 
-        st.markdown("<div style='height: 12px;'></div>", unsafe_allow_html=True)
-        pg_left, pg_spacer, pg_right = st.columns([5, 2, 5])
+        st.markdown("<div style='height: 14px;'></div>", unsafe_allow_html=True)
+        pg_left, pg_right = st.columns([1, 1])
         with pg_left:
             st.markdown(
-                f"<div style='font-size: 13px; color: #64748b; line-height: 32px;'>"
+                f"<div style='font-size: 13px; color: #64748b; line-height: 32px; font-weight: 500;'>"
                 f"Hiển thị <strong>{start_idx} – {end_idx}</strong> trong tổng số <strong>{total_sessions_count}</strong> ca thi"
                 f"</div>",
                 unsafe_allow_html=True,
@@ -295,21 +289,30 @@ with tab_sessions:
 
         with pg_right:
             pag_items = []
-            prev_disabled = "opacity: 0.35; pointer-events: none;" if current_page <= 1 else ""
-            pag_items.append(f'<a href="/history?{aqs}&p={current_page - 1}" style="{prev_disabled}">‹</a>')
+            btn_base = "display: inline-flex; align-items: center; justify-content: center; min-width: 32px; height: 32px; padding: 0 6px; border-radius: 6px; font-size: 13px; text-decoration: none; margin: 0 2px; box-sizing: border-box; transition: all 0.15s ease;"
+
+            if current_page <= 1:
+                pag_items.append(f'<span style="{btn_base} border: 1px solid #e2e8f0; background: #f8fafc; color: #cbd5e1; cursor: not-allowed;">‹</span>')
+            else:
+                pag_items.append(f'<a href="/history?{aqs}&p={current_page - 1}" style="{btn_base} border: 1px solid #cbd5e1; background: #ffffff; color: #334155;">‹</a>')
 
             for p in range(1, total_pages + 1):
                 if total_pages > 7 and abs(p - current_page) > 2 and p != 1 and p != total_pages:
                     if p == 2 or p == total_pages - 1:
-                        pag_items.append('<span style="color: #94a3b8; line-height: 32px; padding: 0 4px;">…</span>')
+                        pag_items.append('<span style="display: inline-flex; align-items: center; justify-content: center; width: 18px; height: 32px; color: #94a3b8; font-size: 13px;">…</span>')
                     continue
-                active_cls = "active" if p == current_page else ""
-                pag_items.append(f'<a href="/history?{aqs}&p={p}" class="{active_cls}">{p}</a>')
+                if p == current_page:
+                    pag_items.append(f'<span style="{btn_base} border: 1px solid #2563eb; background: #2563eb; color: #ffffff; font-weight: 700;">{p}</span>')
+                else:
+                    pag_items.append(f'<a href="/history?{aqs}&p={p}" style="{btn_base} border: 1px solid #cbd5e1; background: #ffffff; color: #334155; font-weight: 500;">{p}</a>')
 
-            next_disabled = "opacity: 0.35; pointer-events: none;" if current_page >= total_pages else ""
-            pag_items.append(f'<a href="/history?{aqs}&p={current_page + 1}" style="{next_disabled}">›</a>')
+            if current_page >= total_pages:
+                pag_items.append(f'<span style="{btn_base} border: 1px solid #e2e8f0; background: #f8fafc; color: #cbd5e1; cursor: not-allowed;">›</span>')
+            else:
+                pag_items.append(f'<a href="/history?{aqs}&p={current_page + 1}" style="{btn_base} border: 1px solid #cbd5e1; background: #ffffff; color: #334155;">›</a>')
 
-            st.markdown(f'<div class="history-pagination">{"".join(pag_items)}</div>', unsafe_allow_html=True)
+            st.markdown(f'<div class="history-pagination" style="display: flex !important; align-items: center !important; justify-content: flex-end !important; gap: 4px !important; width: 100% !important;">{"".join(pag_items)}</div>', unsafe_allow_html=True)
+
 
 
 # =========================================================================

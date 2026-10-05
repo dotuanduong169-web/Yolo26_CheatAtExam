@@ -29,28 +29,32 @@ st.markdown(load_css("styles/sidebar.css"), unsafe_allow_html=True)
 st.markdown(load_css("styles/app_theme.css"), unsafe_allow_html=True)
 render_page_header("Thiết bị biên", active="devices")
 
-# ── 3 Khung đo đạc tài nguyên biên (Wireframe Grid-3) ───────
-is_running = st.session_state.get("running", False)
-fps_val = "24.5 FPS" if is_running else "0.0 FPS"
-fps_hint = "Trạng thái: Luồng đang suy luận" if is_running else "Khuyến nghị: > 20 FPS"
-gpu_val = "48 %" if is_running else "4 %"
+# ── 3 Khung tổng quan thực tế từ API ───────────────────────
+from config import API_BASE_URL
+from utils.http import safe_get
+
+_devices_all = list_devices(st.session_state.client)
+_n_total = len(_devices_all)
+_n_ready = sum(1 for d in _devices_all if (d.get("TrangThai") or "") == "san_sang")
+_cam_res = safe_get(f"{API_BASE_URL}/camera/status")
+_live_txt = "Đang giám sát" if (_cam_res and _cam_res.status_code == 200 and _cam_res.json().get("running")) else "Đang dừng"
 
 st.markdown(f"""
 <div class="wf-grid-3">
     <div class="wf-stat-tile">
-        <div class="wf-stat-label">Tốc độ xử lý biên (FPS)</div>
-        <div class="wf-stat-num">{fps_val}</div>
-        <div class="wf-stat-hint">{fps_hint}</div>
+        <div class="wf-stat-label">Tổng thiết bị biên</div>
+        <div class="wf-stat-num">{_n_total}</div>
+        <div class="wf-stat-hint">Đã đăng ký trong hệ thống</div>
     </div>
     <div class="wf-stat-tile">
-        <div class="wf-stat-label">Tải tính toán (GPU / NPU)</div>
-        <div class="wf-stat-num">{gpu_val}</div>
-        <div class="wf-stat-hint">Nền tảng biên: NVIDIA Jetson Orin / OpenVINO</div>
+        <div class="wf-stat-label">Thiết bị sẵn sàng</div>
+        <div class="wf-stat-num">{_n_ready}</div>
+        <div class="wf-stat-hint">Trạng thái san_sang, chờ mở phiên</div>
     </div>
     <div class="wf-stat-tile">
-        <div class="wf-stat-label">Bộ nhớ đệm (Circular Buffer)</div>
-        <div class="wf-stat-num">1 Frame</div>
-        <div class="wf-stat-hint">Cơ chế ghi đè liên tục chống tràn RAM thiết bị biên</div>
+        <div class="wf-stat-label">Luồng giám sát</div>
+        <div class="wf-stat-num" style="font-size:22px;">{_live_txt}</div>
+        <div class="wf-stat-hint">Trạng thái camera hiện tại</div>
     </div>
 </div>
 """, unsafe_allow_html=True)
@@ -73,14 +77,14 @@ def create_device_dialog():
     with c2:
         if st.button("Lưu thiết bị mới", type="primary", use_container_width=True):
             if not new_name.strip() or not new_rtsp.strip():
-                notify.warning("Vui lòng điền đầy đủ tên thiết bị và đường dẫn RTSP")
+                notify.inline_warning("Vui lòng điền đầy đủ tên thiết bị và đường dẫn RTSP")
             else:
                 res = create_device(client, new_name.strip(), new_rtsp.strip(), new_loc.strip())
                 if res and res.status_code == 200:
-                    notify.success("Đăng ký thiết bị thành công")
+                    notify.defer_success("Đăng ký thiết bị thành công")
                     st.rerun()
                 else:
-                    notify.error("Lỗi khi thêm thiết bị")
+                    notify.inline_error("Lỗi khi thêm thiết bị")
 
 
 @st.dialog("Chỉnh sửa thông tin thiết bị")
@@ -102,10 +106,10 @@ def edit_device_dialog(dev_id: int, cur_name: str, cur_rtsp: str, cur_loc: str):
                 "MoTaViTri": e_loc.strip(),
             })
             if up_res and up_res.status_code == 200:
-                notify.success("Đã cập nhật thiết bị thành công")
+                notify.defer_success("Đã cập nhật thiết bị thành công")
                 st.rerun()
             else:
-                notify.error("Lỗi khi cập nhật thiết bị")
+                notify.inline_error("Lỗi khi cập nhật thiết bị")
 
 
 @st.dialog("Xác nhận xóa thiết bị")
@@ -124,13 +128,13 @@ def delete_device_dialog(dev_id: int, dev_name: str):
         if st.button("Xác nhận xóa", type="primary", use_container_width=True):
             del_res = delete_device(client, dev_id)
             if del_res is not None and del_res.status_code == 200:
-                notify.success(f"Đã xóa thiết bị #{dev_id} thành công!")
+                notify.defer_success(f"Đã xóa thiết bị #{dev_id} thành công!")
                 st.rerun()
             elif del_res is not None and del_res.status_code == 400:
-                notify.error("Không thể xóa thiết bị đang gắn ca thi hoặc có phiên giám sát.")
+                notify.inline_error("Không thể xóa thiết bị đang gắn ca thi hoặc có phiên giám sát.")
             else:
                 err_text = del_res.text if del_res else "Lỗi kết nối máy chủ"
-                notify.error(f"Xóa thiết bị thất bại: {err_text}")
+                notify.inline_error(f"Xóa thiết bị thất bại: {err_text}")
 
 
 # ── Xử lý query params thao tác thiết bị (từ link icon SVG) ──
@@ -275,7 +279,7 @@ if is_admin:
             else:
                 res = create_device(client, new_name.strip(), new_rtsp.strip(), new_loc.strip())
                 if res and res.status_code == 200:
-                    notify.success("Đăng ký thiết bị thành công")
+                    notify.defer_success("Đăng ký thiết bị thành công")
                     st.rerun()
                 else:
-                    notify.error("Lỗi khi thêm thiết bị")
+                    notify.inline_error("Lỗi khi thêm thiết bị")

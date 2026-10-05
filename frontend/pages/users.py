@@ -65,18 +65,18 @@ def create_user_dialog():
     with c2:
         if st.button("Tạo tài khoản", type="primary", use_container_width=True):
             if not new_username.strip() or not new_fullname.strip() or not new_password.strip():
-                notify.warning("Vui lòng nhập đầy đủ các trường thông tin.")
+                notify.inline_warning("Vui lòng nhập đầy đủ các trường thông tin.")
             else:
                 is_valid, errors = validate_password_rules(new_password)
                 if not is_valid:
-                    notify.error(f"Mật khẩu chưa đạt tiêu chuẩn an toàn: Thiếu {', '.join(errors)}.")
+                    notify.inline_error(f"Mật khẩu chưa đạt tiêu chuẩn an toàn: Thiếu {', '.join(errors)}.")
                 else:
                     ok, res = admin_create_user(client, new_username.strip(), new_fullname.strip(), new_password, new_role)
                     if ok:
-                        notify.success("Đã tạo tài khoản thành công!")
+                        notify.defer_success("Đã tạo tài khoản thành công!")
                         st.rerun()
                     else:
-                        notify.error(f"{res}")
+                        notify.inline_error(f"{res}")
 
 
 @st.dialog("Chỉnh sửa thông tin người dùng")
@@ -90,14 +90,14 @@ def edit_user_name_dialog(u_id: int, cur_name: str, cur_role: str, cur_status: s
     with c2:
         if st.button("Lưu thay đổi", type="primary", use_container_width=True):
             if not edit_full_name.strip():
-                notify.warning("Họ tên không được để trống")
+                notify.inline_warning("Họ tên không được để trống")
             else:
                 ok, res = admin_update_user(client, u_id, cur_role, cur_status, ho_va_ten=edit_full_name.strip())
                 if ok:
-                    notify.success("Đã cập nhật họ tên thành công!")
+                    notify.defer_success("Đã cập nhật họ tên thành công!")
                     st.rerun()
                 else:
-                    notify.error("Lỗi khi cập nhật thông tin")
+                    notify.inline_error("Lỗi khi cập nhật thông tin")
 
 
 tab_users, tab_profile = st.tabs(["Danh sách người dùng", "Hồ sơ cá nhân"])
@@ -116,7 +116,7 @@ if "toggle_role" in st.query_params:
         new_role = "teacher" if cur_role == "admin" else "admin"
         ok, res = admin_update_user(client, t_uid, new_role, cur_stt)
         if ok:
-            notify.success(f"Đã đổi vai trò cho @{user_login}")
+            notify.defer_success(f"Đã đổi vai trò cho @{user_login}")
             st.rerun()
         else:
             notify.error("Lỗi khi cập nhật vai trò")
@@ -136,7 +136,7 @@ if "toggle_status" in st.query_params:
         new_status = "khoa" if cur_stt == "hoat_dong" else "hoat_dong"
         ok, res = admin_update_user(client, s_uid, cur_role, new_status)
         if ok:
-            notify.success(f"Đã cập nhật trạng thái @{user_login}")
+            notify.defer_success(f"Đã cập nhật trạng thái @{user_login}")
             st.rerun()
         else:
             notify.error("Lỗi khi đổi trạng thái tài khoản")
@@ -278,18 +278,18 @@ with tab_users:
 
             if st.button("Tạo tài khoản", type="primary"):
                 if not new_username or not new_fullname or not new_password:
-                    notify.warning("Vui lòng nhập đầy đủ các trường thông tin.")
+                    notify.inline_warning("Vui lòng nhập đầy đủ các trường thông tin.")
                 else:
                     is_valid, errors = validate_password_rules(new_password)
                     if not is_valid:
-                        notify.error(f"Mật khẩu chưa đạt tiêu chuẩn an toàn: Thiếu {', '.join(errors)}.")
+                        notify.inline_error(f"Mật khẩu chưa đạt tiêu chuẩn an toàn: Thiếu {', '.join(errors)}.")
                     else:
                         ok, res = admin_create_user(client, new_username.strip(), new_fullname.strip(), new_password, new_role)
                         if ok:
-                            notify.success("Đã tạo tài khoản thành công!")
+                            notify.defer_success("Đã tạo tài khoản thành công!")
                             st.rerun()
                         else:
-                            notify.error(f"{res}")
+                            notify.inline_error(f"{res}")
 
 
 # =========================================================================
@@ -331,15 +331,15 @@ with tab_profile:
             new_name_val = st.text_input("Họ và tên hiển thị", value=full_name, key="profile_fullname_input")
             if st.button("Lưu thay đổi họ tên", type="primary", use_container_width=True, key="btn_save_profile_name"):
                 if not new_name_val.strip():
-                    notify.warning("Họ tên không được để trống")
+                    notify.inline_warning("Họ tên không được để trống")
                 else:
                     ok, res = update_user(client, new_name_val.strip())
                     if ok:
                         st.session_state["user_fullname"] = new_name_val.strip()
-                        notify.success("Đã cập nhật họ tên thành công!")
+                        notify.defer_success("Đã cập nhật họ tên thành công!")
                         st.rerun()
                     else:
-                        notify.error("Lỗi khi cập nhật thông tin")
+                        notify.inline_error("Lỗi khi cập nhật thông tin")
 
         # Cột 2: Bảo mật & Đổi mật khẩu
         with col_security_card:
@@ -387,5 +387,5 @@ with tab_profile:
                         if ok:
                             notify.success("Đổi mật khẩu thành công! Mật khẩu mới đã được lưu.")
                         else:
-                            notify.error(f"{res}")
+                            notify.inline_error(f"{res}")
 

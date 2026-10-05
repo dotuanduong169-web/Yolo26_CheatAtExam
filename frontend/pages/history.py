@@ -45,17 +45,17 @@ def handle_delete(session_id: int) -> None:
     """Xóa phiên và hiện kết quả."""
     res = delete_session(client, session_id)
     if not res:
-        notify.error("Không thể kết nối đến máy chủ.")
+        notify.inline_error("Không thể kết nối đến máy chủ.")
         return
     if res.status_code == 200:
-        notify.success(f"Đã xóa phiên giám sát #{session_id} thành công.")
+        notify.defer_success(f"Đã xóa phiên giám sát #{session_id} thành công.")
         st.rerun()
     elif res.status_code == 400:
-        notify.error("Không thể xóa phiên đang diễn ra.")
+        notify.inline_error("Không thể xóa phiên đang diễn ra.")
     elif res.status_code == 404:
-        notify.error("Không tìm thấy phiên giám sát.")
+        notify.inline_error("Không tìm thấy phiên giám sát.")
     else:
-        notify.error(f"Lỗi hệ thống: {res.text}")
+        notify.inline_error(f"Lỗi hệ thống: {res.text}")
 
 
 @st.dialog("Xác nhận xóa phiên giám sát")
@@ -100,7 +100,7 @@ if "confirm_ev" in st.query_params:
             del st.query_params["raw_label"]
         res = verify_event(client, c_ev_id, "dung", c_raw_label)
         if res is not None and res.status_code == 200:
-            notify.success(f"Đã xác nhận sự kiện EV-{c_ev_id:02d} là Vi phạm")
+            notify.defer_success(f"Đã xác nhận sự kiện EV-{c_ev_id:02d} là Vi phạm")
             st.rerun()
         else:
             notify.error("Không thể cập nhật trạng thái sự kiện")
@@ -113,7 +113,7 @@ if "reject_ev" in st.query_params:
         del st.query_params["reject_ev"]
         res = verify_event(client, r_ev_id, "sai", "Answer_paper")
         if res is not None and res.status_code == 200:
-            notify.success(f"Đã bác bỏ sự kiện EV-{r_ev_id:02d} (Giấy thi hợp lệ)")
+            notify.defer_success(f"Đã bác bỏ sự kiện EV-{r_ev_id:02d} (Giấy thi hợp lệ)")
             st.rerun()
         else:
             notify.error("Không thể cập nhật trạng thái sự kiện")
@@ -136,7 +136,12 @@ if "tab" in st.query_params:
         st.session_state["history_active_tab"] = "sessions"
 
 # ── Điều hướng Tab con ──────────────────────────────────────
-tab_sessions, tab_events = st.tabs(["Danh mục ca thi", "Nhật ký sự kiện"])
+# st.tabs không chọn tab bằng code được nên đảo thứ tự tab: tab cần mở lên trước.
+# Giữ nguyên lựa chọn cho các rerun sau (phân trang/verify) để không bị giật tab.
+if st.session_state.get("history_active_tab") == "events":
+    tab_events, tab_sessions = st.tabs(["Nhật ký sự kiện", "Danh mục ca thi"])
+else:
+    tab_sessions, tab_events = st.tabs(["Danh mục ca thi", "Nhật ký sự kiện"])
 
 
 # =========================================================================

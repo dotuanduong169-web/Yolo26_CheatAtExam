@@ -1,6 +1,7 @@
 """Trang đăng nhập."""
 
 import streamlit as st
+from utils.notify import flush as flush_toasts
 from utils.notify import notify
 
 from services.auth_api import login
@@ -126,6 +127,7 @@ if st.button("Đăng nhập", type="primary", use_container_width=True):
                 "username": username,
                 "full_name": fullname,
             })
+            notify.defer_success(f"Xin chào, {fullname}!")
             st.components.v1.html(
                 f"""
                 <script>
@@ -152,4 +154,7 @@ if st.button("Đăng nhập", type="primary", use_container_width=True):
                 notify.error("Tên đăng nhập hoặc mật khẩu không chính xác")
         else:
             notify.error(f"Lỗi đăng nhập: {res.text}")
+
+# Flush hàng đợi (trang login không có header chung)
+flush_toasts()
 

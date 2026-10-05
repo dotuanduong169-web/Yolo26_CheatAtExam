@@ -17,6 +17,9 @@ _CSS = """
     align-items: flex-end !important;
 }
 
+/* Hàng đợi toast: render tập trung ở top-level (header) nên toast không bao giờ
+   nằm trong dialog/modal — luôn đúng vị trí góc trên-phải hệ thống */
+
 .sys-toast {
     display: flex !important;
     align-items: flex-start !important;
@@ -320,10 +323,9 @@ _TITLES = {
 
 
 def _show_toast(kind: str, msg: str, title: str | None = None) -> None:
-    """Hiện toast thông báo cao cấp góc trên-phải dưới thanh điều hướng, dóng thẳng hàng lề phải nội dung."""
-    n = st.session_state.get("_toast_n", 0)
-    st.session_state["_toast_n"] = (n + 1) % 4
-    top = 118 + (n % 4) * 88
+    """Hiện toast thông báo cao cấp, cố định góc trên-phải dưới thanh điều hướng.
+    Luôn cùng một vị trí để không nhảy lung tung giữa các lần rerun."""
+    top = 118
     title_text = title or _TITLES.get(kind, "Thông báo")
     icon_svg = _ICONS.get(kind, "")
 
@@ -380,10 +382,29 @@ def _show_empty(title: str, desc: str | None = None) -> None:
     st.markdown(empty_html, unsafe_allow_html=True)
 
 
+def _enqueue(kind: str, msg: str, title: str | None = None) -> None:
+    """Xếp toast vào hàng đợi, tối đa 3 cái mới nhất (tránh spam sau nhiều rerun)."""
+    queue = st.session_state.get("_toast_queue", [])
+    queue.append({"kind": kind, "msg": msg, "title": title})
+    st.session_state["_toast_queue"] = queue[-3:]
+
+
+def flush() -> None:
+    """Render toàn bộ toast đang xếp hàng tại vị trí gọi (top-level).
+    Gọi trong render_page_header và cuối login.py để toast luôn neo ngoài,
+    đúng góc trên-phải hệ thống kể cả khi hành động xảy ra trong dialog."""
+    queue = st.session_state.pop("_toast_queue", [])
+    for item in queue:
+        _show_toast(item["kind"], item["msg"], item.get("title"))
+
+
 class _Notify:
     """Facade gọi toast notification hoặc inline alert đồng bộ toàn hệ thống."""
 
     # ── Toast Notifications (Nổi góc trên-phải) ─────────────────
+    # success/error/warning/info: render NGAY, chỉ dùng ở luồng page-level
+    # (ngoài dialog). Trong dialog: defer_* nếu sau đó rerun/switch,
+    # inline_* nếu ở lại dialog không rerun.
     def success(self, msg: str, title: str | None = None) -> None:
         _show_toast("success", msg, title)
 
@@ -395,6 +416,19 @@ class _Notify:
 
     def info(self, msg: str, title: str | None = None) -> None:
         _show_toast("info", msg, title)
+
+    # ── Deferred Toasts (hiện sau rerun/switch, tại header trang mới) ──
+    def defer_success(self, msg: str, title: str | None = None) -> None:
+        _enqueue("success", msg, title)
+
+    def defer_error(self, msg: str, title: str | None = None) -> None:
+        _enqueue("error", msg, title)
+
+    def defer_warning(self, msg: str, title: str | None = None) -> None:
+        _enqueue("warning", msg, title)
+
+    def defer_info(self, msg: str, title: str | None = None) -> None:
+        _enqueue("info", msg, title)
 
     # ── Inline Alerts (Hiển thị ngay trong trang / dialog) ───────
     def inline(self, msg: str, kind: str = "info", title: str | None = None) -> None:

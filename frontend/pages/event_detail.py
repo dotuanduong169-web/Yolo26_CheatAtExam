@@ -58,6 +58,7 @@ stt_text, stt_cls = get_event_status_info(trang_thai)
 render_page_header(f"Chi tiết sự kiện #EV-{event_id:02d}", active="history")
 
 if st.button("Quay lại danh sách sự kiện"):
+    st.session_state["history_active_tab"] = "events"
     st.switch_page("pages/history.py")
 
 
@@ -209,7 +210,7 @@ with right_col:
         if st.button("Xác nhận Vi phạm", use_container_width=True, type="primary"):
             res = verify_event(st.session_state.client, event_id, "dung", chosen_label)
             if res is not None and res.status_code == 200:
-                notify.success(f"Đã xác nhận sự kiện với nhãn: {label_names.get(chosen_label, chosen_label)}")
+                notify.defer_success(f"Đã xác nhận sự kiện với nhãn: {label_names.get(chosen_label, chosen_label)}")
                 st.rerun()
             else:
                 notify.error("Lỗi khi gửi xác minh tới hệ thống")
@@ -217,7 +218,7 @@ with right_col:
         if st.button("Bác bỏ (Báo sai)", use_container_width=True):
             res = verify_event(st.session_state.client, event_id, "sai", "Answer_paper")
             if res is not None and res.status_code == 200:
-                notify.success("Đã ghi nhận bác bỏ sự kiện (Báo sai: Giấy thi hợp lệ)")
+                notify.defer_success("Đã ghi nhận bác bỏ sự kiện (Báo sai: Giấy thi hợp lệ)")
                 st.rerun()
             else:
                 notify.error("Lỗi khi gửi xác minh tới hệ thống")

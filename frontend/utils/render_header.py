@@ -133,21 +133,35 @@ def render_page_header(title: str, active: str | None = None):
     )
     st.markdown(header_html, unsafe_allow_html=True)
 
-    # Nút đăng xuất thật (st.button, không nhảy tab): căn phải ngay dưới header
-    _sp, _out = st.columns([9, 1])
-    with _out:
-        if st.button("Đăng xuất", key="header_logout_btn"):
-            from services.auth_api import logout as _api_logout
+    # Nút đăng xuất thật (st.button, không nhảy tab): ghim cố định trong
+    # header cạnh cụm ngày, cùng giao diện pill đỏ bản cũ
+    if st.button("Đăng xuất", key="header_logout_btn"):
+        from services.auth_api import logout as _api_logout
 
-            try:
-                if "client" in st.session_state:
-                    _api_logout(st.session_state.client)
-            except Exception:
-                pass
-            for _k in ("access_token_value", "refresh_token_value", "is_login",
-                       "user_role", "username", "user_fullname"):
-                st.session_state.pop(_k, None)
-            for _k in ("auth", "refresh", "role", "u"):
-                if _k in st.query_params:
+        try:
+            if "client" in st.session_state:
+                _api_logout(st.session_state.client)
+        except Exception:
+            pass
+        for _k in ("access_token_value", "refresh_token_value", "is_login",
+                   "user_role", "username", "user_fullname"):
+            st.session_state.pop(_k, None)
+        for _k in ("auth", "refresh", "role", "u"):
+            if _k in st.query_params:
+                try:
                     del st.query_params[_k]
-            st.rerun()
+                except Exception:
+                    pass
+        # Xóa token khỏi localStorage trình duyệt để không tự đăng nhập lại
+        st.components.v1.html(
+            "<script>try{localStorage.removeItem('examcheat_auth');}catch(e){}"
+            "try{window.parent.localStorage.removeItem('examcheat_auth');}catch(e){}</script>",
+            height=0,
+            width=0,
+        )
+        st.rerun()
+
+    # Flush toast xếp hàng tại top-level để luôn neo ngoài, đúng góc hệ thống
+    from utils.notify import flush as _flush_toasts
+
+    _flush_toasts()

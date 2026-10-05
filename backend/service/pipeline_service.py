@@ -173,7 +173,7 @@ def _save_snapshot(
     """Lưu một snapshot: 1 ảnh + 1 sự kiện cho mỗi cheat + thống kê kỳ.
     Điểm logic: vật sạch (Answer_paper) không tạo sự kiện; nhiều sự kiện chung 1 ảnh;
     thiếu phiên hiện tại thì bỏ qua; lỗi thì rollback để không ghi dở."""
-    filename = datetime.now().strftime("%Y%m%d_%H%M%S") + ".jpg"
+    filename = datetime.now().strftime("%Y%m%d_%H%M%S_%f") + ".jpg"
     image_path = image_dir / filename
 
     try:

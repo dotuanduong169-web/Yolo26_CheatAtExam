@@ -275,10 +275,13 @@ def _process_frame_tracked(
         names = res.names if hasattr(res, "names") else {
             i: n for i, n in enumerate(LABELS)}
         seen: set[int] = set()
-        if res.boxes is not None and res.boxes.id is not None:
-            for box, tid in zip(res.boxes, res.boxes.id):
+        if res.boxes is not None and len(res.boxes) > 0:
+            ids = res.boxes.id
+            for idx, box in enumerate(res.boxes):
                 try:
-                    track_id = int(tid.item())
+                    # ByteTrack đôi khi trả box mà chưa có id (khởi tạo/mất dấu thoáng qua):
+                    # gán id tạm âm để detection vẫn đi qua keep-alive thay vì bị vứt
+                    track_id = int(ids[idx].item()) if ids is not None else -(idx + 1)
                     cls_id = int(box.cls[0].item())
                     conf = float(box.conf[0].item())
                     bbox = list(map(int, box.xyxy[0].tolist()))

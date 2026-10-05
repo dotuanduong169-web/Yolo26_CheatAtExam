@@ -36,6 +36,7 @@ button[kind="header"] {
 
 .top-meta-right {
     margin-left: auto;
+    margin-right: 104px;
     display: flex;
     align-items: center;
     gap: 12px;
@@ -371,6 +372,45 @@ section[data-testid="stSidebar"] {
 
 .header-logout-btn svg {
     display: block !important;
+}
+
+/* Nút đăng xuất ghim cố định trong header, cạnh cụm ngày hôm nay */
+div.st-key-header_logout_btn {
+    position: fixed !important;
+    top: 16px !important;
+    right: 16px !important;
+    z-index: 1000001 !important;
+}
+div.st-key-header_logout_btn button {
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    gap: 5px !important;
+    height: 28px !important;
+    padding: 0 10px !important;
+    font-size: 12px !important;
+    font-weight: 500 !important;
+    color: #ef4444 !important;
+    background-color: #fef2f2 !important;
+    border: 1px solid #fecaca !important;
+    border-radius: 6px !important;
+    margin-left: 8px !important;
+}
+
+div.st-key-header_logout_btn button:hover {
+    background-color: #fee2e2 !important;
+    color: #dc2626 !important;
+    border-color: #f87171 !important;
+    box-shadow: 0 1px 2px rgba(239, 68, 68, 0.1) !important;
+}
+
+div.st-key-header_logout_btn button::before {
+    content: "" !important;
+    display: inline-block !important;
+    width: 13px !important;
+    height: 13px !important;
+    background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='13' height='13' viewBox='0 0 24 24' fill='none' stroke='%23ef4444' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4'/%3E%3Cpolyline points='16 17 21 12 16 7'/%3E%3Cline x1='21' y1='12' x2='9' y2='12'/%3E%3C/svg%3E") no-repeat center !important;
+    background-size: contain !important;
 }
 
 /* 6. GLOBAL NAVIGATION BAR CỐ ĐỊNH DƯỚI HEADER (FIGMA STANDARD) */

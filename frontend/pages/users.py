@@ -13,7 +13,7 @@ from services.user_api import (
 )
 from utils.auth_guard import require_auth
 from utils.hide_streamlit_sidebar import hide_sidebar
-from utils.http import init_session_state
+from utils.http import auth_query_params, init_session_state
 from utils.load_css import load_css
 from utils.render_header import render_page_header
 from utils.status_helpers import get_user_role_badge, get_user_status_badge
@@ -102,6 +102,47 @@ def edit_user_name_dialog(u_id: int, cur_name: str, cur_role: str, cur_status: s
 
 tab_users, tab_profile = st.tabs(["Danh sách người dùng", "Hồ sơ cá nhân"])
 
+# ── Xử lý query params thao tác người dùng (từ link icon SVG) ──
+if "toggle_role" in st.query_params:
+    try:
+        t_uid = int(st.query_params["toggle_role"])
+        cur_role = st.query_params.get("cur_role", "teacher")
+        cur_stt = st.query_params.get("cur_stt", "hoat_dong")
+        user_login = st.query_params.get("user_login", f"user_{t_uid}")
+        del st.query_params["toggle_role"]
+        for p in ["cur_role", "cur_stt", "user_login"]:
+            if p in st.query_params:
+                del st.query_params[p]
+        new_role = "teacher" if cur_role == "admin" else "admin"
+        ok, res = admin_update_user(client, t_uid, new_role, cur_stt)
+        if ok:
+            notify.success(f"Đã đổi vai trò cho @{user_login}")
+            st.rerun()
+        else:
+            notify.error("Lỗi khi cập nhật vai trò")
+    except Exception:
+        pass
+
+if "toggle_status" in st.query_params:
+    try:
+        s_uid = int(st.query_params["toggle_status"])
+        cur_role = st.query_params.get("cur_role", "teacher")
+        cur_stt = st.query_params.get("cur_stt", "hoat_dong")
+        user_login = st.query_params.get("user_login", f"user_{s_uid}")
+        del st.query_params["toggle_status"]
+        for p in ["cur_role", "cur_stt", "user_login"]:
+            if p in st.query_params:
+                del st.query_params[p]
+        new_status = "khoa" if cur_stt == "hoat_dong" else "hoat_dong"
+        ok, res = admin_update_user(client, s_uid, cur_role, new_status)
+        if ok:
+            notify.success(f"Đã cập nhật trạng thái @{user_login}")
+            st.rerun()
+        else:
+            notify.error("Lỗi khi đổi trạng thái tài khoản")
+    except Exception:
+        pass
+
 # =========================================================================
 # TAB 1: DANH SÁCH NGƯỜI DÙNG & PHÂN QUYỀN (CHỈ ADMIN HOẶC XEM QUYỀN)
 # =========================================================================
@@ -114,6 +155,21 @@ with tab_users:
         )
     else:
         users = list_all_users(client)
+
+        if "edit_user" in st.query_params:
+            try:
+                eu_id = int(st.query_params["edit_user"])
+                del st.query_params["edit_user"]
+                m_user = next((u for u in users if u.get("PK_MaNguoiDung") == eu_id), None)
+                if m_user:
+                    edit_user_name_dialog(
+                        eu_id,
+                        m_user.get("HoVaTen", ""),
+                        m_user.get("VaiTro", "teacher"),
+                        m_user.get("TrangThai", "hoat_dong"),
+                    )
+            except Exception:
+                pass
 
         uh_col1, uh_col2 = st.columns([3.2, 1])
         with uh_col1:
@@ -171,27 +227,40 @@ with tab_users:
                         role_tooltip = "Hạ xuống Cán bộ coi thi" if u_role == "admin" else "Nâng quyền Quản trị viên"
                         new_status = "khoa" if u_status == "hoat_dong" else "hoat_dong"
                         lock_tooltip = "Tạm khóa tài khoản" if u_status == "hoat_dong" else "Kích hoạt lại tài khoản"
+                        lock_cls = "lock-btn" if u_status == "hoat_dong" else "unlock-btn"
 
-                        b1, b2, b3 = st.columns(3)
-                        with b1:
-                            if st.button("Vai trò", key=f"u_role_{u_id}", help=role_tooltip):
-                                ok, res = admin_update_user(client, u_id, new_role, u_status)
-                                if ok:
-                                    notify.success(f"Đã đổi vai trò cho @{u_login}")
-                                    st.rerun()
-                                else:
-                                    notify.error("Lỗi khi cập nhật vai trò")
-                        with b2:
-                            if st.button("Sửa", key=f"u_edit_{u_id}", help="Chỉnh sửa họ tên người dùng"):
-                                edit_user_name_dialog(u_id, u_name or "", u_role, u_status)
-                        with b3:
-                            if st.button("Khóa" if u_status == "hoat_dong" else "Mở", key=f"u_lock_{u_id}", help=lock_tooltip):
-                                ok, res = admin_update_user(client, u_id, u_role, new_status)
-                                if ok:
-                                    notify.success(f"Đã cập nhật trạng thái @{u_login}")
-                                    st.rerun()
-                                else:
-                                    notify.error("Lỗi khi đổi trạng thái tài khoản")
+                        lock_svg = (
+                            '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">'
+                            '  <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>'
+                            '  <path d="M7 11V7a5 5 0 0 1 10 0v4"/>'
+                            '</svg>'
+                            if u_status == "hoat_dong" else
+                            '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">'
+                            '  <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>'
+                            '  <path d="M7 11V7a5 5 0 0 1 9.9-1"/>'
+                            '</svg>'
+                        )
+
+                        aqs = auth_query_params()
+                        action_u_html = (
+                            f'<div style="display:flex; align-items:center; justify-content:flex-end; gap:6px;">'
+                            f'  <a href="/users?{aqs}&toggle_role={u_id}&cur_role={u_role}&cur_stt={u_status}&user_login={u_login}" class="action-svg-btn role-btn" title="{role_tooltip}">'
+                            f'    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">'
+                            f'      <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>'
+                            f'    </svg>'
+                            f'  </a>'
+                            f'  <a href="/users?{aqs}&edit_user={u_id}" class="action-svg-btn edit-btn" title="Chỉnh sửa họ tên người dùng">'
+                            f'    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">'
+                            f'      <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>'
+                            f'      <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>'
+                            f'    </svg>'
+                            f'  </a>'
+                            f'  <a href="/users?{aqs}&toggle_status={u_id}&cur_role={u_role}&cur_stt={u_status}&user_login={u_login}" class="action-svg-btn {lock_cls}" title="{lock_tooltip}">'
+                            f'    {lock_svg}'
+                            f'  </a>'
+                            f'</div>'
+                        )
+                        st.markdown(action_u_html, unsafe_allow_html=True)
 
                     st.markdown("<hr style='margin: 4px 0 8px 0; border: none; border-top: 1px solid var(--wf-border);'>", unsafe_allow_html=True)
 

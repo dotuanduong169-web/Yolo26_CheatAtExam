@@ -111,3 +111,28 @@ def safe_delete(url: str, timeout: int = 10):
         )
     except requests.RequestException:
         return None
+
+
+def auth_query_params() -> str:
+    """Chuỗi query giữ phiên đăng nhập, gắn vào link HTML action.
+
+    Link <a href> reload toàn trang (mất session_state); gắn sẵn token vào URL
+    để require_auth khôi phục phiên, tránh bị đá về trang login hay mở tab mới
+    do người dùng Ctrl+click. Chỉ dùng cho demo local (token đã nằm sẵn trong URL
+    từ cơ chế giữ phiên hiện tại).
+    """
+    from urllib.parse import quote
+
+    q = st.query_params
+    auth = st.session_state.get("access_token_value") or q.get("auth", "")
+    refresh = st.session_state.get("refresh_token_value") or q.get("refresh", "")
+    role = st.session_state.get("user_role") or q.get("role", "")
+    u = st.session_state.get("username") or q.get("u", "")
+    parts = [
+        f"auth={quote(str(auth), safe='')}",
+        f"role={quote(str(role), safe='')}",
+        f"u={quote(str(u), safe='')}",
+    ]
+    if refresh:
+        parts.append(f"refresh={quote(str(refresh), safe='')}")
+    return "&".join(parts)

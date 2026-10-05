@@ -133,47 +133,8 @@ def delete_device_dialog(dev_id: int, dev_name: str):
                 notify.error(f"Xóa thiết bị thất bại: {err_text}")
 
 
-# ── Xử lý query params thao tác thiết bị ───────────────────
-if "test_dev" in st.query_params:
-    try:
-        t_id = int(st.query_params["test_dev"])
-        del st.query_params["test_dev"]
-        test_res = test_device(client, t_id)
-        if test_res.get("online"):
-            lat = test_res.get("latency_ms", 5)
-            notify.success(f"Thiết bị #{t_id}: {test_res.get('message')} ({lat}ms)")
-        else:
-            notify.error(f"Thiết bị #{t_id}: {test_res.get('message')}")
-    except Exception:
-        pass
-
 # ── Danh mục Camera & Thiết bị biên ─────────────────────────
 devices = list_devices(client)
-
-if "edit_dev" in st.query_params:
-    try:
-        e_id = int(st.query_params["edit_dev"])
-        del st.query_params["edit_dev"]
-        matched_dev = next((d for d in devices if d.get("PK_MaThietBi") == e_id), None)
-        if matched_dev:
-            edit_device_dialog(
-                e_id,
-                matched_dev.get("TenThietBi", ""),
-                matched_dev.get("DuongDanRTSP", ""),
-                matched_dev.get("MoTaViTri", ""),
-            )
-    except Exception:
-        pass
-
-if "del_dev" in st.query_params:
-    try:
-        d_id = int(st.query_params["del_dev"])
-        del st.query_params["del_dev"]
-        matched_dev = next((d for d in devices if d.get("PK_MaThietBi") == d_id), None)
-        d_name = matched_dev.get("TenThietBi", f"Thiết bị #{d_id}") if matched_dev else f"Thiết bị #{d_id}"
-        delete_device_dialog(d_id, d_name)
-    except Exception:
-        pass
 
 # Header bảng kèm nút Thêm mới
 h_col1, h_col2 = st.columns([3.2, 1])
@@ -228,30 +189,21 @@ else:
                 st.markdown(stt_badge, unsafe_allow_html=True)
             with c6:
                 if is_admin:
-                    action_html = (
-                        f'<div style="display:flex; align-items:center; justify-content:flex-end; gap:6px;">'
-                        f'  <a href="/devices?test_dev={dev_id}" class="action-svg-btn test-btn" title="Kiểm tra kết nối camera RTSP">'
-                        f'    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">'
-                        f'      <polygon points="5 3 19 12 5 21 5 3"/>'
-                        f'    </svg>'
-                        f'  </a>'
-                        f'  <a href="/devices?edit_dev={dev_id}" class="action-svg-btn edit-btn" title="Chỉnh sửa thông tin thiết bị">'
-                        f'    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">'
-                        f'      <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>'
-                        f'      <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>'
-                        f'    </svg>'
-                        f'  </a>'
-                        f'  <a href="/devices?del_dev={dev_id}" class="action-svg-btn del-btn" title="Xóa thiết bị khỏi danh mục">'
-                        f'    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">'
-                        f'      <polyline points="3 6 5 6 21 6"/>'
-                        f'      <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>'
-                        f'      <line x1="10" y1="11" x2="10" y2="17"/>'
-                        f'      <line x1="14" y1="11" x2="14" y2="17"/>'
-                        f'    </svg>'
-                        f'  </a>'
-                        f'</div>'
-                    )
-                    st.markdown(action_html, unsafe_allow_html=True)
+                    b1, b2, b3 = st.columns(3)
+                    with b1:
+                        if st.button("Kiểm tra", key=f"dev_test_{dev_id}", help="Kiểm tra kết nối camera RTSP"):
+                            test_res = test_device(client, dev_id)
+                            if test_res.get("online"):
+                                lat = test_res.get("latency_ms", 5)
+                                notify.success(f"Thiết bị #{dev_id}: {test_res.get('message')} ({lat}ms)")
+                            else:
+                                notify.error(f"Thiết bị #{dev_id}: {test_res.get('message')}")
+                    with b2:
+                        if st.button("Sửa", key=f"dev_edit_{dev_id}", help="Chỉnh sửa thông tin thiết bị"):
+                            edit_device_dialog(dev_id, name, rtsp, loc if loc != "Chưa cấu hình" else "")
+                    with b3:
+                        if st.button("Xóa", key=f"dev_del_{dev_id}", help="Xóa thiết bị khỏi danh mục"):
+                            delete_device_dialog(dev_id, name)
                 else:
                     st.caption("Cán bộ")
 

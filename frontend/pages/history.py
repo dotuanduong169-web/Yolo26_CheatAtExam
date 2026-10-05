@@ -73,66 +73,6 @@ def confirm_delete_dialog(session_id: int):
             handle_delete(session_id)
 
 
-# ── Xử lý query params ─────────────────────────────────────
-if "confirm_delete" in st.query_params:
-    try:
-        target_sid = int(st.query_params["confirm_delete"])
-        del st.query_params["confirm_delete"]
-        confirm_delete_dialog(target_sid)
-    except Exception:
-        pass
-
-if "view_ev" in st.query_params:
-    try:
-        v_ev_id = int(st.query_params["view_ev"])
-        show_evidence_dialog(v_ev_id)
-    except Exception:
-        pass
-
-if "confirm_ev" in st.query_params:
-    try:
-        c_ev_id = int(st.query_params["confirm_ev"])
-        c_raw_label = st.query_params.get("raw_label", "")
-        del st.query_params["confirm_ev"]
-        if "raw_label" in st.query_params:
-            del st.query_params["raw_label"]
-        res = verify_event(client, c_ev_id, "dung", c_raw_label)
-        if res is not None and res.status_code == 200:
-            notify.success(f"Đã xác nhận sự kiện EV-{c_ev_id:02d} là Vi phạm")
-            st.rerun()
-        else:
-            notify.error("Không thể cập nhật trạng thái sự kiện")
-    except Exception:
-        pass
-
-if "reject_ev" in st.query_params:
-    try:
-        r_ev_id = int(st.query_params["reject_ev"])
-        del st.query_params["reject_ev"]
-        res = verify_event(client, r_ev_id, "sai", "Answer_paper")
-        if res is not None and res.status_code == 200:
-            notify.success(f"Đã bác bỏ sự kiện EV-{r_ev_id:02d} (Giấy thi hợp lệ)")
-            st.rerun()
-        else:
-            notify.error("Không thể cập nhật trạng thái sự kiện")
-    except Exception:
-        pass
-
-if "select_session" in st.query_params:
-    try:
-        target_sel_sid = int(st.query_params["select_session"])
-        del st.query_params["select_session"]
-        st.session_state["history_selected_sid"] = target_sel_sid
-        st.session_state["history_active_tab"] = "events"
-    except Exception:
-        pass
-
-if "tab" in st.query_params:
-    if st.query_params["tab"] == "events":
-        st.session_state["history_active_tab"] = "events"
-    elif st.query_params["tab"] == "sessions":
-        st.session_state["history_active_tab"] = "sessions"
-
 # ── Điều hướng Tab con ──────────────────────────────────────
 tab_sessions, tab_events = st.tabs(["Danh mục ca thi", "Nhật ký sự kiện"])
 
@@ -146,12 +86,6 @@ with tab_sessions:
         st.session_state.hist_page = 1
     if "hist_search" not in st.session_state:
         st.session_state.hist_search = ""
-
-    if "p" in st.query_params:
-        try:
-            st.session_state.hist_page = max(1, int(st.query_params["p"]))
-        except Exception:
-            pass
 
     # 1. Summary Cards
     def _fetch_history(session, search: str = "", page: int = 1) -> dict:
@@ -244,31 +178,18 @@ with tab_sessions:
                 with sc4:
                     st.markdown(f"<span class='wf-badge danger'>Sự kiện: {event_count}</span><br>{status_badge}", unsafe_allow_html=True)
                 with sc5:
-                    action_sess_html = (
-                        f'<div style="display:flex; align-items:center; justify-content:flex-end; gap:6px;">'
-                        f'  <a href="/session_detail?id={s_id}" class="action-svg-btn view-btn" title="Xem báo cáo chi tiết ca thi #{s_id}">'
-                        f'    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">'
-                        f'      <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8z"/>'
-                        f'      <circle cx="12" cy="12" r="3"/>'
-                        f'    </svg>'
-                        f'  </a>'
-                        f'  <a href="/history?tab=events&select_session={s_id}" class="action-svg-btn event-btn" title="Xem các sự kiện gian lận của ca thi này">'
-                        f'    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">'
-                        f'      <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/>'
-                        f'      <path d="M13.73 21a2 2 0 0 1-3.46 0"/>'
-                        f'    </svg>'
-                        f'  </a>'
-                        f'  <a href="/history?confirm_delete={s_id}" class="action-svg-btn del-btn" title="Xóa ca thi này khỏi hệ thống">'
-                        f'    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">'
-                        f'      <polyline points="3 6 5 6 21 6"/>'
-                        f'      <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>'
-                        f'      <line x1="10" y1="11" x2="10" y2="17"/>'
-                        f'      <line x1="14" y1="11" x2="14" y2="17"/>'
-                        f'    </svg>'
-                        f'  </a>'
-                        f'</div>'
-                    )
-                    st.markdown(action_sess_html, unsafe_allow_html=True)
+                    b1, b2, b3 = st.columns(3)
+                    with b1:
+                        if st.button("Xem", key=f"sess_view_{s_id}", help=f"Xem báo cáo chi tiết ca thi #{s_id}"):
+                            st.session_state.selected_session = s_id
+                            st.switch_page("pages/session_detail.py")
+                    with b2:
+                        if st.button("Sự kiện", key=f"sess_events_{s_id}", help="Xem các sự kiện gian lận của ca thi này"):
+                            st.session_state["history_selected_sid"] = s_id
+                            notify.info(f"Đã chọn phiên #{s_id} — mở tab Nhật ký sự kiện để xem")
+                    with b3:
+                        if st.button("Xóa", key=f"sess_del_{s_id}", help="Xóa ca thi này khỏi hệ thống"):
+                            confirm_delete_dialog(s_id)
 
             st.markdown("<hr style='margin: 4px 0 10px 0; border: none; border-top: 1px solid var(--wf-border);'>", unsafe_allow_html=True)
 
@@ -287,22 +208,34 @@ with tab_sessions:
             )
 
         with pg_right:
-            pag_items = []
-            prev_disabled = "opacity: 0.35; pointer-events: none;" if current_page <= 1 else ""
-            pag_items.append(f'<a href="/history?p={current_page - 1}" style="{prev_disabled}">‹</a>')
-
+            # Danh sách nút trang: ‹ [1] … [n] ›, tối đa 7 số
+            _pages: list = []
             for p in range(1, total_pages + 1):
                 if total_pages > 7 and abs(p - current_page) > 2 and p != 1 and p != total_pages:
                     if p == 2 or p == total_pages - 1:
-                        pag_items.append('<span style="color: #94a3b8; line-height: 32px; padding: 0 4px;">…</span>')
+                        _pages.append("…")
                     continue
-                active_cls = "active" if p == current_page else ""
-                pag_items.append(f'<a href="/history?p={p}" class="{active_cls}">{p}</a>')
-
-            next_disabled = "opacity: 0.35; pointer-events: none;" if current_page >= total_pages else ""
-            pag_items.append(f'<a href="/history?p={current_page + 1}" style="{next_disabled}">›</a>')
-
-            st.markdown(f'<div class="history-pagination">{"".join(pag_items)}</div>', unsafe_allow_html=True)
+                _pages.append(p)
+            _cols = st.columns(len(_pages) + 2)
+            with _cols[0]:
+                if st.button("‹", key=f"hp_prev_{current_page}", disabled=(current_page <= 1)):
+                    st.session_state.hist_page = current_page - 1
+                    st.rerun()
+            for _idx, _p in enumerate(_pages, start=1):
+                with _cols[_idx]:
+                    if _p == "…":
+                        st.markdown('<span style="color:#94a3b8; line-height:32px;">…</span>', unsafe_allow_html=True)
+                    elif st.button(
+                        str(_p), key=f"hp_go_{_p}",
+                        disabled=(_p == current_page),
+                        type="primary" if _p == current_page else "secondary",
+                    ):
+                        st.session_state.hist_page = _p
+                        st.rerun()
+            with _cols[len(_pages) + 1]:
+                if st.button("›", key=f"hp_next_{current_page}", disabled=(current_page >= total_pages)):
+                    st.session_state.hist_page = current_page + 1
+                    st.rerun()
 
 
 # =========================================================================
@@ -432,27 +365,25 @@ with tab_events:
                 with c6:
                     st.markdown(stt_badge, unsafe_allow_html=True)
                 with c7:
-                    action_html = (
-                        f'<div style="display:flex; align-items:center; justify-content:flex-end; gap:6px;">'
-                        f'  <a href="/history?tab=events&view_ev={ev_id}" class="action-svg-btn view-btn" title="Xem nhanh bằng chứng & xác minh vi phạm">'
-                        f'    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">'
-                        f'      <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8z"/>'
-                        f'      <circle cx="12" cy="12" r="3"/>'
-                        f'    </svg>'
-                        f'  </a>'
-                        f'  <a href="/history?tab=events&confirm_ev={ev_id}&raw_label={raw_label}" class="action-svg-btn confirm-btn" title="Xác nhận đúng vi phạm ({friendly_label})">'
-                        f'    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">'
-                        f'      <polyline points="20 6 9 17 4 12"/>'
-                        f'    </svg>'
-                        f'  </a>'
-                        f'  <a href="/history?tab=events&reject_ev={ev_id}" class="action-svg-btn reject-btn" title="Bác bỏ vi phạm (Báo sai: Giấy thi hợp lệ)">'
-                        f'    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">'
-                        f'      <line x1="18" y1="6" x2="6" y2="18"/>'
-                        f'      <line x1="6" y1="6" x2="18" y2="18"/>'
-                        f'    </svg>'
-                        f'  </a>'
-                        f'</div>'
-                    )
-                    st.markdown(action_html, unsafe_allow_html=True)
+                    e1, e2, e3 = st.columns(3)
+                    with e1:
+                        if st.button("Xem", key=f"ev_view_{ev_id}", help="Xem nhanh bằng chứng và xác minh vi phạm"):
+                            show_evidence_dialog(ev_id)
+                    with e2:
+                        if st.button("Đúng", key=f"ev_ok_{ev_id}", help=f"Xác nhận đúng vi phạm ({friendly_label})"):
+                            res = verify_event(client, ev_id, "dung", raw_label)
+                            if res is not None and res.status_code == 200:
+                                notify.success(f"Đã xác nhận sự kiện EV-{ev_id:02d} là Vi phạm")
+                                st.rerun()
+                            else:
+                                notify.error("Không thể cập nhật trạng thái sự kiện")
+                    with e3:
+                        if st.button("Sai", key=f"ev_no_{ev_id}", help="Bác bỏ vi phạm (Báo sai: Giấy thi hợp lệ)"):
+                            res = verify_event(client, ev_id, "sai", "Answer_paper")
+                            if res is not None and res.status_code == 200:
+                                notify.success(f"Đã bác bỏ sự kiện EV-{ev_id:02d} (Giấy thi hợp lệ)")
+                                st.rerun()
+                            else:
+                                notify.error("Không thể cập nhật trạng thái sự kiện")
 
             st.markdown("<hr style='margin: 4px 0 8px 0; border: none; border-top: 1px solid var(--wf-border);'>", unsafe_allow_html=True)

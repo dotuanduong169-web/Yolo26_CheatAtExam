@@ -34,17 +34,11 @@ st.markdown(load_css("styles/sidebar.css"), unsafe_allow_html=True)
 st.markdown(load_css("styles/app_theme.css"), unsafe_allow_html=True)
 st.markdown(load_css("styles/session_detail.css"), unsafe_allow_html=True)
 
-# ── Query params & Session ID ──────────────────────────────
+# ── Query params & Session ID (giữ đọc id để vào URL trực tiếp, bỏ ?p=) ──
 if "id" in st.query_params:
     try:
         st.session_state["selected_session"] = int(st.query_params["id"])
         st.session_state["session_id"] = int(st.query_params["id"])
-    except Exception:
-        pass
-
-if "p" in st.query_params:
-    try:
-        st.session_state["detail_page"] = max(1, int(st.query_params["p"]))
     except Exception:
         pass
 
@@ -251,17 +245,9 @@ else:
 
         with c5:
             ev_pk = row["PK_MaSuKien"]
-            view_action_html = (
-                f'<div style="display:flex; align-items:center; justify-content:flex-end; gap:6px;">'
-                f'  <a href="/event_detail?id={ev_pk}" class="action-svg-btn view-btn" title="Xem chi tiết vi phạm">'
-                f'    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">'
-                f'      <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8z"/>'
-                f'      <circle cx="12" cy="12" r="3"/>'
-                f'    </svg>'
-                f'  </a>'
-                f'</div>'
-            )
-            st.markdown(view_action_html, unsafe_allow_html=True)
+            if st.button("Xem", key=f"sess_ev_view_{ev_pk}", help="Xem chi tiết vi phạm"):
+                st.session_state["event_id"] = ev_pk
+                st.switch_page("pages/event_detail.py")
 
     # Phân trang nhỏ gọn Figma Standard
     showing = len(page_events)
@@ -277,20 +263,31 @@ else:
         )
 
     with pg_right:
-        pag_items = []
-        prev_disabled = "opacity: 0.35; pointer-events: none;" if page <= 1 else ""
-        pag_items.append(f'<a href="/session_detail?id={session_id}&p={page - 1}" style="{prev_disabled}">‹</a>')
-
+        _pages: list = []
         for p_idx in range(1, total_pages + 1):
             if total_pages > 7 and abs(p_idx - page) > 2 and p_idx != 1 and p_idx != total_pages:
                 if p_idx == 2 or p_idx == total_pages - 1:
-                    pag_items.append('<span style="color: #94a3b8; line-height: 32px; padding: 0 4px;">…</span>')
+                    _pages.append("…")
                 continue
-            active_cls = "active" if p_idx == page else ""
-            pag_items.append(f'<a href="/session_detail?id={session_id}&p={p_idx}" class="{active_cls}">{p_idx}</a>')
-
-        next_disabled = "opacity: 0.35; pointer-events: none;" if page >= total_pages else ""
-        pag_items.append(f'<a href="/session_detail?id={session_id}&p={page + 1}" style="{next_disabled}">›</a>')
-
-        st.markdown(f'<div class="history-pagination">{"".join(pag_items)}</div>', unsafe_allow_html=True)
+            _pages.append(p_idx)
+        _cols = st.columns(len(_pages) + 2)
+        with _cols[0]:
+            if st.button("‹", key=f"sp_prev_{page}", disabled=(page <= 1)):
+                st.session_state.detail_page = page - 1
+                st.rerun()
+        for _idx, _p in enumerate(_pages, start=1):
+            with _cols[_idx]:
+                if _p == "…":
+                    st.markdown('<span style="color:#94a3b8; line-height:32px;">…</span>', unsafe_allow_html=True)
+                elif st.button(
+                    str(_p), key=f"sp_go_{_p}",
+                    disabled=(_p == page),
+                    type="primary" if _p == page else "secondary",
+                ):
+                    st.session_state.detail_page = _p
+                    st.rerun()
+        with _cols[len(_pages) + 1]:
+            if st.button("›", key=f"sp_next_{page}", disabled=(page >= total_pages)):
+                st.session_state.detail_page = page + 1
+                st.rerun()
 

@@ -58,8 +58,6 @@ stt_text, stt_cls = get_event_status_info(trang_thai)
 render_page_header(f"Chi tiết sự kiện #EV-{event_id:02d}", active="history")
 
 if st.button("Quay lại danh sách sự kiện"):
-    st.session_state["history_active_tab"] = "events"
-    st.query_params["tab"] = "events"
     st.switch_page("pages/history.py")
 
 

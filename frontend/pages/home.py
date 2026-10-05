@@ -295,9 +295,6 @@ else:
             st.markdown("<div style='height: 8px;'></div>", unsafe_allow_html=True)
             if st.button("Xem toàn bộ sự kiện ca thi", use_container_width=True):
                 st.session_state["history_selected_sid"] = st.session_state.get("session_id")
-                st.query_params["tab"] = "events"
-                if st.session_state.get("session_id"):
-                    st.query_params["select_session"] = str(st.session_state.get("session_id"))
                 st.switch_page("pages/history.py")
 
 

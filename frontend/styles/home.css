@@ -28,9 +28,10 @@
 /* ===== CAMERA FEED CONTAINER ===== */
 .camera-feed-wrapper {
     width: 100%;
-    max-height: 460px;
-    background: #0a0a0a;
-    border-radius: 12px;
+    min-height: 400px;
+    max-height: 560px;
+    background: #0b0f19;
+    border-radius: 0 0 12px 12px;
     overflow: hidden;
     display: flex;
     align-items: center;
@@ -39,42 +40,38 @@
 }
 
 .camera-feed-wrapper img {
-    width: 100%;
-    height: 100%;
-    max-height: 460px;
+    max-height: 540px;
+    width: auto;
+    max-width: 100%;
     object-fit: contain;
+    border-radius: 4px;
+    box-shadow: 0 4px 16px rgba(0,0,0,0.5);
 }
 
-/* ===== RECORDING INDICATOR ===== */
-.rec-indicator {
-    position: absolute;
-    bottom: 12px;
-    right: 14px;
-    display: flex;
+/* ===== RECORDING BADGE ===== */
+.live-rec-badge {
+    display: inline-flex;
     align-items: center;
     gap: 6px;
-    background: rgba(0,0,0,0.55);
-    backdrop-filter: blur(6px);
-    padding: 5px 12px;
-    border-radius: 8px;
-    color: #fff;
+    background: rgba(220, 38, 38, 0.1);
+    border: 1px solid rgba(220, 38, 38, 0.25);
+    color: #dc2626;
+    padding: 4px 10px;
+    border-radius: 6px;
     font-size: 12px;
-    font-weight: 600;
-    letter-spacing: 0.3px;
+    font-weight: 700;
+    letter-spacing: 0.5px;
 }
 
-.rec-dot {
-    width: 8px;
-    height: 8px;
-    background: #ff3b3b;
-    border-radius: 50%;
-    animation: blink 1s infinite;
+.live-rec-badge span:first-child {
+    animation: rec-pulse 1.2s ease-in-out infinite;
 }
 
-@keyframes blink {
-    0%, 100% { opacity: 1; }
-    50% { opacity: 0.3; }
+@keyframes rec-pulse {
+    0%, 100% { opacity: 1; transform: scale(1); }
+    50% { opacity: 0.35; transform: scale(0.85); }
 }
+
 
 /* ===== FRAME ITEM ===== */
 .frame-item {

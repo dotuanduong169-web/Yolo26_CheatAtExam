@@ -199,34 +199,57 @@ else:
     with left_col:
         cur_fps = st.session_state.get("current_fps")
         fps_badge = f"{cur_fps} FPS" if cur_fps and cur_fps > 0 else "Trực tiếp"
-        st.markdown(f"""
-        <div class="wf-box" style="margin-bottom: 0;">
-            <div class="wf-box-header">
-                <div class="wf-box-title">
-                    <span>Khung camera trực tiếp</span>
-                </div>
-                <div><span class="wf-badge success">Tốc độ: {fps_badge}</span></div>
-            </div>
-        </div>
-        """, unsafe_allow_html=True)
 
-        start_time = st.session_state["capture_start_time"]
-        elapsed_str = "00:00:00"
-        if start_time:
-            elapsed = int(time.time() - start_time)
-            h, m, s = elapsed // 3600, (elapsed % 3600) // 60, elapsed % 60
-            elapsed_str = f"{h:02d}:{m:02d}:{s:02d}"
+        start_time = st.session_state.get("capture_start_time") or time.time()
+        start_ts = int(start_time)
+        elapsed = int(time.time() - start_time)
+        h, m, s = elapsed // 3600, (elapsed % 3600) // 60, elapsed % 60
+        elapsed_str = f"{h:02d}:{m:02d}:{s:02d}"
 
         cache_bust = int(time.time())
+
         st.markdown(f"""
-        <div class="camera-feed-wrapper" style="border: 1px solid var(--wf-border); border-top: none; background: #000; border-radius: 0 0 var(--wf-radius) var(--wf-radius); position: relative; overflow: hidden; width: 100%;">
-            <img src="{CAMERA_URL}/video_feed?t={cache_bust}" alt="Live stream" style="width: 100%; height: auto; max-height: 480px; object-fit: contain; display: block;">
-            <div class="rec-indicator" style="position: absolute; top: 12px; left: 14px; background: rgba(0,0,0,0.65); padding: 4px 10px; border-radius: 4px; color: #fff; font-size: 12px; font-weight: 600; display: flex; align-items: center; gap: 8px;">
-                <span style="width: 8px; height: 8px; background: #dc2626; border-radius: 50%; display: inline-block;"></span>
-                REC <span>{elapsed_str}</span>
+        <div class="wf-box" style="margin-bottom: 0;">
+            <div class="wf-box-header" style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px;">
+                <div class="wf-box-title" style="display: flex; align-items: center; gap: 10px;">
+                    <span>Khung camera trực tiếp</span>
+                    <span class="wf-badge" style="background: rgba(37, 99, 235, 0.1); color: var(--wf-primary); font-size: 11px;">Phiên #{st.session_state.get("session_id")}</span>
+                </div>
+                <div style="display: flex; align-items: center; gap: 10px;">
+                    <div class="live-rec-badge" style="display: inline-flex; align-items: center; gap: 6px; background: rgba(220, 38, 38, 0.1); border: 1px solid rgba(220, 38, 38, 0.25); color: #dc2626; padding: 4px 10px; border-radius: 6px; font-size: 12px; font-weight: 700; letter-spacing: 0.5px;">
+                        <span style="width: 8px; height: 8px; background: #dc2626; border-radius: 50%; display: inline-block; box-shadow: 0 0 6px #dc2626;"></span>
+                        <span>REC</span>
+                        <span id="live-rec-timer" data-start="{start_ts}" style="font-variant-numeric: tabular-nums;">{elapsed_str}</span>
+                    </div>
+                    <span class="wf-badge success">Tốc độ: {fps_badge}</span>
+                </div>
             </div>
         </div>
+        <div class="camera-feed-wrapper" style="border: 1px solid var(--wf-border); border-top: none; background: #0b0f19; border-radius: 0 0 var(--wf-radius) var(--wf-radius); position: relative; overflow: hidden; width: 100%; min-height: 400px; max-height: 560px; display: flex; align-items: center; justify-content: center; padding: 8px 0;">
+            <img src="{CAMERA_URL}/video_feed?t={cache_bust}" alt="Live stream" style="max-height: 540px; width: auto; max-width: 100%; object-fit: contain; display: block; border-radius: 4px; box-shadow: 0 4px 16px rgba(0,0,0,0.5);">
+        </div>
+        <script>
+        (function() {{
+            function tickRec() {{
+                var timer = document.getElementById("live-rec-timer");
+                if (!timer) return;
+                var startTs = parseInt(timer.getAttribute("data-start") || "0");
+                if (!startTs) return;
+                var now = Math.floor(Date.now() / 1000);
+                var diff = Math.max(0, now - startTs);
+                var h = Math.floor(diff / 3600);
+                var m = Math.floor((diff % 3600) / 60);
+                var s = diff % 60;
+                timer.textContent = (h < 10 ? "0" + h : h) + ":" + (m < 10 ? "0" + m : m) + ":" + (s < 10 ? "0" + s : s);
+            }}
+            tickRec();
+            if (!window._recTimerInterval) {{
+                window._recTimerInterval = setInterval(tickRec, 1000);
+            }}
+        }})();
+        </script>
         """, unsafe_allow_html=True)
+
 
         st.caption("Đang phân tích luồng video phát hiện gian lận thời gian thực qua mô hình YOLO26 trên máy chủ.")
 

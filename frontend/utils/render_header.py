@@ -53,14 +53,6 @@ def render_page_header(title: str, active: str | None = None):
         '      </svg>'
         f'      <span>{today_str}</span>'
         '    </div>'
-        '    <a href="/login?logout=1" class="header-logout-btn" onclick="try{localStorage.removeItem(\'examcheat_auth\');}catch(e){};try{window.localStorage.removeItem(\'examcheat_auth\');}catch(e){};try{window.parent.localStorage.removeItem(\'examcheat_auth\');}catch(e){};try{window.top.localStorage.removeItem(\'examcheat_auth\');}catch(e){};window.top.location.href=\'/login?logout=1\';return false;" title="Đăng xuất khỏi hệ thống">'
-        '      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">'
-        '        <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>'
-        '        <polyline points="16 17 21 12 16 7"/>'
-        '        <line x1="21" y1="12" x2="9" y2="12"/>'
-        '      </svg>'
-        '      <span>Đăng xuất</span>'
-        '    </a>'
         '  </div>'
         '</div>'
         '<div class="global-nav-bar">'
@@ -140,3 +132,22 @@ def render_page_header(title: str, active: str | None = None):
         '</script>'
     )
     st.markdown(header_html, unsafe_allow_html=True)
+
+    # Nút đăng xuất thật (st.button, không nhảy tab): căn phải ngay dưới header
+    _sp, _out = st.columns([9, 1])
+    with _out:
+        if st.button("Đăng xuất", key="header_logout_btn"):
+            from services.auth_api import logout as _api_logout
+
+            try:
+                if "client" in st.session_state:
+                    _api_logout(st.session_state.client)
+            except Exception:
+                pass
+            for _k in ("access_token_value", "refresh_token_value", "is_login",
+                       "user_role", "username", "user_fullname"):
+                st.session_state.pop(_k, None)
+            for _k in ("auth", "refresh", "role", "u"):
+                if _k in st.query_params:
+                    del st.query_params[_k]
+            st.rerun()

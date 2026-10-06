@@ -236,27 +236,38 @@ with tab_users:
                         lock_tooltip = "Tạm khóa tài khoản" if u_status == "hoat_dong" else "Kích hoạt lại tài khoản"
                         lock_cls = "lock-btn" if u_status == "hoat_dong" else "unlock-btn"
 
-                        u_c1, u_c2, u_c3 = st.columns([1, 1, 1])
-                        with u_c1:
-                            if st.button(" ", key=f"btn_act_role_u_{u_id}", help=role_tooltip):
-                                ok, res = admin_update_user(client, u_id, new_role, u_status)
-                                if ok:
-                                    notify.defer_success(f"Đã đổi vai trò cho @{u_login}")
-                                else:
-                                    notify.error("Lỗi khi cập nhật vai trò")
-                                st.rerun()
-                        with u_c2:
-                            if st.button(" ", key=f"btn_act_edit_u_{u_id}", help="Chỉnh sửa họ tên người dùng"):
-                                edit_user_name_dialog(u_id, u_name, u_role, u_status)
-                        with u_c3:
-                            lock_key = f"btn_act_{'lock' if u_status == 'hoat_dong' else 'unlock'}_u_{u_id}"
-                            if st.button(" ", key=lock_key, help=lock_tooltip):
-                                ok, res = admin_update_user(client, u_id, u_role, new_status)
-                                if ok:
-                                    notify.defer_success(f"Đã cập nhật trạng thái @{u_login}")
-                                else:
-                                    notify.error("Lỗi khi cập nhật trạng thái")
-                                st.rerun()
+                        lock_svg = (
+                            '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">'
+                            '  <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>'
+                            '  <path d="M7 11V7a5 5 0 0 1 10 0v4"/>'
+                            '</svg>'
+                            if u_status == "hoat_dong" else
+                            '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">'
+                            '  <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>'
+                            '  <path d="M7 11V7a5 5 0 0 1 9.9-1"/>'
+                            '</svg>'
+                        )
+
+                        aqs = auth_query_params()
+                        action_u_html = (
+                            f'<div style="display:flex; align-items:center; justify-content:flex-end; gap:6px;">'
+                            f'  <a href="/users?{aqs}&toggle_role={u_id}&cur_role={u_role}&cur_stt={u_status}&user_login={u_login}" target="_self" class="action-svg-btn role-btn" title="{role_tooltip}">'
+                            f'    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">'
+                            f'      <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>'
+                            f'    </svg>'
+                            f'  </a>'
+                            f'  <a href="/users?{aqs}&edit_user={u_id}" target="_self" class="action-svg-btn edit-btn" title="Chỉnh sửa họ tên người dùng">'
+                            f'    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">'
+                            f'      <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>'
+                            f'      <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>'
+                            f'    </svg>'
+                            f'  </a>'
+                            f'  <a href="/users?{aqs}&toggle_status={u_id}&cur_role={u_role}&cur_stt={u_status}&user_login={u_login}" target="_self" class="action-svg-btn {lock_cls}" title="{lock_tooltip}">'
+                            f'    {lock_svg}'
+                            f'  </a>'
+                            f'</div>'
+                        )
+                        st.markdown(action_u_html, unsafe_allow_html=True)
 
                     st.markdown("<hr style='margin: 4px 0 8px 0; border: none; border-top: 1px solid var(--wf-border);'>", unsafe_allow_html=True)
 

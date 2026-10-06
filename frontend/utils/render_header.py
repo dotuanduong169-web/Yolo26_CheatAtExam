@@ -63,92 +63,47 @@ def render_page_header(title: str, active: str | None = None):
         '    </a>'
         '  </div>'
         '</div>'
-        '<div class="global-nav-bar">'
-        '  <div class="nav-container">'
-        f'    <a href="/home" target="_self" data-page="home" class="nav-tab-btn {cls_home}">Giám sát</a>'
-        f'    <a href="/history" target="_self" data-page="history" class="nav-tab-btn {cls_hist}">Lịch sử</a>'
-        f'    <a href="/devices" target="_self" data-page="devices" class="nav-tab-btn {cls_dev}">Thiết bị</a>'
-        f'    <a href="/statistics" target="_self" data-page="statistics" class="nav-tab-btn {cls_stats}">Thống kê</a>'
-        f'    <a href="/users" target="_self" data-page="users" class="nav-tab-btn {cls_set}">Cài đặt</a>'
-        '  </div>'
-        '</div>'
-        '<script>'
-        '(function() {'
-        '  window.addEventListener("error", function(e) {'
-        '    if (e.message && e.message.indexOf("toLowerCase") >= 0) {'
-        '      e.preventDefault();'
-        '      e.stopPropagation();'
-        '      return true;'
-        '    }'
-        '  }, true);'
-        ''
-        '  function findStreamlitNavLink(pageKey) {'
-        '    var selectors = ['
-        '      "a[data-testid=\'stSidebarNavLink\']",'
-        '      "section[data-testid=\'stSidebar\'] a",'
-        '      "[data-testid=\'stSidebarNav\'] a",'
-        '      "ul[data-testid=\'stSidebarNavItems\'] a",'
-        '      "div[data-testid=\'stPageLink-NavLink\'] a"'
-        '    ];'
-        '    var allLinks = document.querySelectorAll(selectors.join(", "));'
-        '    for (var i = 0; i < allLinks.length; i++) {'
-        '      var a = allLinks[i];'
-        '      var hrefAttr = a.getAttribute("href");'
-        '      if (!hrefAttr) continue;'
-        '      var h = hrefAttr.toLowerCase().trim();'
-        '      if (h.endsWith("/" + pageKey) || h.endsWith(pageKey) || h === pageKey || h.indexOf("/" + pageKey) >= 0) {'
-        '        return a;'
-        '      }'
-        '    }'
-        '    return null;'
-        '  }'
-        ''
-        '  function setupNavTabs() {'
-        '    var navLinks = document.querySelectorAll(".global-nav-bar .nav-tab-btn");'
-        '    navLinks.forEach(function(btn) {'
-        '      btn.onclick = function(e) {'
-        '        e.preventDefault();'
-        '        e.stopPropagation();'
-        '        if (this.classList.contains("active")) { return false; }'
-        '        var pageKey = this.getAttribute("data-page") || "";'
-        '        var dest = this.getAttribute("href") || ("/" + pageKey);'
-        '        navLinks.forEach(function(b) { b.classList.remove("active"); });'
-        '        this.classList.add("active");'
-        '        var stLink = findStreamlitNavLink(pageKey);'
-        '        if (stLink) {'
-        '          try { stLink.click(); } catch(err) {}'
-        '          return false;'
-        '        }'
-        '        try {'
-        '          var raw = window.localStorage.getItem("examcheat_auth");'
-        '          if (raw) {'
-        '            var d = JSON.parse(raw);'
-        '            if (d && d.token) {'
-        '              var sep = dest.indexOf("?") >= 0 ? "&" : "?";'
-        '              dest = dest + sep + "auth=" + encodeURIComponent(d.token) +'
-        '                     "&role=" + encodeURIComponent(d.role || "") +'
-        '                     "&u=" + encodeURIComponent(d.username || "");'
-        '            }'
-        '          }'
-        '        } catch(ex) {}'
-        '        window.top.location.href = dest;'
-        '        return false;'
-        '      };'
-        '    });'
-        '    var otherLinks = document.querySelectorAll(".action-svg-btn, .history-pagination a");'
-        '    otherLinks.forEach(function(el) {'
-        '      el.setAttribute("target", "_self");'
-        '      el.removeAttribute("rel");'
-        '    });'
-        '  }'
-        '  setupNavTabs();'
-        '  setTimeout(setupNavTabs, 60);'
-        '  setTimeout(setupNavTabs, 200);'
-        '  setTimeout(setupNavTabs, 600);'
-        '})();'
-        '</script>'
     )
     st.markdown(header_html, unsafe_allow_html=True)
+
+    # ── THANH ĐIỀU HƯỚNG 5 TRANG NATIVE STREAMLIT SPA (KHÔNG RELOAD, KHÔNG CHỚP TRẮNG) ──
+    nav_c1, nav_c2, nav_c3, nav_c4, nav_c5 = st.columns(5, gap="small")
+    with nav_c1:
+        st.page_link("pages/home.py", label="Giám sát", use_container_width=True)
+    with nav_c2:
+        st.page_link("pages/history.py", label="Lịch sử", use_container_width=True)
+    with nav_c3:
+        st.page_link("pages/devices.py", label="Thiết bị", use_container_width=True)
+    with nav_c4:
+        st.page_link("pages/statistics.py", label="Thống kê", use_container_width=True)
+    with nav_c5:
+        st.page_link("pages/users.py", label="Cài đặt", use_container_width=True)
+
+    # Đảm bảo tab tương ứng luôn active kể cả khi ở các trang con (session_detail, event_detail)
+    active_idx_map = {
+        "home": 1, "giamsat": 1,
+        "history": 2, "lichsu": 2, "events": 2, "sukien": 2,
+        "devices": 3, "thietbi": 3,
+        "statistics": 4, "thongke": 4,
+        "setting": 5, "users": 5, "caidat": 5,
+    }
+    cur_idx = active_idx_map.get(active_key, 1)
+    active_css = f"""
+    <style>
+    div[data-testid="stHorizontalBlock"]:has(div[data-testid="stPageLink-NavLink"]) div[data-testid="column"]:nth-child({cur_idx}) div[data-testid="stPageLink-NavLink"] a {{
+        background-color: #eff6ff !important;
+        border-color: #bfdbfe !important;
+        color: #2563eb !important;
+        font-weight: 600 !important;
+        box-shadow: 0 1px 3px rgba(37, 99, 235, 0.12) !important;
+    }}
+    div[data-testid="stHorizontalBlock"]:has(div[data-testid="stPageLink-NavLink"]) div[data-testid="column"]:nth-child({cur_idx}) div[data-testid="stPageLink-NavLink"] a * {{
+        color: #2563eb !important;
+        font-weight: 600 !important;
+    }}
+    </style>
+    """
+    st.markdown(active_css, unsafe_allow_html=True)
 
 
 

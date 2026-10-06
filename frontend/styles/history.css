@@ -331,3 +331,39 @@ div#hist-pagination-row button:disabled {
     height: 34px;
     gap: 4px;
 }
+
+/* ===== SUB-TABS (DANH MỤC CA THI / NHẬT KÝ SỰ KIỆN) ===== */
+.history-sub-tabs {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    border-bottom: 2px solid #e2e8f0;
+    margin-bottom: 20px;
+    margin-top: 8px;
+}
+
+.sub-tab-item {
+    padding: 10px 20px;
+    font-size: 14px;
+    font-weight: 600;
+    color: #64748b;
+    text-decoration: none;
+    border-bottom: 2px solid transparent;
+    margin-bottom: -2px;
+    transition: all 0.2s ease;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    cursor: pointer;
+}
+
+.sub-tab-item:hover {
+    color: #1e293b;
+    text-decoration: none;
+}
+
+.sub-tab-item.active {
+    color: #2563eb;
+    border-bottom: 2px solid #2563eb;
+    font-weight: 700;
+}

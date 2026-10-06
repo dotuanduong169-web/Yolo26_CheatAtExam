@@ -88,6 +88,7 @@ def render_evidence_content(event_id: int):
         with btn_c1:
             if st.button("Bác bỏ (Báo sai)", key=f"reject_{event_id}", use_container_width=True):
                 st.session_state["history_active_tab"] = "events"
+                st.query_params["tab"] = "events"
                 res = verify_event(client, event_id, "sai", "Answer_paper")
                 if res is not None and res.status_code == 200:
                     notify.success(f"Đã bác bỏ sự kiện EV-{event_id:02d} (Giấy thi hợp lệ)")
@@ -98,6 +99,7 @@ def render_evidence_content(event_id: int):
         with btn_c2:
             if st.button("Xác nhận Vi phạm", key=f"confirm_{event_id}", type="primary", use_container_width=True):
                 st.session_state["history_active_tab"] = "events"
+                st.query_params["tab"] = "events"
                 res = verify_event(client, event_id, "dung", selected_label)
                 if res is not None and res.status_code == 200:
                     notify.success(f"Đã xác nhận sự kiện EV-{event_id:02d} với nhãn: {selected_label}")

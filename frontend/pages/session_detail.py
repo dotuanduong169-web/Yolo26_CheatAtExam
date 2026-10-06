@@ -92,9 +92,9 @@ st.markdown(f"""
 """, unsafe_allow_html=True)
 
 # ── Top Row: Chart + KPI ────────────────────────────────────
-top1, top2, top3 = st.columns([1, 1, 1], gap="medium")
+col_chart, col_kpi = st.columns([1.1, 2.3], gap="medium")
 
-with top1:
+with col_chart:
     st.markdown('<div class="card-title">Tỉ lệ sạch / gian lận</div>', unsafe_allow_html=True)
 
     labels = ["Sạch", "Gian lận"]
@@ -145,51 +145,90 @@ with top1:
         </div>
     """, unsafe_allow_html=True)
 
-with top2:
-    st.markdown(f"""
-    <div class="kpi-card">
-        <div class="kpi-label">Tổng sự kiện gian lận</div>
-        <div>
-            <span class="kpi-value orange">{tong:02d}</span>
-            <span class="kpi-unit">sự kiện</span>
-        </div>
-        <div class="kpi-sub {'warn' if tong > 0 else 'green'}">{'Cần kiểm tra' if tong > 0 else 'Đạt chuẩn'}</div>
-    </div>
-    """, unsafe_allow_html=True)
-
-    st.markdown(f"""
-    <div class="kpi-card">
-        <div class="kpi-label">Chờ kiểm tra</div>
-        <div>
-            <span class="kpi-value">{cho_kt:02d}</span>
-            <span class="kpi-unit">sự kiện</span>
-        </div>
-        <div class="kpi-sub">Đã xác minh: {da_xm}</div>
-    </div>
-    """, unsafe_allow_html=True)
-
-with top3:
+with col_kpi:
     start = str(sess.get("ThoiGianBatDau", ""))[:16].replace("T", " ")
     end = str(sess.get("ThoiGianKetThuc", "") or "Đang chạy")[:16].replace("T", " ")
-    st.markdown(f"""
-    <div class="kpi-card">
-        <div class="kpi-label">Thời gian bắt đầu</div>
-        <div>
-            <span class="kpi-value blue" style="font-size:20px">{start}</span>
-        </div>
-        <div class="kpi-sub">Kết thúc: {end}</div>
-    </div>
-    """, unsafe_allow_html=True)
+    room_name = sess.get("PhongThi") or "—"
+    sub_name = sess.get("MonThi") or "Chưa phân môn"
 
-    st.markdown(f"""
-    <div class="kpi-card">
-        <div class="kpi-label">Phòng / Môn thi</div>
-        <div>
-            <span class="kpi-value" style="font-size:20px">{sess.get("PhongThi") or "—"}</span>
+    # Hàng 1: Thông tin ca thi (Phòng / Môn + Thời gian)
+    r1_c1, r1_c2 = st.columns(2, gap="small")
+    with r1_c1:
+        st.markdown(f"""
+        <div class="kpi-card">
+            <div class="kpi-card-content">
+                <div class="kpi-label">Phòng / Môn thi</div>
+                <div class="kpi-value" style="font-size: 22px;">{room_name}</div>
+                <div class="kpi-sub green">{sub_name}</div>
+            </div>
+            <div class="kpi-card-icon purple">
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>
+                    <polyline points="9 22 9 12 15 12 15 22"/>
+                </svg>
+            </div>
         </div>
-        <div class="kpi-sub green">{sess.get("MonThi") or ""}</div>
-    </div>
-    """, unsafe_allow_html=True)
+        """, unsafe_allow_html=True)
+
+    with r1_c2:
+        st.markdown(f"""
+        <div class="kpi-card">
+            <div class="kpi-card-content">
+                <div class="kpi-label">Thời gian bắt đầu</div>
+                <div class="kpi-value blue" style="font-size: 18px;">{start}</div>
+                <div class="kpi-sub">Kết thúc: {end}</div>
+            </div>
+            <div class="kpi-card-icon blue">
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <circle cx="12" cy="12" r="10"/>
+                    <polyline points="12 6 12 12 16 14"/>
+                </svg>
+            </div>
+        </div>
+        """, unsafe_allow_html=True)
+
+    # Hàng 2: Thống kê vi phạm (Tổng sự kiện + Chờ kiểm tra)
+    r2_c1, r2_c2 = st.columns(2, gap="small")
+    with r2_c1:
+        st.markdown(f"""
+        <div class="kpi-card">
+            <div class="kpi-card-content">
+                <div class="kpi-label">Tổng sự kiện gian lận</div>
+                <div>
+                    <span class="kpi-value orange">{tong:02d}</span>
+                    <span class="kpi-unit">sự kiện</span>
+                </div>
+                <div class="kpi-sub {'warn' if tong > 0 else 'green'}">{'Cần kiểm tra' if tong > 0 else 'Đạt chuẩn'}</div>
+            </div>
+            <div class="kpi-card-icon orange">
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
+                    <line x1="12" y1="9" x2="12" y2="13"/>
+                    <line x1="12" y1="17" x2="12.01" y2="17"/>
+                </svg>
+            </div>
+        </div>
+        """, unsafe_allow_html=True)
+
+    with r2_c2:
+        st.markdown(f"""
+        <div class="kpi-card">
+            <div class="kpi-card-content">
+                <div class="kpi-label">Chờ kiểm tra</div>
+                <div>
+                    <span class="kpi-value">{cho_kt:02d}</span>
+                    <span class="kpi-unit">sự kiện</span>
+                </div>
+                <div class="kpi-sub">Đã xác minh: {da_xm}</div>
+            </div>
+            <div class="kpi-card-icon green">
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
+                    <polyline points="22 4 12 14.01 9 11.01"/>
+                </svg>
+            </div>
+        </div>
+        """, unsafe_allow_html=True)
 
 # ── Events Table ────────────────────────────────────────────
 
@@ -213,16 +252,17 @@ st.markdown("""
 if not events:
     notify.empty_state("Phiên thi này không có sự kiện vi phạm nào", "Hệ thống camera AI không phát hiện bất kỳ hành vi nghi vấn gian lận nào trong suốt ca thi này.")
 else:
-    st.markdown("""
-        <div class="tbl-head-row">
-            <div style="flex: 1.2;" class="tbl-head">THỜI GIAN</div>
-            <div style="flex: 1.4;" class="tbl-head">HÀNH VI PHÁT HIỆN</div>
-            <div style="flex: 0.9;" class="tbl-head">ĐỘ TIN CẬY</div>
-            <div style="flex: 1.3;" class="tbl-head">TRẠNG THÁI</div>
-            <div style="flex: 0.8; text-align: center;" class="tbl-head">THAO TÁC</div>
-        </div>
-    """, unsafe_allow_html=True)
+    # Header hàng bảng đồng bộ st.columns đảm bảo thẳng hàng 100% với các hàng dữ liệu
+    th1, th2, th3, th4, th5 = st.columns([1.2, 1.4, 0.9, 1.3, 0.8])
+    th1.caption("THỜI GIAN")
+    th2.caption("HÀNH VI PHÁT HIỆN")
+    th3.caption("ĐỘ TIN CẬY")
+    th4.caption("TRẠNG THÁI")
+    th5.markdown('<div style="text-align:right; font-size:11.5px; font-weight:700; color:#64748b; letter-spacing:0.5px; padding-right:8px;">THAO TÁC</div>', unsafe_allow_html=True)
 
+    st.markdown("<hr style='margin: 4px 0 8px 0; border: none; border-top: 1px solid var(--wf-border);'>", unsafe_allow_html=True)
+
+    aqs = auth_query_params()
     for row in page_events:
         c1, c2, c3, c4, c5 = st.columns([1.2, 1.4, 0.9, 1.3, 0.8])
 
@@ -252,16 +292,23 @@ else:
 
         with c5:
             ev_pk = row["PK_MaSuKien"]
-            if st.button(" ", key=f"btn_act_view_evdt_{ev_pk}", help="Xem chi tiết vi phạm"):
-                st.session_state["event_id"] = ev_pk
-                st.session_state["from_session_id"] = session_id
-                st.session_state["selected_session"] = session_id
-                st.session_state["session_id"] = session_id
-                st.switch_page("pages/event_detail.py")
+            action_html = (
+                f'<div style="display:flex; align-items:center; justify-content:flex-end; padding-right:8px; height:100%;">'
+                f'  <a href="/event_detail?id={ev_pk}&from_session={session_id}&{aqs}" target="_self" class="action-svg-btn view-btn" title="Xem chi tiết vi phạm #{ev_pk}">'
+                f'    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">'
+                f'      <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8z"/>'
+                f'      <circle cx="12" cy="12" r="3"/>'
+                f'    </svg>'
+                f'  </a>'
+                f'</div>'
+            )
+            st.markdown(action_html, unsafe_allow_html=True)
+
+        st.markdown("<hr style='margin: 4px 0 8px 0; border: none; border-top: 1px solid var(--wf-border);'>", unsafe_allow_html=True)
 
     # Phân trang nhỏ gọn Figma Standard
     showing = len(page_events)
-    st.markdown("<div style='height: 18px;'></div>", unsafe_allow_html=True)
+    st.markdown("<div style='height: 14px;'></div>", unsafe_allow_html=True)
     pg_left, pg_right = st.columns([1, 1])
 
     with pg_left:
@@ -273,25 +320,30 @@ else:
         )
 
     with pg_right:
-        p_items = []
-        p_items.append(("‹", max(1, page - 1), page <= 1))
-        for p_idx in range(1, total_pages + 1):
-            if total_pages > 7 and abs(p_idx - page) > 2 and p_idx != 1 and p_idx != total_pages:
+        pag_items = []
+        btn_base = "display: inline-flex; align-items: center; justify-content: center; width: 32px; height: 32px; border-radius: 6px; text-decoration: none; font-size: 13px; transition: all 0.2s;"
+
+        if page <= 1:
+            pag_items.append(f'<span style="{btn_base} border: 1px solid #e2e8f0; background: #f8fafc; color: #cbd5e1; cursor: not-allowed;">‹</span>')
+        else:
+            pag_items.append(f'<a href="/session_detail?id={session_id}&{aqs}&p={page - 1}" target="_self" style="{btn_base} border: 1px solid #cbd5e1; background: #ffffff; color: #334155;">‹</a>')
+
+        for p in range(1, total_pages + 1):
+            if total_pages > 7 and abs(p - page) > 2 and p != 1 and p != total_pages:
+                if p == 2 or p == total_pages - 1:
+                    pag_items.append('<span style="display: inline-flex; align-items: center; justify-content: center; width: 18px; height: 32px; color: #94a3b8; font-size: 13px;">…</span>')
                 continue
-            p_items.append((str(p_idx), p_idx, False))
-        p_items.append(("›", min(total_pages, page + 1), page >= total_pages))
+            if p == page:
+                pag_items.append(f'<span style="{btn_base} border: 1px solid #2563eb; background: #2563eb; color: #ffffff; font-weight: 700;">{p}</span>')
+            else:
+                pag_items.append(f'<a href="/session_detail?id={session_id}&{aqs}&p={p}" target="_self" style="{btn_base} border: 1px solid #cbd5e1; background: #ffffff; color: #334155; font-weight: 500;">{p}</a>')
 
-        n_btn = len(p_items)
-        p_cols = st.columns([1] * (7 - n_btn) + [1] * n_btn if n_btn < 7 else [1] * n_btn)
-        offset = 7 - n_btn if n_btn < 7 else 0
+        if page >= total_pages:
+            pag_items.append(f'<span style="{btn_base} border: 1px solid #e2e8f0; background: #f8fafc; color: #cbd5e1; cursor: not-allowed;">›</span>')
+        else:
+            pag_items.append(f'<a href="/session_detail?id={session_id}&{aqs}&p={page + 1}" target="_self" style="{btn_base} border: 1px solid #cbd5e1; background: #ffffff; color: #334155;">›</a>')
 
-        for i, (lbl, target_p, is_dis) in enumerate(p_items):
-            with p_cols[offset + i]:
-                is_cur = (lbl == str(page))
-                btn_t = "primary" if is_cur else "secondary"
-                if st.button(lbl, key=f"pag_btn_dt_{lbl}_{target_p}", disabled=is_dis, type=btn_t, use_container_width=True):
-                    if target_p != page:
-                        st.session_state.detail_page = target_p
-                        st.rerun()
+        st.markdown(f'<div class="history-pagination" style="display: flex !important; align-items: center !important; justify-content: flex-end !important; gap: 4px !important; width: 100% !important;">{"".join(pag_items)}</div>', unsafe_allow_html=True)
+
 
 

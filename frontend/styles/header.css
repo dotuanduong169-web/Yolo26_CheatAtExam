@@ -378,7 +378,7 @@ section[data-testid="stSidebar"] {
 div.st-key-header_logout_btn {
     position: fixed !important;
     top: 16px !important;
-    right: 16px !important;
+    right: 24px !important;
     z-index: 1000001 !important;
 }
 div.st-key-header_logout_btn button {

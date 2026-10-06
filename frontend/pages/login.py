@@ -87,15 +87,20 @@ st.markdown(f"""
 username = st.text_input("Tên đăng nhập :red[(*)]", placeholder="Nhập tên đăng nhập")
 password = st.text_input("Mật khẩu :red[(*)]", type="password", placeholder="Nhập mật khẩu")
 
-if st.button("Đăng nhập", type="primary", use_container_width=True):
+login_clicked = st.button("Đăng nhập", type="primary", use_container_width=True)
+
+if login_clicked:
     if not username or not password:
-        notify.error("Vui lòng nhập đầy đủ tên đăng nhập và mật khẩu")
+        notify.inline_warning("Vui lòng nhập đầy đủ tên đăng nhập và mật khẩu")
+        notify.warning("Vui lòng nhập đầy đủ tên đăng nhập và mật khẩu")
     else:
         with st.spinner("Đang kiểm tra..."):
             res = login(st.session_state.client, username, password)
 
         if res is None:
-            notify.error("Không kết nối được đến máy chủ hoặc máy chủ không phản hồi (hết thời gian chờ).")
+            err_txt = "Không kết nối được đến máy chủ hoặc máy chủ không phản hồi (hết thời gian chờ)."
+            notify.inline_error(err_txt)
+            notify.error(err_txt)
         elif res.status_code == 200:
             data = res.json()
             tok = data.get("access_token")
@@ -149,11 +154,15 @@ if st.button("Đăng nhập", type="primary", use_container_width=True):
             except Exception:
                 pass
             if "locked" in detail_msg.lower() or "khóa" in detail_msg.lower():
-                notify.error("Tài khoản của bạn đã bị khóa. Vui lòng liên hệ quản trị viên.")
+                err_txt = "Tài khoản của bạn đã bị khóa. Vui lòng liên hệ quản trị viên."
             else:
-                notify.error("Tên đăng nhập hoặc mật khẩu không chính xác")
+                err_txt = "Tên đăng nhập hoặc mật khẩu không chính xác. Vui lòng kiểm tra lại."
+            notify.inline_error(err_txt)
+            notify.error(err_txt)
         else:
-            notify.error(f"Lỗi đăng nhập: {res.text}")
+            err_txt = f"Lỗi đăng nhập: {res.text}"
+            notify.inline_error(err_txt)
+            notify.error(err_txt)
 
 # Flush hàng đợi (trang login không có header chung)
 flush_toasts()

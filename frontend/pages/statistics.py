@@ -70,18 +70,9 @@ if (not distribution or all(d.get("count", d.get("so_luot", 0)) == 0 for d in di
             for k, v in counts.items()
         ]
         distribution = sorted(distribution, key=lambda x: x["count"], reverse=True)
-    elif total_cheats > 0:
-        distribution = [
-            {
-                "behavior_code": "cellphone",
-                "behavior_name": "Điện thoại di động",
-                "count": total_cheats,
-                "percentage": 100.0,
-            }
-        ]
 
 # Tìm hành vi phổ biến nhất từ phân bố thực tế
-top_behavior_name = summary.get("most_common_behavior") or "Chưa có vi phạm"
+top_behavior_name = summary.get("most_common_behavior") or ("Chưa có vi phạm" if total_cheats == 0 else "Chưa đủ dữ liệu")
 top_behavior_hint = "Hệ thống hoạt động ổn định"
 if distribution:
     top_item = max(distribution, key=lambda x: x.get("count", x.get("so_luot", 0)))

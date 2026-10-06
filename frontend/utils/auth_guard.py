@@ -88,9 +88,6 @@ def require_auth() -> None:
         unsafe_allow_html=True,
     )
 
-    # Bỏ qua xác thực backend với token demo
-    if str(token).startswith("demo_token"):
-        return
 
     try:
         from utils.http import get_auth_headers

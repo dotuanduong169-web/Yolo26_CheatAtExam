@@ -254,7 +254,7 @@ else:
             aqs = auth_query_params()
             view_action_html = (
                 f'<div style="display:flex; align-items:center; justify-content:flex-end; gap:6px;">'
-                f'  <a href="/event_detail?id={ev_pk}&{aqs}" class="action-svg-btn view-btn" title="Xem chi tiết vi phạm">'
+                f'  <a href="/event_detail?id={ev_pk}&from_session={session_id}&{aqs}" class="action-svg-btn view-btn" title="Xem chi tiết vi phạm">'
                 f'    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">'
                 f'      <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8z"/>'
                 f'      <circle cx="12" cy="12" r="3"/>'

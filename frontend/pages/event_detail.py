@@ -57,9 +57,24 @@ stt_text, stt_cls = get_event_status_info(trang_thai)
 # ── Header ──────────────────────────────────────────────────
 render_page_header(f"Chi tiết sự kiện #EV-{event_id:02d}", active="history")
 
-if st.button("Quay lại danh sách sự kiện"):
-    st.session_state["history_active_tab"] = "events"
-    st.switch_page("pages/history.py")
+from_sess_id = st.query_params.get("from_session") or data.get("FK_MaPhienGiamSat")
+
+if from_sess_id:
+    c_back1, c_back2, _ = st.columns([1.4, 1.4, 3])
+    with c_back1:
+        if st.button("← Quay lại chi tiết ca thi", key="btn_back_session"):
+            st.query_params["id"] = str(from_sess_id)
+            if "from_session" in st.query_params:
+                del st.query_params["from_session"]
+            st.switch_page("pages/session_detail.py")
+    with c_back2:
+        if st.button("Quay lại nhật ký sự kiện", key="btn_back_events"):
+            st.session_state["history_active_tab"] = "events"
+            st.switch_page("pages/history.py")
+else:
+    if st.button("← Quay lại danh sách sự kiện", key="btn_back_events"):
+        st.session_state["history_active_tab"] = "events"
+        st.switch_page("pages/history.py")
 
 
 # ── Main Layout ─────────────────────────────────────────────
@@ -78,67 +93,20 @@ with left_col:
     </div>
     """, unsafe_allow_html=True)
 
-    img_b64 = None
-    img_w, img_h = 1, 1
+    pil_img = None
     if evidences:
         raw = get_evidence_bytes(st.session_state.client, evidences[0].get("PK_MaBangChung"))
         if raw:
             try:
                 pil_img = Image.open(io.BytesIO(raw))
-                img_w, img_h = pil_img.size
-                img_b64 = base64.b64encode(raw).decode()
             except Exception:
                 pass
 
-    has_bbox = img_b64 and isinstance(bbox, list) and len(bbox) == 4
-
-    if has_bbox:
-        x1, y1, x2, y2 = bbox
-        left_pct = (x1 / img_w) * 100
-        top_pct = (y1 / img_h) * 100
-        width_pct = ((x2 - x1) / img_w) * 100
-        height_pct = ((y2 - y1) / img_h) * 100
-
-        import streamlit.components.v1 as components
-
-        component_html = f"""
-        <!DOCTYPE html>
-        <html>
-        <head>
-        <style>
-            * {{ margin: 0; padding: 0; box-sizing: border-box; }}
-            body {{ font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: transparent; }}
-            .interactive-frame {{ position: relative; width: 100%; border-radius: 14px; overflow: hidden; background: #0a0a0a; }}
-            .interactive-frame > img {{ width: 100%; display: block; }}
-            .bbox-overlay {{ position: absolute; border: 2.5px solid #ef4444; border-radius: 6px; background: rgba(239, 68, 68, 0.12); z-index: 2; }}
-            .bbox-tag {{ position: absolute; top: -24px; left: -2px; padding: 3px 10px; border-radius: 6px 6px 0 0;
-                         font-size: 11px; font-weight: 700; white-space: nowrap; background: #ef4444; color: #fff; }}
-            .frame-hint {{ display: flex; align-items: center; justify-content: center; gap: 6px; margin-top: 10px;
-                           padding: 8px 16px; background: linear-gradient(135deg, #eff6ff, #eef2ff);
-                           border: 1px solid #c7d2fe; border-radius: 10px; font-size: 12px; font-weight: 600; color: #4f46e5; }}
-        </style>
-        </head>
-        <body>
-            <div class="interactive-frame">
-                <img src="data:image/jpeg;base64,{img_b64}" alt="Evidence">
-                <div class="bbox-overlay"
-                     style="left:{left_pct:.2f}%; top:{top_pct:.2f}%;
-                            width:{width_pct:.2f}%; height:{height_pct:.2f}%;">
-                    <span class="bbox-tag">{friendly_label} · {conf}%</span>
-                </div>
-            </div>
-            <div class="frame-hint">Dùng các nút bên phải để xác nhận vi phạm hoặc bác bỏ báo sai</div>
-        </body>
-        </html>
-        """
-
-        aspect = img_h / img_w if img_w > 0 else 0.75
-        estimated_height = int(700 * aspect) + 60
-        components.html(component_html, height=estimated_height, scrolling=False)
-    elif img_b64:
-        st.image(f"data:image/jpeg;base64,{img_b64}", use_container_width=True)
+    if pil_img:
+        st.image(pil_img, use_container_width=True)
+        st.caption("Khung nhận diện vi phạm được hệ thống camera AI đánh dấu tại thời điểm phát hiện.")
     else:
-        notify.warning("Không tải được ảnh bằng chứng.")
+        notify.warning("Không tải được ảnh bằng chứng của sự kiện này.")
 
 # ── RIGHT: Info + Verify ────────────────────────────────────
 with right_col:

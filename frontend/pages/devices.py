@@ -37,7 +37,20 @@ _devices_all = list_devices(st.session_state.client)
 _n_total = len(_devices_all)
 _n_ready = sum(1 for d in _devices_all if (d.get("TrangThai") or "") == "san_sang")
 _cam_res = safe_get(f"{API_BASE_URL}/camera/status")
-_live_txt = "Đang giám sát" if (_cam_res and _cam_res.status_code == 200 and _cam_res.json().get("running")) else "Đang dừng"
+_cam_data = _cam_res.json() if (_cam_res and _cam_res.status_code == 200) else {}
+_is_running = bool(_cam_data.get("running"))
+_fps_val = _cam_data.get("fps")
+
+if _is_running:
+    if _fps_val is not None and _fps_val > 0:
+        _live_txt = f"{_fps_val:.1f} FPS"
+        _live_hint = "Camera AI đang hoạt động thời gian thực"
+    else:
+        _live_txt = "Đang chạy"
+        _live_hint = "Luồng camera đang mở"
+else:
+    _live_txt = "Đang dừng"
+    _live_hint = "Chưa mở luồng camera"
 
 st.markdown(f"""
 <div class="wf-grid-3">
@@ -52,9 +65,9 @@ st.markdown(f"""
         <div class="wf-stat-hint">Trạng thái san_sang, chờ mở phiên</div>
     </div>
     <div class="wf-stat-tile">
-        <div class="wf-stat-label">Luồng giám sát</div>
+        <div class="wf-stat-label">Tốc độ xử lý / Luồng giám sát</div>
         <div class="wf-stat-num" style="font-size:22px;">{_live_txt}</div>
-        <div class="wf-stat-hint">Trạng thái camera hiện tại</div>
+        <div class="wf-stat-hint">{_live_hint}</div>
     </div>
 </div>
 """, unsafe_allow_html=True)

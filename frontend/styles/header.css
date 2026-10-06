@@ -260,69 +260,27 @@ div[data-testid="stPopoverBody"] {
     padding: 0 16px;
 }
 
-/* 3. SIDEBAR */
-section[data-testid="stSidebar"] {
-    top: 60px !important;
-    height: calc(100vh - 60px) !important;
-    background-color: white !important;
-    border-right: 1px solid #f0f0f0 !important;
-    z-index: 999999 !important;
-}
-
-/* Force flex column on sidebar user content to push footer to bottom */
-[data-testid="stSidebarUserContent"] {
-    display: flex !important;
-    flex-direction: column !important;
-    min-height: calc(100vh - 80px) !important;
-}
-
-[data-testid="stSidebarUserContent"] > [data-testid="stVerticalBlock"] {
-    display: flex !important;
-    flex-direction: column !important;
-    flex: 1 !important;
-    height: 100% !important;
-}
-
-/* Sidebar Buttons - Left Aligned & Flat */
-[data-testid="stSidebar"] button {
-    text-align: left !important;
-    justify-content: flex-start !important;
-    padding-left: 16px !important;
-    height: 48px !important;
-    width: 100% !important;
-    margin-bottom: 6px !important;
-    border-radius: 10px !important;
+/* 3. SIDEBAR (LOẠI BỎ HOÀN TOÀN) */
+section[data-testid="stSidebar"],
+[data-testid="stSidebar"],
+[data-testid="stSidebarNav"],
+[data-testid="stSidebarUserContent"],
+[data-testid="stSidebarHeader"],
+[data-testid="stSidebarCollapseButton"],
+[data-testid="stSidebarCollapsedControl"],
+[data-testid="collapsedControl"] {
+    display: none !important;
+    width: 0 !important;
+    min-width: 0 !important;
+    max-width: 0 !important;
+    height: 0 !important;
+    visibility: hidden !important;
+    pointer-events: none !important;
+    position: absolute !important;
+    left: -9999px !important;
+    margin: 0 !important;
+    padding: 0 !important;
     border: none !important;
-    background: transparent !important;
-    color: #595959 !important;
-    font-size: 14px !important;
-    font-weight: 500 !important;
-    box-shadow: none !important;
-    transition: all 0.2s ease !important;
-}
-
-[data-testid="stSidebar"] button:hover {
-    background: #f5f5f5 !important;
-    color: #1677ff !important;
-}
-
-/* 4. LOGOUT FOOTER */
-/* The last button in the vertical block is the Logout button */
-[data-testid="stSidebarUserContent"] [data-testid="stVerticalBlock"] > div:last-child {
-    margin-top: auto !important;
-    padding-bottom: 20px;
-    padding-top: 15px;
-    border-top: 1px solid #f0f0f0;
-}
-
-[data-testid="stSidebarUserContent"] [data-testid="stVerticalBlock"] > div:last-child button {
-    color: #ff4d4f !important;
-    font-weight: 600 !important;
-}
-
-[data-testid="stSidebarUserContent"] [data-testid="stVerticalBlock"] > div:last-child button:hover {
-    background: #fff1f0 !important;
-    color: #f5222d !important;
 }
 
 /* 5. MAIN CONTENT OFFSET & CONTAINER CHUẨN ĐỒNG BỘ */

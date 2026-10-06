@@ -94,7 +94,7 @@ def capture_loop() -> None:
                         annotated = frame
                     confirmed = [r for r in results if _keep_result(state, r)]
                     _save_snapshot(
-                        db, state,
+                        db, state.current_session_id,
                         annotated,
                         confirmed, image_dir, frame_count,
                     )
@@ -164,7 +164,7 @@ def _keep_result(state: CameraState, r: dict) -> bool:
 
 def _save_snapshot(
     db,
-    state: CameraState,
+    session_id: int | None,
     frame,
     results: list[dict],
     image_dir: Path,
@@ -182,7 +182,7 @@ def _save_snapshot(
         logger.error(f"Failed to save image: {exc}", exc_info=True)
         return
 
-    if not state.current_session_id:
+    if not session_id:
         return
 
     try:
@@ -191,7 +191,7 @@ def _save_snapshot(
                 continue
             event = create_event(
                 db,
-                session_id=state.current_session_id,
+                session_id=session_id,
                 loai_hanh_vi=r.get("label", ""),
                 nhan_ai=r.get("label", ""),
                 toa_do=r.get("bbox", []),
@@ -200,7 +200,7 @@ def _save_snapshot(
             create_evidence(db, event.PK_MaSuKien, "anh", str(image_path))
 
         stats_data = calculate_stats(results)
-        create_statistics(db, stats_data, state.current_session_id)
+        create_statistics(db, stats_data, session_id)
 
         db.commit()
         logger.info(f"Snapshot saved — frames: {frame_count}, events: {len([r for r in results if r.get('is_cheat')])}")

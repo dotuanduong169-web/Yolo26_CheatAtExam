@@ -163,36 +163,79 @@ if "select_session" in st.query_params:
     except Exception:
         pass
 
-# ── Quản lý Tab con: [Danh mục ca thi, Nhật ký sự kiện] ──
-if "tab" in st.query_params:
-    tab_param = st.query_params["tab"]
-    if tab_param in ("sessions", "events"):
-        st.session_state["history_active_tab"] = tab_param
+# ── Quản lý Tab con chuẩn hệ thống: [Danh mục ca thi, Nhật ký sự kiện] ──
+tab_sessions, tab_events = st.tabs(["Danh mục ca thi", "Nhật ký sự kiện"])
 
-current_tab = st.session_state.get("history_active_tab", "sessions")
-if current_tab not in ("sessions", "events"):
-    current_tab = "sessions"
-st.query_params["tab"] = current_tab
+target_tab_idx = 1 if st.session_state.get("history_active_tab") == "events" or st.query_params.get("tab") == "events" else 0
 
-active_sess_cls = "active" if current_tab == "sessions" else ""
-active_ev_cls = "active" if current_tab == "events" else ""
+st.components.v1.html(
+    f"""
+    <script>
+    (function() {{
+        function syncTabs() {{
+            try {{
+                const tabs = window.parent.document.querySelectorAll('div[data-testid="stTabs"] button[role="tab"]');
+                if (!tabs || tabs.length < 2) return;
 
-st.markdown(f"""
-<div class="history-sub-tabs">
-    <a href="/history?{aqs}&tab=sessions" target="_self" class="sub-tab-item {active_sess_cls}">
-        <span>📋</span> Danh mục ca thi
-    </a>
-    <a href="/history?{aqs}&tab=events" target="_self" class="sub-tab-item {active_ev_cls}">
-        <span>🚨</span> Nhật ký sự kiện
-    </a>
-</div>
-""", unsafe_allow_html=True)
+                if (!tabs[0].dataset.syncListener) {{
+                    tabs[0].dataset.syncListener = "1";
+                    tabs[0].addEventListener('click', function() {{
+                        try {{
+                            window.parent.sessionStorage.setItem('hist_subtab_idx', '0');
+                            const u = new URL(window.parent.location.href);
+                            u.searchParams.set('tab', 'sessions');
+                            window.parent.history.replaceState({{}}, '', u.pathname + u.search);
+                        }} catch(e) {{}}
+                    }});
+                }}
+                if (!tabs[1].dataset.syncListener) {{
+                    tabs[1].dataset.syncListener = "1";
+                    tabs[1].addEventListener('click', function() {{
+                        try {{
+                            window.parent.sessionStorage.setItem('hist_subtab_idx', '1');
+                            const u = new URL(window.parent.location.href);
+                            u.searchParams.set('tab', 'events');
+                            window.parent.history.replaceState({{}}, '', u.pathname + u.search);
+                        }} catch(e) {{}}
+                    }});
+                }}
+
+                const url = new URL(window.parent.location.href);
+                const qTab = url.searchParams.get('tab');
+                const savedIdx = window.parent.sessionStorage.getItem('hist_subtab_idx');
+
+                let shouldBe1 = false;
+                if (qTab === 'events' || {str(target_tab_idx == 1).lower()}) {{
+                    shouldBe1 = true;
+                }} else if (qTab === 'sessions') {{
+                    shouldBe1 = false;
+                }} else if (savedIdx === '1') {{
+                    shouldBe1 = true;
+                }}
+
+                if (shouldBe1 && tabs[1].getAttribute('aria-selected') !== 'true') {{
+                    tabs[1].click();
+                }} else if (!shouldBe1 && tabs[0].getAttribute('aria-selected') !== 'true' && savedIdx === '0') {{
+                    tabs[0].click();
+                }}
+            }} catch(e) {{}}
+        }}
+
+        syncTabs();
+        setTimeout(syncTabs, 40);
+        setTimeout(syncTabs, 120);
+    }})();
+    </script>
+    """,
+    height=0,
+    width=0,
+)
 
 
 # =========================================================================
 # TAB 1: DANH MỤC CA THI
 # =========================================================================
-if current_tab == "sessions":
+with tab_sessions:
     # Phân trang & Tìm kiếm ca thi
     if "hist_page" not in st.session_state:
         st.session_state.hist_page = 1
@@ -362,7 +405,7 @@ if current_tab == "sessions":
 # =========================================================================
 # TAB 2: NHẬT KÝ SỰ KIỆN GIAN LẬN
 # =========================================================================
-else:
+with tab_events:
     all_sessions_list = get_all_sessions(client)
 
     # 1. Bộ lọc 3 cột

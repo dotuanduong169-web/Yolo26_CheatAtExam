@@ -117,7 +117,7 @@ stt_text, stt_cls = get_event_status_info(trang_thai)
 render_page_header(f"Chi tiết sự kiện #EV-{event_id:02d}", active="history")
 
 if from_sess_id:
-    c_back1, c_back2, _ = st.columns([1.5, 1.5, 3])
+    c_back1, c_back2, _ = st.columns([0.22, 0.22, 0.56], gap="small")
     with c_back1:
         if st.button("← Quay lại chi tiết ca thi", key="btn_back_session"):
             st.session_state["selected_session"] = from_sess_id
@@ -127,7 +127,7 @@ if from_sess_id:
                 del st.query_params["from_session"]
             st.switch_page("pages/session_detail.py")
     with c_back2:
-        if st.button("Quay lại nhật ký sự kiện", key="btn_back_events"):
+        if st.button("← Quay lại nhật ký sự kiện", key="btn_back_events"):
             st.session_state["history_active_tab"] = "events"
             st.switch_page("pages/history.py")
 else:

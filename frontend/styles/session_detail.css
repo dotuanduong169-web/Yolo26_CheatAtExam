@@ -463,3 +463,19 @@ div[data-testid="column"]:last-child button:hover {
     margin-bottom: 8px !important;
     border: 1px solid #eff0f3 !important;
 }
+
+/* Căn giữa cột thao tác bảng sự kiện trong session_detail */
+div[data-testid="column"]:has(div[class*="st-key-btn_act_view_evdt_"]) {
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    height: 57px !important;
+    border-bottom: 1px solid #f1f5f9 !important;
+}
+
+div[data-testid="column"]:has(div[class*="st-key-btn_act_view_evdt_"]) > div[data-testid="stVerticalBlock"] {
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    width: 100% !important;
+}

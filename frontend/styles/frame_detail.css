@@ -8,6 +8,13 @@
     margin-bottom: 16px;
 }
 
+div[data-testid="column"]:has(div[class*="st-key-btn_back_"]) {
+    width: auto !important;
+    min-width: fit-content !important;
+    flex: 0 0 auto !important;
+    padding-right: 8px !important;
+}
+
 /* ===== IMAGE CARD ===== */
 .img-card {
     background: #ffffff;

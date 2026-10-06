@@ -75,6 +75,26 @@ def confirm_delete_dialog(session_id: int):
             handle_delete(session_id)
 
 
+# ── Nhận diện tương tác bộ lọc sự kiện để duy trì tab Nhật ký sự kiện ──
+curr_ev_bh = st.session_state.get("hist_events_filter_bh")
+curr_ev_stt = st.session_state.get("hist_events_filter_stt")
+curr_ev_sid = st.session_state.get("hist_events_sel_session")
+
+last_ev_bh = st.session_state.get("_last_hist_events_filter_bh")
+last_ev_stt = st.session_state.get("_last_hist_events_filter_stt")
+last_ev_sid = st.session_state.get("_last_hist_events_sel_session")
+
+if (
+    (curr_ev_bh != last_ev_bh and last_ev_bh is not None)
+    or (curr_ev_stt != last_ev_stt and last_ev_stt is not None)
+    or (curr_ev_sid != last_ev_sid and last_ev_sid is not None)
+):
+    st.session_state["history_active_tab"] = "events"
+
+st.session_state["_last_hist_events_filter_bh"] = curr_ev_bh
+st.session_state["_last_hist_events_filter_stt"] = curr_ev_stt
+st.session_state["_last_hist_events_sel_session"] = curr_ev_sid
+
 # ── Xử lý query params từ link icon SVG (giữ phiên qua auth params trong URL) ──
 if "confirm_delete" in st.query_params:
     try:
@@ -87,6 +107,8 @@ if "confirm_delete" in st.query_params:
 if "view_ev" in st.query_params:
     try:
         v_ev_id = int(st.query_params["view_ev"])
+        del st.query_params["view_ev"]
+        st.session_state["history_active_tab"] = "events"
         show_evidence_dialog(v_ev_id)
     except Exception:
         pass
@@ -98,6 +120,7 @@ if "confirm_ev" in st.query_params:
         del st.query_params["confirm_ev"]
         if "raw_label" in st.query_params:
             del st.query_params["raw_label"]
+        st.session_state["history_active_tab"] = "events"
         res = verify_event(client, c_ev_id, "dung", c_raw_label)
         if res is not None and res.status_code == 200:
             notify.defer_success(f"Đã xác nhận sự kiện EV-{c_ev_id:02d} là Vi phạm")
@@ -111,6 +134,7 @@ if "reject_ev" in st.query_params:
     try:
         r_ev_id = int(st.query_params["reject_ev"])
         del st.query_params["reject_ev"]
+        st.session_state["history_active_tab"] = "events"
         res = verify_event(client, r_ev_id, "sai", "Answer_paper")
         if res is not None and res.status_code == 200:
             notify.defer_success(f"Đã bác bỏ sự kiện EV-{r_ev_id:02d} (Giấy thi hợp lệ)")
@@ -134,32 +158,74 @@ if "tab" in st.query_params:
         st.session_state["history_active_tab"] = "events"
     elif st.query_params["tab"] == "sessions":
         st.session_state["history_active_tab"] = "sessions"
+    try:
+        del st.query_params["tab"]
+    except Exception:
+        pass
 
 # ── Cố định vị trí Tab con theo chuẩn: [Danh mục ca thi, Nhật ký sự kiện] ──
 tab_sessions, tab_events = st.tabs(["Danh mục ca thi", "Nhật ký sự kiện"])
 
-if st.session_state.get("history_active_tab") == "events":
-    st.components.v1.html(
-        """
-        <script>
-        (function() {
-            function activateTab() {
-                try {
-                    const tabs = window.parent.document.querySelectorAll('div[data-testid="stTabs"] button[role="tab"]');
-                    if (tabs && tabs.length > 1) {
-                        tabs[1].click();
-                    }
-                } catch(e) {}
-            }
-            setTimeout(activateTab, 50);
-            setTimeout(activateTab, 200);
-        })();
-        </script>
-        """,
-        height=0,
-        width=0,
-    )
-    st.session_state["history_active_tab"] = None
+current_forced_tab = st.session_state.get("history_active_tab") or ""
+
+st.components.v1.html(
+    f"""
+    <script>
+    (function() {{
+        function initTabSync() {{
+            try {{
+                const tabs = window.parent.document.querySelectorAll('div[data-testid="stTabs"] button[role="tab"]');
+                if (!tabs || tabs.length < 2) return;
+
+                if (!tabs[0].dataset.syncBound) {{
+                    tabs[0].dataset.syncBound = "true";
+                    tabs[0].addEventListener('click', function() {{
+                        try {{ window.parent.sessionStorage.setItem('history_active_tab_idx', '0'); }} catch(e){{}}
+                    }});
+                }}
+                if (!tabs[1].dataset.syncBound) {{
+                    tabs[1].dataset.syncBound = "true";
+                    tabs[1].addEventListener('click', function() {{
+                        try {{ window.parent.sessionStorage.setItem('history_active_tab_idx', '1'); }} catch(e){{}}
+                    }});
+                }}
+
+                const forced = "{current_forced_tab}";
+                let targetIdx = null;
+
+                if (forced === "events") {{
+                    targetIdx = 1;
+                    try {{ window.parent.sessionStorage.setItem('history_active_tab_idx', '1'); }} catch(e){{}}
+                }} else if (forced === "sessions") {{
+                    targetIdx = 0;
+                    try {{ window.parent.sessionStorage.setItem('history_active_tab_idx', '0'); }} catch(e){{}}
+                }} else {{
+                    try {{
+                        const saved = window.parent.sessionStorage.getItem('history_active_tab_idx');
+                        if (saved === '1') targetIdx = 1;
+                        else if (saved === '0') targetIdx = 0;
+                    }} catch(e){{}}
+                }}
+
+                if (targetIdx !== null && targetIdx < tabs.length) {{
+                    const isSelected = tabs[targetIdx].getAttribute('aria-selected') === 'true';
+                    if (!isSelected) {{
+                        tabs[targetIdx].click();
+                    }}
+                }}
+            }} catch(e) {{}}
+        }}
+
+        initTabSync();
+        setTimeout(initTabSync, 50);
+        setTimeout(initTabSync, 150);
+        setTimeout(initTabSync, 300);
+    }})();
+    </script>
+    """,
+    height=0,
+    width=0,
+)
 
 
 # =========================================================================
@@ -232,6 +298,7 @@ with tab_sessions:
     if search_val != st.session_state.hist_search:
         st.session_state.hist_search = search_val
         st.session_state.hist_page = 1
+        st.session_state["history_active_tab"] = "sessions"
         st.rerun()
 
     # 3. Bảng danh mục ca thi
@@ -315,6 +382,7 @@ with tab_sessions:
                     if st.button(lbl, key=f"pag_btn_sess_{lbl}_{target_p}", disabled=is_dis, type=btn_t, use_container_width=True):
                         if target_p != current_page:
                             st.session_state.hist_page = target_p
+                            st.session_state["history_active_tab"] = "sessions"
                             st.rerun()
 
 
@@ -323,6 +391,13 @@ with tab_sessions:
 # TAB 2: NHẬT KÝ SỰ KIỆN GIAN LẬN
 # =========================================================================
 with tab_events:
+    # Luôn xóa query param view_ev nếu còn sót lại để không mở lại dialog cũ khi chọn bộ lọc
+    if "view_ev" in st.query_params:
+        try:
+            del st.query_params["view_ev"]
+        except Exception:
+            pass
+
     all_sessions_list = get_all_sessions(client)
 
     # 1. Bộ lọc 3 cột
@@ -449,9 +524,11 @@ with tab_events:
                     ev_c1, ev_c2, ev_c3 = st.columns([1, 1, 1])
                     with ev_c1:
                         if st.button(" ", key=f"btn_act_view_ev_{ev_id}", help="Xem nhanh bằng chứng vi phạm"):
+                            st.session_state["history_active_tab"] = "events"
                             show_evidence_dialog(ev_id)
                     with ev_c2:
                         if st.button(" ", key=f"btn_act_confirm_ev_{ev_id}", help=f"Xác nhận đúng vi phạm ({friendly_label})"):
+                            st.session_state["history_active_tab"] = "events"
                             res = verify_event(client, ev_id, "dung", raw_label)
                             if res is not None and res.status_code == 200:
                                 notify.defer_success(f"Đã xác nhận sự kiện EV-{ev_id:02d} ({friendly_label})")
@@ -460,6 +537,7 @@ with tab_events:
                             st.rerun()
                     with ev_c3:
                         if st.button(" ", key=f"btn_act_reject_ev_{ev_id}", help="Bác bỏ vi phạm (Giấy thi hợp lệ)"):
+                            st.session_state["history_active_tab"] = "events"
                             res = verify_event(client, ev_id, "sai", "Answer_paper")
                             if res is not None and res.status_code == 200:
                                 notify.defer_success(f"Đã bác bỏ sự kiện EV-{ev_id:02d}")

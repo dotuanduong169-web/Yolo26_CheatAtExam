@@ -219,7 +219,7 @@ else:
             <div style="flex: 1.4;" class="tbl-head">HÀNH VI PHÁT HIỆN</div>
             <div style="flex: 0.9;" class="tbl-head">ĐỘ TIN CẬY</div>
             <div style="flex: 1.3;" class="tbl-head">TRẠNG THÁI</div>
-            <div style="flex: 0.8;" class="tbl-head">THAO TÁC</div>
+            <div style="flex: 0.8; text-align: center;" class="tbl-head">THAO TÁC</div>
         </div>
     """, unsafe_allow_html=True)
 

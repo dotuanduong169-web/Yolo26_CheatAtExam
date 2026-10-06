@@ -252,18 +252,12 @@ else:
 
         with c5:
             ev_pk = row["PK_MaSuKien"]
-            aqs = auth_query_params()
-            view_action_html = (
-                f'<div style="display:flex; align-items:center; justify-content:flex-end; gap:6px;">'
-                f'  <a href="/event_detail?id={ev_pk}&from_session={session_id}&{aqs}" target="_self" class="action-svg-btn view-btn" title="Xem chi tiết vi phạm">'
-                f'    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">'
-                f'      <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8z"/>'
-                f'      <circle cx="12" cy="12" r="3"/>'
-                f'    </svg>'
-                f'  </a>'
-                f'</div>'
-            )
-            st.markdown(view_action_html, unsafe_allow_html=True)
+            if st.button(" ", key=f"btn_act_view_evdt_{ev_pk}", help="Xem chi tiết vi phạm"):
+                st.session_state["event_id"] = ev_pk
+                st.session_state["from_session_id"] = session_id
+                st.session_state["selected_session"] = session_id
+                st.session_state["session_id"] = session_id
+                st.switch_page("pages/event_detail.py")
 
     # Phân trang nhỏ gọn Figma Standard
     showing = len(page_events)
@@ -279,30 +273,25 @@ else:
         )
 
     with pg_right:
-        aqs = auth_query_params()
-        pag_items = []
-        btn_base = "display: inline-flex; align-items: center; justify-content: center; min-width: 32px; height: 32px; padding: 0 6px; border-radius: 6px; font-size: 13px; text-decoration: none; margin: 0 2px; box-sizing: border-box; transition: all 0.15s ease;"
-
-        if page <= 1:
-            pag_items.append(f'<span style="{btn_base} border: 1px solid #e2e8f0; background: #f8fafc; color: #cbd5e1; cursor: not-allowed;">‹</span>')
-        else:
-            pag_items.append(f'<a href="/session_detail?id={session_id}&{aqs}&p={page - 1}" target="_self" style="{btn_base} border: 1px solid #cbd5e1; background: #ffffff; color: #334155;">‹</a>')
-
+        p_items = []
+        p_items.append(("‹", max(1, page - 1), page <= 1))
         for p_idx in range(1, total_pages + 1):
             if total_pages > 7 and abs(p_idx - page) > 2 and p_idx != 1 and p_idx != total_pages:
-                if p_idx == 2 or p_idx == total_pages - 1:
-                    pag_items.append('<span style="display: inline-flex; align-items: center; justify-content: center; width: 18px; height: 32px; color: #94a3b8; font-size: 13px;">…</span>')
                 continue
-            if p_idx == page:
-                pag_items.append(f'<span style="{btn_base} border: 1px solid #2563eb; background: #2563eb; color: #ffffff; font-weight: 700;">{p_idx}</span>')
-            else:
-                pag_items.append(f'<a href="/session_detail?id={session_id}&{aqs}&p={p_idx}" target="_self" style="{btn_base} border: 1px solid #cbd5e1; background: #ffffff; color: #334155; font-weight: 500;">{p_idx}</a>')
+            p_items.append((str(p_idx), p_idx, False))
+        p_items.append(("›", min(total_pages, page + 1), page >= total_pages))
 
-        if page >= total_pages:
-            pag_items.append(f'<span style="{btn_base} border: 1px solid #e2e8f0; background: #f8fafc; color: #cbd5e1; cursor: not-allowed;">›</span>')
-        else:
-            pag_items.append(f'<a href="/session_detail?id={session_id}&{aqs}&p={page + 1}" target="_self" style="{btn_base} border: 1px solid #cbd5e1; background: #ffffff; color: #334155;">›</a>')
+        n_btn = len(p_items)
+        p_cols = st.columns([1] * (7 - n_btn) + [1] * n_btn if n_btn < 7 else [1] * n_btn)
+        offset = 7 - n_btn if n_btn < 7 else 0
 
-        st.markdown(f'<div class="history-pagination" style="display: flex !important; align-items: center !important; justify-content: flex-end !important; gap: 4px !important; width: 100% !important;">{"".join(pag_items)}</div>', unsafe_allow_html=True)
+        for i, (lbl, target_p, is_dis) in enumerate(p_items):
+            with p_cols[offset + i]:
+                is_cur = (lbl == str(page))
+                btn_t = "primary" if is_cur else "secondary"
+                if st.button(lbl, key=f"pag_btn_dt_{lbl}_{target_p}", disabled=is_dis, type=btn_t, use_container_width=True):
+                    if target_p != page:
+                        st.session_state.detail_page = target_p
+                        st.rerun()
 
 

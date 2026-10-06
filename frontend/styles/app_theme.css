@@ -475,6 +475,194 @@ div[data-baseweb="tab-border"] {
     border-color: #fda4af !important;
 }
 
+/* ==========================================================================
+   STREAMLIT NATIVE ACTION BUTTONS (MƯỢT MÀ 100%, KHÔNG RELOAD, KHÔNG NHÁY)
+   ========================================================================== */
+div[class*="st-key-btn_act_"] {
+    display: inline-flex !important;
+    width: auto !important;
+    margin: 0 1px !important;
+}
+
+div[class*="st-key-btn_act_"] button {
+    width: 28px !important;
+    height: 28px !important;
+    min-width: 28px !important;
+    min-height: 28px !important;
+    max-width: 28px !important;
+    max-height: 28px !important;
+    padding: 0 !important;
+    border-radius: 6px !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    border: 1px solid transparent !important;
+    background-size: 15px 15px !important;
+    background-position: center !important;
+    background-repeat: no-repeat !important;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.03) !important;
+    transition: all 0.15s ease-in-out !important;
+    color: transparent !important;
+    font-size: 0 !important;
+    line-height: 0 !important;
+}
+
+div[class*="st-key-btn_act_"] button:hover {
+    transform: translateY(-1px) !important;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.08) !important;
+}
+
+/* Nút Xem (view-btn) */
+div[class*="st-key-btn_act_view_"] button {
+    background-color: #eff6ff !important;
+    border-color: #bfdbfe !important;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='15' height='15' viewBox='0 0 24 24' fill='none' stroke='%232563eb' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8z'/%3E%3Ccircle cx='12' cy='12' r='3'/%3E%3C/svg%3E") !important;
+}
+div[class*="st-key-btn_act_view_"] button:hover {
+    background-color: #dbeafe !important;
+    border-color: #93c5fd !important;
+}
+
+/* Nút Xóa (del-btn) */
+div[class*="st-key-btn_act_del_"] button {
+    background-color: #fef2f2 !important;
+    border-color: #fecaca !important;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='15' height='15' viewBox='0 0 24 24' fill='none' stroke='%23dc2626' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='3 6 5 6 21 6'/%3E%3Cpath d='M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2'/%3E%3Cline x1='10' y1='11' x2='10' y2='17'/%3E%3Cline x1='14' y1='11' x2='14' y2='17'/%3E%3C/svg%3E") !important;
+}
+div[class*="st-key-btn_act_del_"] button:hover {
+    background-color: #fee2e2 !important;
+    border-color: #fca5a5 !important;
+}
+
+/* Nút Bác bỏ đặc thù (dấu X) */
+div[class*="st-key-btn_act_reject_"] button {
+    background-color: #fef2f2 !important;
+    border-color: #fecaca !important;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='15' height='15' viewBox='0 0 24 24' fill='none' stroke='%23dc2626' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cline x1='18' y1='6' x2='6' y2='18'/%3E%3Cline x1='6' y1='6' x2='18' y2='18'/%3E%3C/svg%3E") !important;
+}
+div[class*="st-key-btn_act_reject_"] button:hover {
+    background-color: #fee2e2 !important;
+    border-color: #fca5a5 !important;
+}
+
+/* Nút Sửa (edit-btn) */
+div[class*="st-key-btn_act_edit_"] button {
+    background-color: #eff6ff !important;
+    border-color: #bfdbfe !important;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='15' height='15' viewBox='0 0 24 24' fill='none' stroke='%232563eb' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7'/%3E%3Cpath d='M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z'/%3E%3C/svg%3E") !important;
+}
+div[class*="st-key-btn_act_edit_"] button:hover {
+    background-color: #dbeafe !important;
+    border-color: #93c5fd !important;
+}
+
+/* Nút Test (test-btn) */
+div[class*="st-key-btn_act_test_"] button {
+    background-color: #f0fdf4 !important;
+    border-color: #bbf7d0 !important;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='15' height='15' viewBox='0 0 24 24' fill='none' stroke='%2316a34a' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolygon points='5 3 19 12 5 21 5 3'/%3E%3C/svg%3E") !important;
+}
+div[class*="st-key-btn_act_test_"] button:hover {
+    background-color: #dcfce7 !important;
+    border-color: #86efac !important;
+}
+
+/* Nút Xác nhận vi phạm (confirm-btn) */
+div[class*="st-key-btn_act_confirm_"] button {
+    background-color: #f0fdf4 !important;
+    border-color: #bbf7d0 !important;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='15' height='15' viewBox='0 0 24 24' fill='none' stroke='%2316a34a' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='20 6 9 17 4 12'/%3E%3C/svg%3E") !important;
+}
+div[class*="st-key-btn_act_confirm_"] button:hover {
+    background-color: #dcfce7 !important;
+    border-color: #86efac !important;
+}
+
+/* Nút Đổi vai trò (role-btn) */
+div[class*="st-key-btn_act_role_"] button {
+    background-color: #f5f3ff !important;
+    border-color: #ddd6fe !important;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='15' height='15' viewBox='0 0 24 24' fill='none' stroke='%237c3aed' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z'/%3E%3C/svg%3E") !important;
+}
+div[class*="st-key-btn_act_role_"] button:hover {
+    background-color: #ede9fe !important;
+    border-color: #c4b5fd !important;
+}
+
+/* Nút Khóa / Mở khóa (lock-btn / unlock-btn) */
+div[class*="st-key-btn_act_lock_"] button {
+    background-color: #fffbeb !important;
+    border-color: #fde68a !important;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='15' height='15' viewBox='0 0 24 24' fill='none' stroke='%23d97706' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Crect x='3' y='11' width='18' height='11' rx='2' ry='2'/%3E%3Cpath d='M7 11V7a5 5 0 0 1 10 0v4'/%3E%3C/svg%3E") !important;
+}
+div[class*="st-key-btn_act_lock_"] button:hover {
+    background-color: #fef3c7 !important;
+    border-color: #fcd34d !important;
+}
+
+div[class*="st-key-btn_act_unlock_"] button {
+    background-color: #f0fdf4 !important;
+    border-color: #bbf7d0 !important;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='15' height='15' viewBox='0 0 24 24' fill='none' stroke='%2316a34a' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Crect x='3' y='11' width='18' height='11' rx='2' ry='2'/%3E%3Cpath d='M7 11V7a5 5 0 0 1 9.9-1'/%3E%3C/svg%3E") !important;
+}
+div[class*="st-key-btn_act_unlock_"] button:hover {
+    background-color: #dcfce7 !important;
+    border-color: #86efac !important;
+}
+
+/* Cụm phân trang Native Streamlit nhỏ gọn Figma */
+div[class*="st-key-pag_btn_"] button {
+    min-width: 32px !important;
+    height: 32px !important;
+    padding: 0 4px !important;
+    border-radius: 6px !important;
+    font-size: 13px !important;
+    font-weight: 500 !important;
+    margin: 0 !important;
+}
+
+/* Layout flex gom nút thao tác sát lề phải chuẩn Figma */
+div[data-testid="column"]:has(div[class*="st-key-btn_act_"]) {
+    display: flex !important;
+    align-items: center !important;
+    justify-content: flex-end !important;
+}
+
+div[data-testid="column"]:has(div[class*="st-key-btn_act_"]) > div[data-testid="stVerticalBlock"] {
+    display: flex !important;
+    flex-direction: row !important;
+    align-items: center !important;
+    justify-content: flex-end !important;
+    gap: 4px !important;
+    width: auto !important;
+}
+
+div[data-testid="column"]:has(div[class*="st-key-btn_act_"]) > div[data-testid="stVerticalBlock"] > div {
+    margin: 0 !important;
+    width: auto !important;
+}
+
+/* Layout flex gom nút phân trang sát lề phải chuẩn Figma */
+div[data-testid="column"]:has(div[class*="st-key-pag_btn_"]) {
+    display: flex !important;
+    align-items: center !important;
+    justify-content: flex-end !important;
+}
+
+div[data-testid="column"]:has(div[class*="st-key-pag_btn_"]) > div[data-testid="stVerticalBlock"] {
+    display: flex !important;
+    flex-direction: row !important;
+    align-items: center !important;
+    justify-content: flex-end !important;
+    gap: 4px !important;
+    width: auto !important;
+}
+
+div[data-testid="column"]:has(div[class*="st-key-pag_btn_"]) > div[data-testid="stVerticalBlock"] > div {
+    margin: 0 !important;
+    width: auto !important;
+}
+
 /* PHÂN TRANG NHỎ GỌN FIGMA STANDARD */
 .history-pagination {
     display: flex !important;

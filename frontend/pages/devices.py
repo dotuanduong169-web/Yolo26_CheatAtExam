@@ -250,31 +250,22 @@ else:
                 st.markdown(stt_badge, unsafe_allow_html=True)
             with c6:
                 if is_admin:
-                    aqs = auth_query_params()
-                    action_html = (
-                        f'<div style="display:flex; align-items:center; justify-content:flex-end; gap:6px;">'
-                        f'  <a href="/devices?{aqs}&test_dev={dev_id}" target="_self" class="action-svg-btn test-btn" title="Kiểm tra kết nối camera RTSP">'
-                        f'    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">'
-                        f'      <polygon points="5 3 19 12 5 21 5 3"/>'
-                        f'    </svg>'
-                        f'  </a>'
-                        f'  <a href="/devices?{aqs}&edit_dev={dev_id}" target="_self" class="action-svg-btn edit-btn" title="Chỉnh sửa thông tin thiết bị">'
-                        f'    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">'
-                        f'      <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>'
-                        f'      <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>'
-                        f'    </svg>'
-                        f'  </a>'
-                        f'  <a href="/devices?{aqs}&del_dev={dev_id}" target="_self" class="action-svg-btn del-btn" title="Xóa thiết bị khỏi danh mục">'
-                        f'    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">'
-                        f'      <polyline points="3 6 5 6 21 6"/>'
-                        f'      <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>'
-                        f'      <line x1="10" y1="11" x2="10" y2="17"/>'
-                        f'      <line x1="14" y1="11" x2="14" y2="17"/>'
-                        f'    </svg>'
-                        f'  </a>'
-                        f'</div>'
-                    )
-                    st.markdown(action_html, unsafe_allow_html=True)
+                    d_c1, d_c2, d_c3 = st.columns([1, 1, 1])
+                    with d_c1:
+                        if st.button(" ", key=f"btn_act_test_dev_{dev_id}", help="Kiểm tra kết nối camera RTSP"):
+                            test_res = test_device(client, dev_id)
+                            if test_res.get("online"):
+                                lat = test_res.get("latency_ms", 5)
+                                notify.success(f"{name}: {test_res.get('message')} ({lat}ms)")
+                            else:
+                                notify.error(f"{name}: {test_res.get('message')}")
+                            st.rerun()
+                    with d_c2:
+                        if st.button(" ", key=f"btn_act_edit_dev_{dev_id}", help="Chỉnh sửa thông tin thiết bị"):
+                            edit_device_dialog(dev_id, name, rtsp, loc)
+                    with d_c3:
+                        if st.button(" ", key=f"btn_act_del_dev_{dev_id}", help="Xóa thiết bị khỏi danh mục"):
+                            delete_device_dialog(dev_id, name)
                 else:
                     st.caption("Cán bộ")
 

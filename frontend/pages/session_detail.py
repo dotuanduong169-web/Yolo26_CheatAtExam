@@ -50,8 +50,9 @@ if "p" in st.query_params:
 
 session_id = st.session_state.get("selected_session") or st.session_state.get("session_id")
 if not session_id:
+    render_page_header("Chi tiết phiên giám sát", active="history")
     notify.inline("Không tìm thấy mã phiên giám sát cần xem. Vui lòng quay lại danh sách lịch sử ca thi.", kind="warning", title="Thiếu thông tin phiên")
-    if st.button("Về danh sách lịch sử"):
+    if st.button("← Quay lại danh mục ca thi", key="btn_back_hist_nosess"):
         st.switch_page("pages/history.py")
     st.stop()
 
@@ -254,7 +255,7 @@ else:
             aqs = auth_query_params()
             view_action_html = (
                 f'<div style="display:flex; align-items:center; justify-content:flex-end; gap:6px;">'
-                f'  <a href="/event_detail?id={ev_pk}&from_session={session_id}&{aqs}" class="action-svg-btn view-btn" title="Xem chi tiết vi phạm">'
+                f'  <a href="/event_detail?id={ev_pk}&from_session={session_id}&{aqs}" target="_self" class="action-svg-btn view-btn" title="Xem chi tiết vi phạm">'
                 f'    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">'
                 f'      <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8z"/>'
                 f'      <circle cx="12" cy="12" r="3"/>'
@@ -285,7 +286,7 @@ else:
         if page <= 1:
             pag_items.append(f'<span style="{btn_base} border: 1px solid #e2e8f0; background: #f8fafc; color: #cbd5e1; cursor: not-allowed;">‹</span>')
         else:
-            pag_items.append(f'<a href="/session_detail?id={session_id}&{aqs}&p={page - 1}" style="{btn_base} border: 1px solid #cbd5e1; background: #ffffff; color: #334155;">‹</a>')
+            pag_items.append(f'<a href="/session_detail?id={session_id}&{aqs}&p={page - 1}" target="_self" style="{btn_base} border: 1px solid #cbd5e1; background: #ffffff; color: #334155;">‹</a>')
 
         for p_idx in range(1, total_pages + 1):
             if total_pages > 7 and abs(p_idx - page) > 2 and p_idx != 1 and p_idx != total_pages:
@@ -295,12 +296,12 @@ else:
             if p_idx == page:
                 pag_items.append(f'<span style="{btn_base} border: 1px solid #2563eb; background: #2563eb; color: #ffffff; font-weight: 700;">{p_idx}</span>')
             else:
-                pag_items.append(f'<a href="/session_detail?id={session_id}&{aqs}&p={p_idx}" style="{btn_base} border: 1px solid #cbd5e1; background: #ffffff; color: #334155; font-weight: 500;">{p_idx}</a>')
+                pag_items.append(f'<a href="/session_detail?id={session_id}&{aqs}&p={p_idx}" target="_self" style="{btn_base} border: 1px solid #cbd5e1; background: #ffffff; color: #334155; font-weight: 500;">{p_idx}</a>')
 
         if page >= total_pages:
             pag_items.append(f'<span style="{btn_base} border: 1px solid #e2e8f0; background: #f8fafc; color: #cbd5e1; cursor: not-allowed;">›</span>')
         else:
-            pag_items.append(f'<a href="/session_detail?id={session_id}&{aqs}&p={page + 1}" style="{btn_base} border: 1px solid #cbd5e1; background: #ffffff; color: #334155;">›</a>')
+            pag_items.append(f'<a href="/session_detail?id={session_id}&{aqs}&p={page + 1}" target="_self" style="{btn_base} border: 1px solid #cbd5e1; background: #ffffff; color: #334155;">›</a>')
 
         st.markdown(f'<div class="history-pagination" style="display: flex !important; align-items: center !important; justify-content: flex-end !important; gap: 4px !important; width: 100% !important;">{"".join(pag_items)}</div>', unsafe_allow_html=True)
 

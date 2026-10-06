@@ -57,6 +57,7 @@ def create_user_dialog():
         new_role = st.selectbox("Vai trò phân quyền", ["teacher", "admin"], format_func=lambda x: "Cán bộ coi thi (teacher)" if x == "teacher" else "Quản trị viên (admin)")
 
     st.caption("Quy chuẩn an toàn mật khẩu: Tối thiểu 6 ký tự, chứa ít nhất 1 chữ in hoa (A-Z) và 1 chữ số (0-9).")
+    msg_slot = st.empty()
     st.markdown("<div style='height: 8px;'></div>", unsafe_allow_html=True)
     c1, c2 = st.columns(2)
     with c1:
@@ -65,23 +66,27 @@ def create_user_dialog():
     with c2:
         if st.button("Tạo tài khoản", type="primary", use_container_width=True):
             if not new_username.strip() or not new_fullname.strip() or not new_password.strip():
-                notify.inline_warning("Vui lòng nhập đầy đủ các trường thông tin.")
+                with msg_slot:
+                    notify.inline_warning("Vui lòng nhập đầy đủ các trường thông tin.")
             else:
                 is_valid, errors = validate_password_rules(new_password)
                 if not is_valid:
-                    notify.inline_error(f"Mật khẩu chưa đạt tiêu chuẩn an toàn: Thiếu {', '.join(errors)}.")
+                    with msg_slot:
+                        notify.inline_error(f"Mật khẩu chưa đạt tiêu chuẩn an toàn: Thiếu {', '.join(errors)}.")
                 else:
                     ok, res = admin_create_user(client, new_username.strip(), new_fullname.strip(), new_password, new_role)
                     if ok:
                         notify.defer_success("Đã tạo tài khoản thành công!")
                         st.rerun()
                     else:
-                        notify.inline_error(f"{res}")
+                        with msg_slot:
+                            notify.inline_error(f"{res}")
 
 
 @st.dialog("Chỉnh sửa thông tin người dùng")
 def edit_user_name_dialog(u_id: int, cur_name: str, cur_role: str, cur_status: str):
     edit_full_name = st.text_input("Họ và tên người dùng", value=cur_name)
+    msg_slot = st.empty()
     st.markdown("<div style='height: 8px;'></div>", unsafe_allow_html=True)
     c1, c2 = st.columns(2)
     with c1:
@@ -90,14 +95,16 @@ def edit_user_name_dialog(u_id: int, cur_name: str, cur_role: str, cur_status: s
     with c2:
         if st.button("Lưu thay đổi", type="primary", use_container_width=True):
             if not edit_full_name.strip():
-                notify.inline_warning("Họ tên không được để trống")
+                with msg_slot:
+                    notify.inline_warning("Họ tên không được để trống")
             else:
                 ok, res = admin_update_user(client, u_id, cur_role, cur_status, ho_va_ten=edit_full_name.strip())
                 if ok:
                     notify.defer_success("Đã cập nhật họ tên thành công!")
                     st.rerun()
                 else:
-                    notify.inline_error("Lỗi khi cập nhật thông tin")
+                    with msg_slot:
+                        notify.inline_error("Lỗi khi cập nhật thông tin")
 
 
 tab_users, tab_profile = st.tabs(["Danh sách người dùng", "Hồ sơ cá nhân"])
@@ -244,18 +251,18 @@ with tab_users:
                         aqs = auth_query_params()
                         action_u_html = (
                             f'<div style="display:flex; align-items:center; justify-content:flex-end; gap:6px;">'
-                            f'  <a href="/users?{aqs}&toggle_role={u_id}&cur_role={u_role}&cur_stt={u_status}&user_login={u_login}" class="action-svg-btn role-btn" title="{role_tooltip}">'
+                            f'  <a href="/users?{aqs}&toggle_role={u_id}&cur_role={u_role}&cur_stt={u_status}&user_login={u_login}" target="_self" class="action-svg-btn role-btn" title="{role_tooltip}">'
                             f'    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">'
                             f'      <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>'
                             f'    </svg>'
                             f'  </a>'
-                            f'  <a href="/users?{aqs}&edit_user={u_id}" class="action-svg-btn edit-btn" title="Chỉnh sửa họ tên người dùng">'
+                            f'  <a href="/users?{aqs}&edit_user={u_id}" target="_self" class="action-svg-btn edit-btn" title="Chỉnh sửa họ tên người dùng">'
                             f'    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">'
                             f'      <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>'
                             f'      <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>'
                             f'    </svg>'
                             f'  </a>'
-                            f'  <a href="/users?{aqs}&toggle_status={u_id}&cur_role={u_role}&cur_stt={u_status}&user_login={u_login}" class="action-svg-btn {lock_cls}" title="{lock_tooltip}">'
+                            f'  <a href="/users?{aqs}&toggle_status={u_id}&cur_role={u_role}&cur_stt={u_status}&user_login={u_login}" target="_self" class="action-svg-btn {lock_cls}" title="{lock_tooltip}">'
                             f'    {lock_svg}'
                             f'  </a>'
                             f'</div>'

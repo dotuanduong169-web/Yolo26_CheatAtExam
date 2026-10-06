@@ -36,8 +36,7 @@ header[data-testid="stHeader"] {
     margin-bottom: 16px !important;
 }
 
-/* Hide empty markdown/style containers */
-[data-testid="stVerticalBlock"] > div:has(style),
+/* Hide empty markdown containers */
 [data-testid="stVerticalBlock"] > div:empty {
     display: none !important;
     margin: 0 !important;

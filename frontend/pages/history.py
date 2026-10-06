@@ -135,13 +135,31 @@ if "tab" in st.query_params:
     elif st.query_params["tab"] == "sessions":
         st.session_state["history_active_tab"] = "sessions"
 
-# ── Điều hướng Tab con ──────────────────────────────────────
-# st.tabs không chọn tab bằng code được nên đảo thứ tự tab: tab cần mở lên trước.
-# Giữ nguyên lựa chọn cho các rerun sau (phân trang/verify) để không bị giật tab.
+# ── Cố định vị trí Tab con theo chuẩn: [Danh mục ca thi, Nhật ký sự kiện] ──
+tab_sessions, tab_events = st.tabs(["Danh mục ca thi", "Nhật ký sự kiện"])
+
 if st.session_state.get("history_active_tab") == "events":
-    tab_events, tab_sessions = st.tabs(["Nhật ký sự kiện", "Danh mục ca thi"])
-else:
-    tab_sessions, tab_events = st.tabs(["Danh mục ca thi", "Nhật ký sự kiện"])
+    st.components.v1.html(
+        """
+        <script>
+        (function() {
+            function activateTab() {
+                try {
+                    const tabs = window.parent.document.querySelectorAll('div[data-testid="stTabs"] button[role="tab"]');
+                    if (tabs && tabs.length > 1) {
+                        tabs[1].click();
+                    }
+                } catch(e) {}
+            }
+            setTimeout(activateTab, 50);
+            setTimeout(activateTab, 200);
+        })();
+        </script>
+        """,
+        height=0,
+        width=0,
+    )
+    st.session_state["history_active_tab"] = None
 
 
 # =========================================================================
@@ -253,13 +271,13 @@ with tab_sessions:
                 with sc5:
                     action_sess_html = (
                         f'<div style="display:flex; align-items:center; justify-content:flex-end; gap:6px;">'
-                        f'  <a href="/session_detail?id={s_id}&{aqs}" class="action-svg-btn view-btn" title="Xem báo cáo chi tiết ca thi #{s_id}">'
+                        f'  <a href="/session_detail?id={s_id}&{aqs}" target="_self" class="action-svg-btn view-btn" title="Xem báo cáo chi tiết ca thi #{s_id}">'
                         f'    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">'
                         f'      <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8z"/>'
                         f'      <circle cx="12" cy="12" r="3"/>'
                         f'    </svg>'
                         f'  </a>'
-                        f'  <a href="/history?{aqs}&confirm_delete={s_id}" class="action-svg-btn del-btn" title="Xóa ca thi này khỏi hệ thống">'
+                        f'  <a href="/history?{aqs}&confirm_delete={s_id}" target="_self" class="action-svg-btn del-btn" title="Xóa ca thi này khỏi hệ thống">'
                         f'    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">'
                         f'      <polyline points="3 6 5 6 21 6"/>'
                         f'      <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>'
@@ -294,7 +312,7 @@ with tab_sessions:
             if current_page <= 1:
                 pag_items.append(f'<span style="{btn_base} border: 1px solid #e2e8f0; background: #f8fafc; color: #cbd5e1; cursor: not-allowed;">‹</span>')
             else:
-                pag_items.append(f'<a href="/history?{aqs}&p={current_page - 1}" style="{btn_base} border: 1px solid #cbd5e1; background: #ffffff; color: #334155;">‹</a>')
+                pag_items.append(f'<a href="/history?{aqs}&p={current_page - 1}" target="_self" style="{btn_base} border: 1px solid #cbd5e1; background: #ffffff; color: #334155;">‹</a>')
 
             for p in range(1, total_pages + 1):
                 if total_pages > 7 and abs(p - current_page) > 2 and p != 1 and p != total_pages:
@@ -304,12 +322,12 @@ with tab_sessions:
                 if p == current_page:
                     pag_items.append(f'<span style="{btn_base} border: 1px solid #2563eb; background: #2563eb; color: #ffffff; font-weight: 700;">{p}</span>')
                 else:
-                    pag_items.append(f'<a href="/history?{aqs}&p={p}" style="{btn_base} border: 1px solid #cbd5e1; background: #ffffff; color: #334155; font-weight: 500;">{p}</a>')
+                    pag_items.append(f'<a href="/history?{aqs}&p={p}" target="_self" style="{btn_base} border: 1px solid #cbd5e1; background: #ffffff; color: #334155; font-weight: 500;">{p}</a>')
 
             if current_page >= total_pages:
                 pag_items.append(f'<span style="{btn_base} border: 1px solid #e2e8f0; background: #f8fafc; color: #cbd5e1; cursor: not-allowed;">›</span>')
             else:
-                pag_items.append(f'<a href="/history?{aqs}&p={current_page + 1}" style="{btn_base} border: 1px solid #cbd5e1; background: #ffffff; color: #334155;">›</a>')
+                pag_items.append(f'<a href="/history?{aqs}&p={current_page + 1}" target="_self" style="{btn_base} border: 1px solid #cbd5e1; background: #ffffff; color: #334155;">›</a>')
 
             st.markdown(f'<div class="history-pagination" style="display: flex !important; align-items: center !important; justify-content: flex-end !important; gap: 4px !important; width: 100% !important;">{"".join(pag_items)}</div>', unsafe_allow_html=True)
 
@@ -444,18 +462,18 @@ with tab_events:
                 with c7:
                     action_html = (
                         f'<div style="display:flex; align-items:center; justify-content:flex-end; gap:6px;">'
-                        f'  <a href="/history?tab=events&{aqs}&view_ev={ev_id}" class="action-svg-btn view-btn" title="Xem nhanh bằng chứng & xác minh vi phạm">'
+                        f'  <a href="/history?tab=events&{aqs}&view_ev={ev_id}" target="_self" class="action-svg-btn view-btn" title="Xem nhanh bằng chứng & xác minh vi phạm">'
                         f'    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">'
                         f'      <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8z"/>'
                         f'      <circle cx="12" cy="12" r="3"/>'
                         f'    </svg>'
                         f'  </a>'
-                        f'  <a href="/history?tab=events&{aqs}&confirm_ev={ev_id}&raw_label={raw_label}" class="action-svg-btn confirm-btn" title="Xác nhận đúng vi phạm ({friendly_label})">'
+                        f'  <a href="/history?tab=events&{aqs}&confirm_ev={ev_id}&raw_label={raw_label}" target="_self" class="action-svg-btn confirm-btn" title="Xác nhận đúng vi phạm ({friendly_label})">'
                         f'    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">'
                         f'      <polyline points="20 6 9 17 4 12"/>'
                         f'    </svg>'
                         f'  </a>'
-                        f'  <a href="/history?tab=events&{aqs}&reject_ev={ev_id}" class="action-svg-btn reject-btn" title="Bác bỏ vi phạm (Báo sai: Giấy thi hợp lệ)">'
+                        f'  <a href="/history?tab=events&{aqs}&reject_ev={ev_id}" target="_self" class="action-svg-btn reject-btn" title="Bác bỏ vi phạm (Báo sai: Giấy thi hợp lệ)">'
                         f'    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">'
                         f'      <line x1="18" y1="6" x2="6" y2="18"/>'
                         f'      <line x1="6" y1="6" x2="18" y2="18"/>'

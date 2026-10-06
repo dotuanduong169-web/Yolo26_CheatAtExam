@@ -9,7 +9,7 @@ from config import API_BASE_URL
 from services.event_api import get_event_detail, get_evidence_bytes, verify_event
 from utils.auth_guard import require_auth
 from utils.hide_streamlit_sidebar import hide_sidebar
-from utils.http import init_session_state
+from utils.http import auth_query_params, init_session_state
 from utils.load_css import load_css
 from utils.render_header import render_page_header
 from utils.status_helpers import get_event_status_info, get_friendly_behavior_label
@@ -26,15 +26,47 @@ st.markdown(load_css("styles/sidebar.css"), unsafe_allow_html=True)
 st.markdown(load_css("styles/app_theme.css"), unsafe_allow_html=True)
 st.markdown(load_css("styles/frame_detail.css"), unsafe_allow_html=True)
 
-# ── Event ID ────────────────────────────────────────────────
+# ── Event ID & Session ID ───────────────────────────────────
 if "id" in st.query_params:
     try:
         st.session_state["event_id"] = int(st.query_params["id"])
     except Exception:
         pass
 
+if "from_session" in st.query_params:
+    try:
+        st.session_state["from_session_id"] = int(st.query_params["from_session"])
+        st.session_state["selected_session"] = int(st.query_params["from_session"])
+        st.session_state["session_id"] = int(st.query_params["from_session"])
+    except Exception:
+        pass
+
 event_id = st.session_state.get("event_id")
+from_sess_id = (
+    st.query_params.get("from_session")
+    or st.session_state.get("from_session_id")
+    or st.session_state.get("selected_session")
+    or st.session_state.get("session_id")
+)
+try:
+    if from_sess_id is not None:
+        from_sess_id = int(from_sess_id)
+        st.session_state["from_session_id"] = from_sess_id
+        st.session_state["selected_session"] = from_sess_id
+        st.session_state["session_id"] = from_sess_id
+except Exception:
+    pass
+
 if not event_id:
+    render_page_header("Chi tiết sự kiện", active="history")
+    if from_sess_id:
+        if st.button("← Quay lại chi tiết ca thi", key="btn_back_sess_noid"):
+            st.session_state["selected_session"] = from_sess_id
+            st.session_state["session_id"] = from_sess_id
+            st.switch_page("pages/session_detail.py")
+    else:
+        if st.button("← Quay lại danh sách lịch sử", key="btn_back_hist_noid"):
+            st.switch_page("pages/history.py")
     notify.inline("Không tìm thấy mã sự kiện cần xem. Vui lòng quay lại danh sách sự kiện.", kind="warning", title="Thiếu mã sự kiện")
     st.stop()
 
@@ -42,8 +74,35 @@ if not event_id:
 # ── Load Data ───────────────────────────────────────────────
 data = get_event_detail(st.session_state.client, event_id)
 if not data:
-    notify.inline("Không lấy được dữ liệu chi tiết sự kiện từ máy chủ.", kind="error", title="Lỗi tải dữ liệu")
+    render_page_header(f"Chi tiết sự kiện #EV-{event_id:02d}", active="history")
+    if from_sess_id:
+        cb_col1, cb_col2, _ = st.columns([1.5, 1.5, 3])
+        with cb_col1:
+            if st.button("← Quay lại chi tiết ca thi", key="btn_back_sess_nodata"):
+                st.session_state["selected_session"] = from_sess_id
+                st.session_state["session_id"] = from_sess_id
+                st.switch_page("pages/session_detail.py")
+        with cb_col2:
+            if st.button("Quay lại danh mục ca thi", key="btn_back_hist_nodata"):
+                st.session_state["history_active_tab"] = "sessions"
+                st.switch_page("pages/history.py")
+    else:
+        if st.button("← Quay lại danh mục ca thi", key="btn_back_hist_nodata"):
+            st.session_state["history_active_tab"] = "sessions"
+            st.switch_page("pages/history.py")
+
+    notify.inline("Không lấy được dữ liệu chi tiết sự kiện từ máy chủ. Sự kiện có thể không tồn tại hoặc đã bị xóa.", kind="error", title="Lỗi tải dữ liệu")
     st.stop()
+
+# Cập nhật from_sess_id từ data nếu trước đó chưa có
+if not from_sess_id and data.get("FK_MaPhienGiamSat"):
+    try:
+        from_sess_id = int(data["FK_MaPhienGiamSat"])
+        st.session_state["from_session_id"] = from_sess_id
+        st.session_state["selected_session"] = from_sess_id
+        st.session_state["session_id"] = from_sess_id
+    except Exception:
+        pass
 
 raw_label = data.get("LoaiHanhVi", "?")
 conf = round(float(data.get("DoTinCay", 0)) * 100, 1)
@@ -57,12 +116,12 @@ stt_text, stt_cls = get_event_status_info(trang_thai)
 # ── Header ──────────────────────────────────────────────────
 render_page_header(f"Chi tiết sự kiện #EV-{event_id:02d}", active="history")
 
-from_sess_id = st.query_params.get("from_session") or data.get("FK_MaPhienGiamSat")
-
 if from_sess_id:
-    c_back1, c_back2, _ = st.columns([1.4, 1.4, 3])
+    c_back1, c_back2, _ = st.columns([1.5, 1.5, 3])
     with c_back1:
         if st.button("← Quay lại chi tiết ca thi", key="btn_back_session"):
+            st.session_state["selected_session"] = from_sess_id
+            st.session_state["session_id"] = from_sess_id
             st.query_params["id"] = str(from_sess_id)
             if "from_session" in st.query_params:
                 del st.query_params["from_session"]
@@ -72,8 +131,8 @@ if from_sess_id:
             st.session_state["history_active_tab"] = "events"
             st.switch_page("pages/history.py")
 else:
-    if st.button("← Quay lại danh sách sự kiện", key="btn_back_events"):
-        st.session_state["history_active_tab"] = "events"
+    if st.button("← Quay lại danh mục ca thi", key="btn_back_events"):
+        st.session_state["history_active_tab"] = "sessions"
         st.switch_page("pages/history.py")
 
 

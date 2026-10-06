@@ -82,6 +82,7 @@ def create_device_dialog():
     new_rtsp = st.text_input("Đường dẫn luồng RTSP / Camera index", placeholder="rtsp://192.168.1.120:554/stream1 hoặc 0")
     new_loc = st.text_input("Vị trí lắp đặt phòng thi", placeholder="VD: Phòng P.302 (Chính diện)")
 
+    msg_slot = st.empty()
     st.markdown("<div style='height: 8px;'></div>", unsafe_allow_html=True)
     c1, c2 = st.columns(2)
     with c1:
@@ -90,14 +91,16 @@ def create_device_dialog():
     with c2:
         if st.button("Lưu thiết bị mới", type="primary", use_container_width=True):
             if not new_name.strip() or not new_rtsp.strip():
-                notify.inline_warning("Vui lòng điền đầy đủ tên thiết bị và đường dẫn RTSP")
+                with msg_slot:
+                    notify.inline_warning("Vui lòng điền đầy đủ tên thiết bị và đường dẫn RTSP")
             else:
                 res = create_device(client, new_name.strip(), new_rtsp.strip(), new_loc.strip())
                 if res and res.status_code == 200:
                     notify.defer_success("Đăng ký thiết bị thành công")
                     st.rerun()
                 else:
-                    notify.inline_error("Lỗi khi thêm thiết bị")
+                    with msg_slot:
+                        notify.inline_error("Lỗi khi thêm thiết bị")
 
 
 @st.dialog("Chỉnh sửa thông tin thiết bị")
@@ -106,6 +109,7 @@ def edit_device_dialog(dev_id: int, cur_name: str, cur_rtsp: str, cur_loc: str):
     e_rtsp = st.text_input("Đường dẫn RTSP", value=cur_rtsp)
     e_loc = st.text_input("Vị trí lắp đặt", value=cur_loc)
 
+    msg_slot = st.empty()
     st.markdown("<div style='height: 8px;'></div>", unsafe_allow_html=True)
     c1, c2 = st.columns(2)
     with c1:
@@ -122,7 +126,8 @@ def edit_device_dialog(dev_id: int, cur_name: str, cur_rtsp: str, cur_loc: str):
                 notify.defer_success("Đã cập nhật thiết bị thành công")
                 st.rerun()
             else:
-                notify.inline_error("Lỗi khi cập nhật thiết bị")
+                with msg_slot:
+                    notify.inline_error("Lỗi khi cập nhật thiết bị")
 
 
 @st.dialog("Xác nhận xóa thiết bị")
@@ -248,18 +253,18 @@ else:
                     aqs = auth_query_params()
                     action_html = (
                         f'<div style="display:flex; align-items:center; justify-content:flex-end; gap:6px;">'
-                        f'  <a href="/devices?{aqs}&test_dev={dev_id}" class="action-svg-btn test-btn" title="Kiểm tra kết nối camera RTSP">'
+                        f'  <a href="/devices?{aqs}&test_dev={dev_id}" target="_self" class="action-svg-btn test-btn" title="Kiểm tra kết nối camera RTSP">'
                         f'    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">'
                         f'      <polygon points="5 3 19 12 5 21 5 3"/>'
                         f'    </svg>'
                         f'  </a>'
-                        f'  <a href="/devices?{aqs}&edit_dev={dev_id}" class="action-svg-btn edit-btn" title="Chỉnh sửa thông tin thiết bị">'
+                        f'  <a href="/devices?{aqs}&edit_dev={dev_id}" target="_self" class="action-svg-btn edit-btn" title="Chỉnh sửa thông tin thiết bị">'
                         f'    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">'
                         f'      <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>'
                         f'      <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>'
                         f'    </svg>'
                         f'  </a>'
-                        f'  <a href="/devices?{aqs}&del_dev={dev_id}" class="action-svg-btn del-btn" title="Xóa thiết bị khỏi danh mục">'
+                        f'  <a href="/devices?{aqs}&del_dev={dev_id}" target="_self" class="action-svg-btn del-btn" title="Xóa thiết bị khỏi danh mục">'
                         f'    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">'
                         f'      <polyline points="3 6 5 6 21 6"/>'
                         f'      <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>'

@@ -85,6 +85,26 @@ def render_page_header(title: str, active: str | None = None):
         '    }'
         '  }, true);'
         ''
+        '  function findStreamlitNavLink(pageKey) {'
+        '    var selectors = ['
+        '      "a[data-testid=\'stSidebarNavLink\']",'
+        '      "section[data-testid=\'stSidebar\'] a",'
+        '      "[data-testid=\'stSidebarNav\'] a",'
+        '      "ul[data-testid=\'stSidebarNavItems\'] a"'
+        '    ];'
+        '    var allLinks = document.querySelectorAll(selectors.join(", "));'
+        '    for (var i = 0; i < allLinks.length; i++) {'
+        '      var a = allLinks[i];'
+        '      var hrefAttr = a.getAttribute("href");'
+        '      if (!hrefAttr || typeof hrefAttr !== "string") continue;'
+        '      var h = hrefAttr.toLowerCase().trim();'
+        '      if (h.endsWith("/" + pageKey) || h.endsWith(pageKey) || h === pageKey || h.indexOf("/" + pageKey) >= 0) {'
+        '        return a;'
+        '      }'
+        '    }'
+        '    return null;'
+        '  }'
+        ''
         '  function setupNavTabs() {'
         '    var navLinks = document.querySelectorAll(".global-nav-bar .nav-tab-btn");'
         '    if (!navLinks || !navLinks.length) return;'
@@ -97,15 +117,13 @@ def render_page_header(title: str, active: str | None = None):
         '          return false;'
         '        }'
         '        var pageKey = this.getAttribute("data-page") || "";'
-        '        var hiddenLink = document.querySelector("#spa-nav-hidden a[href*=\'" + pageKey + "\']");'
-        '        if (hiddenLink) {'
-        '          e.preventDefault();'
-        '          e.stopPropagation();'
-        '          navLinks.forEach(function(b) { b.classList.remove("active"); });'
-        '          this.classList.add("active");'
-        '          try { hiddenLink.click(); return false; } catch(err) {}'
-        '        }'
         '        var dest = this.getAttribute("href") || ("/" + pageKey);'
+        '        navLinks.forEach(function(b) { b.classList.remove("active"); });'
+        '        this.classList.add("active");'
+        '        var stLink = findStreamlitNavLink(pageKey);'
+        '        if (stLink) {'
+        '          try { stLink.click(); return false; } catch(err) {}'
+        '        }'
         '        window.top.location.href = dest;'
         '        return false;'
         '      };'
@@ -117,25 +135,13 @@ def render_page_header(title: str, active: str | None = None):
         '    });'
         '  }'
         '  setupNavTabs();'
-        '  setTimeout(setupNavTabs, 50);'
-        '  setTimeout(setupNavTabs, 150);'
-        '  setTimeout(setupNavTabs, 500);'
+        '  setTimeout(setupNavTabs, 60);'
+        '  setTimeout(setupNavTabs, 200);'
+        '  setTimeout(setupNavTabs, 600);'
         '})();'
         '</script>'
     )
     st.markdown(header_html, unsafe_allow_html=True)
-
-    # ── HIDDEN STREAMLIT SPA ROUTING: Cho phép click tab chuyển trang nội bộ qua WebSocket ──
-    st.markdown(
-        '<div id="spa-nav-hidden" style="display:none!important; visibility:hidden; position:absolute; width:0; height:0; overflow:hidden; pointer-events:none;">',
-        unsafe_allow_html=True,
-    )
-    st.page_link("pages/home.py", label="home")
-    st.page_link("pages/history.py", label="history")
-    st.page_link("pages/devices.py", label="devices")
-    st.page_link("pages/statistics.py", label="statistics")
-    st.page_link("pages/users.py", label="users")
-    st.markdown('</div>', unsafe_allow_html=True)
 
     # Flush toast xếp hàng tại top-level để luôn neo ngoài, đúng góc hệ thống
     from utils.notify import flush as _flush_toasts

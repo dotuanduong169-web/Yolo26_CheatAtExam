@@ -82,7 +82,7 @@ def find_candidate_for_join(
     """Tìm thí sinh theo SBD để vào thi.
     Điểm logic: ưu tiên ca đang mở (dang_giam_sat); không có thì ca mới nhất chứa SBD."""
     sbd = sbd.strip()
-    query = db.query(Candidate).filter(Candidate.SBD == sbd)
+    query = db.query(Candidate).filter(func.lower(Candidate.SBD) == sbd.lower())
     if session_id is not None:
         query = query.filter(Candidate.FK_MaPhienGiamSat == session_id)
 

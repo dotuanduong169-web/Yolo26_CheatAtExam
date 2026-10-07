@@ -19,6 +19,8 @@ from crud.candidate_crud import (
 from crud.session_crud import end_session, get_session_by_id
 from database.database import get_db
 from models.user import User
+from pydantic import BaseModel, Field
+
 from schemas.candidate import (
     CandidateImport,
     CandidateJoin,
@@ -30,6 +32,11 @@ from service import ingest_service
 
 logger = get_logger(__name__)
 router = APIRouter(prefix="/candidates", tags=["ThiSinh"])
+
+
+class CreateOnlineSession(BaseModel):
+    PhongThi: str = Field(..., min_length=1, max_length=50)
+    MonThi: str = Field(..., min_length=1, max_length=255)
 
 
 @router.post("/import", response_model=list[CandidateResponse])
@@ -84,13 +91,17 @@ def join_exam(data: CandidateJoin):
         )
         if not candidate:
             raise HTTPException(
-                status_code=404, detail="SBD không có trong ca thi đang mở"
+                status_code=404,
+                detail=f"Không tìm thấy SBD '{data.SBD}' trong danh sách ca thi",
             )
         sub = get_open_sub_session(db, candidate.PK_MaThiSinh)
         if not sub:
             exam = get_session_by_id(db, candidate.FK_MaPhienGiamSat)
             if not exam or exam.TrangThai != "dang_giam_sat":
-                raise HTTPException(status_code=403, detail="Ca thi chưa mở")
+                raise HTTPException(
+                    status_code=403,
+                    detail="Ca thi chưa mở hoặc đã kết thúc. Vui lòng liên hệ giám thị để mở ca thi.",
+                )
             sub = create_sub_session(db, exam.FK_MaNguoiDung, candidate)
         token = ingest_service.mint_token(sub.PK_MaPhienGiamSat)
         ingest_service.ensure_worker(sub.PK_MaPhienGiamSat)
@@ -158,3 +169,90 @@ def leave_exam(
         return {"message": "Đã chốt phiên", "session_id": session_id}
     finally:
         db.close()
+
+
+@router.post("/session/{session_id}/open")
+def open_exam_session(
+    session_id: int,
+    user: User = Depends(get_current_user),
+):
+    """Giám thị mở ca thi để thí sinh có thể vào phòng thi."""
+    from database.database import SessionLocal
+
+    db = SessionLocal()
+    try:
+        exam = get_session_by_id(db, session_id)
+        if not exam:
+            raise HTTPException(status_code=404, detail="Không tìm thấy ca thi")
+        exam.TrangThai = "dang_giam_sat"
+        exam.ThoiGianKetThuc = None
+        db.commit()
+        return {
+            "message": "Ca thi đã được mở",
+            "session_id": session_id,
+            "TrangThai": "dang_giam_sat",
+        }
+    finally:
+        db.close()
+
+
+@router.post("/session/{session_id}/close")
+def close_exam_session(
+    session_id: int,
+    user: User = Depends(get_current_user),
+):
+    """Giám thị kết thúc ca thi và chốt phiên tất cả thí sinh."""
+    from database.database import SessionLocal
+
+    db = SessionLocal()
+    try:
+        exam = get_session_by_id(db, session_id)
+        if not exam:
+            raise HTTPException(status_code=404, detail="Không tìm thấy ca thi")
+        end_session(db, session_id)
+        for c in list_candidates(db, session_id):
+            sub = get_open_sub_session(db, c.PK_MaThiSinh)
+            if sub:
+                end_session(db, sub.PK_MaPhienGiamSat)
+                ingest_service.stop_session_workers(sub.PK_MaPhienGiamSat)
+        return {
+            "message": "Ca thi đã kết thúc",
+            "session_id": session_id,
+            "TrangThai": "ket_thuc",
+        }
+    finally:
+        db.close()
+
+
+@router.post("/session/create")
+def create_online_session(
+    data: CreateOnlineSession,
+    user: User = Depends(get_current_user),
+):
+    """Tạo mới ca thi online ở trạng thái đang mở."""
+    from datetime import datetime, timezone
+    from database.database import SessionLocal
+    from models.monitoring_session import MonitoringSession
+
+    db = SessionLocal()
+    try:
+        session = MonitoringSession(
+            ThoiGianBatDau=datetime.now(timezone.utc),
+            PhongThi=data.PhongThi.strip(),
+            MonThi=data.MonThi.strip(),
+            FK_MaNguoiDung=user.PK_MaNguoiDung,
+            FK_MaThietBi=None,
+            TrangThai="dang_giam_sat",
+        )
+        db.add(session)
+        db.commit()
+        db.refresh(session)
+        return {
+            "PK_MaPhienGiamSat": session.PK_MaPhienGiamSat,
+            "PhongThi": session.PhongThi,
+            "MonThi": session.MonThi,
+            "TrangThai": session.TrangThai,
+        }
+    finally:
+        db.close()
+

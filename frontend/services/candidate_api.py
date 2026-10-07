@@ -55,3 +55,40 @@ def exam_overview(session: requests.Session, session_id: int) -> list:
     except requests.RequestException as exc:
         logger.warning(f"exam_overview error: {exc}")
         return []
+
+
+def open_session(session: requests.Session, session_id: int):
+    """Mở ca thi để thí sinh vào thi online. Trả response thô."""
+    try:
+        return session.post(
+            f"{API_BASE_URL}/candidates/session/{session_id}/open",
+            headers=get_auth_headers(),
+        )
+    except requests.RequestException as exc:
+        logger.warning(f"open_session error: {exc}")
+        return None
+
+
+def close_session(session: requests.Session, session_id: int):
+    """Kết thúc ca thi online. Trả response thô."""
+    try:
+        return session.post(
+            f"{API_BASE_URL}/candidates/session/{session_id}/close",
+            headers=get_auth_headers(),
+        )
+    except requests.RequestException as exc:
+        logger.warning(f"close_session error: {exc}")
+        return None
+
+
+def create_online_session(session: requests.Session, phong_thi: str, mon_thi: str):
+    """Tạo mới ca thi online. Trả response thô."""
+    try:
+        return session.post(
+            f"{API_BASE_URL}/candidates/session/create",
+            json={"PhongThi": phong_thi, "MonThi": mon_thi},
+            headers=get_auth_headers(),
+        )
+    except requests.RequestException as exc:
+        logger.warning(f"create_online_session error: {exc}")
+        return None

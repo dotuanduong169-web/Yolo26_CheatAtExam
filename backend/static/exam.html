@@ -33,27 +33,64 @@
 <script>
 let sessionId = null, token = null, timer = null, failStreak = 0, startTime = null;
 const API = location.origin;
+const urlParams = new URLSearchParams(window.location.search);
+const querySessionId = urlParams.get("session_id") || urlParams.get("session");
+
+if (querySessionId) {
+  const infoEl = document.createElement("div");
+  infoEl.style.fontSize = "13px";
+  infoEl.style.color = "#475569";
+  infoEl.style.marginBottom = "8px";
+  infoEl.textContent = `Mã ca thi: #${querySessionId}`;
+  document.getElementById("joinBox").prepend(infoEl);
+}
+
+document.getElementById("sbd").addEventListener("keydown", (e) => {
+  if (e.key === "Enter") joinExam();
+});
 
 async function joinExam() {
   const sbd = document.getElementById("sbd").value.trim();
-  if (!sbd) { alert("Nhập SBD"); return; }
-  const r = await fetch(API + "/candidates/join", {
-    method: "POST", headers: {"Content-Type": "application/json"},
-    body: JSON.stringify({SBD: sbd}),
-  });
-  if (!r.ok) { alert("SBD không có trong ca thi đang mở"); return; }
-  const d = await r.json();
-  sessionId = d.PK_MaPhienGiamSat; token = d.token;
+  if (!sbd) { alert("Vui lòng nhập số báo danh (SBD)"); return; }
+  
+  const payload = { SBD: sbd };
+  if (querySessionId) {
+    const parsedId = parseInt(querySessionId, 10);
+    if (!isNaN(parsedId)) {
+      payload.FK_MaPhienGiamSat = parsedId;
+    }
+  }
+
   try {
-    const stream = await navigator.mediaDevices.getUserMedia({video: {width: 640}, audio: false});
-    document.getElementById("cam").srcObject = stream;
-  } catch (e) { setStatus("Không mở được camera!", "bad"); return; }
-  document.getElementById("joinBox").style.display = "none";
-  document.getElementById("examBox").style.display = "block";
-  startTime = Date.now();
-  setInterval(tick, 1000);
-  timer = setInterval(sendFrame, 2500);
-  setStatus("Đang thi - camera giám sát bật", "ok");
+    const r = await fetch(API + "/candidates/join", {
+      method: "POST",
+      headers: {"Content-Type": "application/json"},
+      body: JSON.stringify(payload),
+    });
+    if (!r.ok) {
+      let errMsg = "Không thể vào thi";
+      try {
+        const err = await r.json();
+        if (err && err.detail) errMsg = err.detail;
+      } catch (_) {}
+      alert(errMsg);
+      return;
+    }
+    const d = await r.json();
+    sessionId = d.PK_MaPhienGiamSat; token = d.token;
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({video: {width: 640}, audio: false});
+      document.getElementById("cam").srcObject = stream;
+    } catch (e) { setStatus("Không mở được camera! Vui lòng cấp quyền camera.", "bad"); return; }
+    document.getElementById("joinBox").style.display = "none";
+    document.getElementById("examBox").style.display = "block";
+    startTime = Date.now();
+    setInterval(tick, 1000);
+    timer = setInterval(sendFrame, 2500);
+    setStatus("Đang thi - camera giám sát bật", "ok");
+  } catch (err) {
+    alert("Lỗi kết nối máy chủ: " + err.message);
+  }
 }
 
 function tick() {

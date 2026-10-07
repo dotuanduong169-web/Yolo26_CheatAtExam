@@ -69,7 +69,7 @@ def get_sessions_by_user(
     search: Optional[str] = None,
 ) -> list[MonitoringSession]:
     """Liệt kê phiên mới nhất trước. Lọc theo user và tìm theo phòng/môn thi."""
-    query = db.query(MonitoringSession)
+    query = db.query(MonitoringSession).filter(MonitoringSession.FK_MaThiSinh.is_(None))
     if user_id is not None:
         query = query.filter(MonitoringSession.FK_MaNguoiDung == user_id)
     if search:
@@ -99,6 +99,7 @@ def get_sessions_with_event_count(
             DetectedEvent,
             DetectedEvent.FK_MaPhienGiamSat == MonitoringSession.PK_MaPhienGiamSat,
         )
+        .filter(MonitoringSession.FK_MaThiSinh.is_(None))
         .group_by(MonitoringSession.PK_MaPhienGiamSat)
     )
     if user_id is not None:
@@ -118,7 +119,9 @@ def get_sessions_with_event_count(
 
 def get_session_count_by_user(db: DBSession, user_id: Optional[int] = None, search: Optional[str] = None) -> int:
     """Đếm tổng số phiên, lọc theo user và từ khóa phòng/môn khi cần."""
-    query = db.query(func.count(MonitoringSession.PK_MaPhienGiamSat))
+    query = db.query(func.count(MonitoringSession.PK_MaPhienGiamSat)).filter(
+        MonitoringSession.FK_MaThiSinh.is_(None)
+    )
     if user_id is not None:
         query = query.filter(MonitoringSession.FK_MaNguoiDung == user_id)
     if search:

@@ -90,7 +90,9 @@ def cleanup_orphan_sessions(db=None) -> int:
         state = CameraState()
         active_id = state.current_session_id if state.is_running() else None
         query = db.query(MonitoringSession).filter(
-            MonitoringSession.TrangThai == "dang_giam_sat"
+            MonitoringSession.TrangThai == "dang_giam_sat",
+            MonitoringSession.FK_MaThiSinh.is_(None),
+            MonitoringSession.FK_MaThietBi.isnot(None),
         )
         if active_id:
             query = query.filter(MonitoringSession.PK_MaPhienGiamSat != active_id)

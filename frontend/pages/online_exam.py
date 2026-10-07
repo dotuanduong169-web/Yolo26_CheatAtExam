@@ -70,6 +70,9 @@ if not sessions:
 
 sess_dict = {s["PK_MaPhienGiamSat"]: s for s in sessions}
 
+if "online_exam_session" in st.session_state and st.session_state["online_exam_session"] not in sess_dict:
+    st.session_state["online_exam_session"] = list(sess_dict.keys())[0]
+
 
 def _format_sess(sid):
     s = sess_dict.get(sid, {})
@@ -151,44 +154,54 @@ with st.expander("Nhập danh sách thí sinh (SBD, Họ tên, Lớp)", expanded
                 notify.error("Nhập danh sách thất bại.")
 
 # ── Lưới giám thị ───────────────────────────────────────────
-st.markdown("### Lưới giám thị")
+col_head_left, col_head_right = st.columns([4, 1])
+with col_head_left:
+    st.markdown("### Lưới giám thị")
+with col_head_right:
+    st.write("")
+    if st.button("🔄 Cập nhật", key="btn_refresh_grid", use_container_width=True):
+        st.rerun()
+
 rows = exam_overview(st.session_state.client, sel_id)
 if not rows:
     notify.info("Ca này chưa có thí sinh nào. Nhập danh sách ở trên.")
 else:
-    cols = st.columns(4)
-    for i, c in enumerate(rows):
-        with cols[i % 4]:
-            is_active = c.get("dang_giam_sat")
-            dot = "🟢" if is_active else "⚪"
-            status_text = "Đang thi" if is_active else ("Đã dừng" if c.get("PK_MaPhienGiamSat") else "Chưa vào")
-            alert = f"🚨 {c.get('cho_kiem_tra', 0)} chờ" if c.get("cho_kiem_tra") else "yên tĩnh"
-            sid = c.get("PK_MaPhienGiamSat")
+    CHUNK_SIZE = 4
+    for chunk_idx in range(0, len(rows), CHUNK_SIZE):
+        chunk = rows[chunk_idx : chunk_idx + CHUNK_SIZE]
+        cols = st.columns(CHUNK_SIZE)
+        for col_idx, c in enumerate(chunk):
+            with cols[col_idx]:
+                is_active = c.get("dang_giam_sat")
+                dot = "🟢" if is_active else "⚪"
+                status_text = "Đang thi" if is_active else ("Đã dừng" if c.get("PK_MaPhienGiamSat") else "Chưa vào")
+                alert = f"🚨 {c.get('cho_kiem_tra', 0)} chờ" if c.get("cho_kiem_tra") else "yên tĩnh"
+                sid = c.get("PK_MaPhienGiamSat")
 
-            st.markdown(
-                f"**{dot} {c.get('SBD')} - {c.get('HoTen')}**  \n"
-                f"{c.get('Lop') or ''} · *{status_text}* · {alert} · {c.get('tong_su_kien', 0)} sự kiện"
-            )
+                st.markdown(
+                    f"**{dot} {c.get('SBD')} - {c.get('HoTen')}**  \n"
+                    f"{c.get('Lop') or ''} · *{status_text}* · {alert} · {c.get('tong_su_kien', 0)} sự kiện"
+                )
 
-            # Hiển thị ảnh snapshot cắt lên giao diện
-            if sid:
-                snap_bytes = get_candidate_snapshot(st.session_state.client, sid)
-                if snap_bytes:
-                    st.image(snap_bytes, use_container_width=True)
-                else:
-                    if is_active:
-                        st.caption("📷 Đang chờ frame camera...")
-                    else:
-                        st.caption("📷 Chưa có ảnh vi phạm")
-            else:
-                st.caption("⏳ Thí sinh chưa vào phòng thi")
-
-            if st.button("Chi tiết", key=f"online_ev_{c['PK_MaThiSinh']}"):
+                # Hiển thị ảnh snapshot cắt lên giao diện
                 if sid:
-                    st.session_state["selected_session"] = sid
-                    st.session_state["detail_return_to"] = "online_exam"
-                    st.switch_page("pages/session_detail.py")
+                    snap_bytes = get_candidate_snapshot(st.session_state.client, sid)
+                    if snap_bytes:
+                        st.image(snap_bytes, use_container_width=True)
+                    else:
+                        if is_active:
+                            st.caption("📷 Đang chờ frame camera...")
+                        else:
+                            st.caption("📷 Chưa có ảnh vi phạm")
                 else:
-                    notify.info(f"Thí sinh {c.get('HoTen')} ({c.get('SBD')}) chưa vào thi, chưa có dữ liệu phiên.")
+                    st.caption("⏳ Thí sinh chưa vào phòng thi")
+
+                if st.button("Chi tiết", key=f"online_ev_{c['PK_MaThiSinh']}", use_container_width=True):
+                    if sid:
+                        st.session_state["selected_session"] = sid
+                        st.session_state["detail_return_to"] = "online_exam"
+                        st.switch_page("pages/session_detail.py")
+                    else:
+                        notify.info(f"Thí sinh {c.get('HoTen')} ({c.get('SBD')}) chưa vào thi, chưa có dữ liệu phiên.")
 
 st_autorefresh(interval=10000, key="online_grid_refresh")

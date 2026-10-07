@@ -3,46 +3,240 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Thi online - Giám sát</title>
+<title>Hệ Thống Thi Trực Tuyến - Giám Sát AI</title>
 <style>
-  body { font-family: sans-serif; max-width: 640px; margin: 0 auto; padding: 16px; background: #f4f6f8; }
-  .card { background: #fff; border-radius: 10px; padding: 16px; margin-bottom: 12px; box-shadow: 0 1px 4px rgba(0,0,0,.08); }
-  video { width: 100%; border-radius: 8px; background: #000; }
-  input, button { font-size: 16px; padding: 10px; margin: 4px 0; width: 100%; box-sizing: border-box; }
-  button { background: #166534; color: #fff; border: none; border-radius: 8px; cursor: pointer; }
-  button:disabled { background: #999; }
-  #status { font-weight: bold; }
-  .ok { color: #166534; } .bad { color: #b91c1c; } .warn { color: #b45309; }
-  #clock { font-size: 28px; text-align: center; }
+  :root {
+    --primary: #0284c7;
+    --primary-hover: #0369a1;
+    --danger: #dc2626;
+    --danger-hover: #b91c1c;
+    --success: #16a34a;
+    --warning: #d97706;
+    --bg: #0f172a;
+    --card: #1e293b;
+    --text: #f8fafc;
+    --text-muted: #94a3b8;
+    --border: #334155;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    max-width: 680px;
+    margin: 0 auto;
+    padding: 20px 16px;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+  }
+  .card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 20px;
+    margin-bottom: 16px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.25);
+  }
+  .header {
+    text-align: center;
+    margin-bottom: 16px;
+  }
+  .header h2 { font-size: 20px; color: #38bdf8; margin-bottom: 6px; }
+  .header p { font-size: 13px; color: var(--text-muted); }
+  
+  .input-group { margin-bottom: 16px; }
+  label { display: block; font-size: 14px; margin-bottom: 6px; color: var(--text-muted); }
+  input {
+    width: 100%;
+    padding: 12px 14px;
+    font-size: 16px;
+    background: #0f172a;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    color: var(--text);
+    outline: none;
+    transition: border-color .2s;
+  }
+  input:focus { border-color: var(--primary); }
+  
+  button {
+    width: 100%;
+    padding: 12px;
+    font-size: 15px;
+    font-weight: 600;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: background-color .2s, opacity .2s;
+  }
+  .btn-primary { background: var(--primary); color: #fff; }
+  .btn-primary:hover { background: var(--primary-hover); }
+  .btn-danger { background: var(--danger); color: #fff; margin-top: 12px; }
+  .btn-danger:hover { background: var(--danger-hover); }
+  button:disabled { opacity: 0.6; cursor: not-allowed; }
+  
+  /* Khung thi & camera */
+  .info-bar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 8px 12px;
+    background: #0f172a;
+    border-radius: 8px;
+    margin-bottom: 12px;
+    font-size: 14px;
+  }
+  #clock { font-size: 20px; font-weight: bold; color: #38bdf8; font-variant-numeric: tabular-nums; }
+  .candidate-badge { font-weight: 600; color: #e2e8f0; }
+
+  .video-container {
+    position: relative;
+    width: 100%;
+    background: #000;
+    border-radius: 8px;
+    overflow: hidden;
+    margin-bottom: 12px;
+    aspect-ratio: 4 / 3;
+  }
+  video {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+  .status-pill {
+    position: absolute;
+    top: 10px;
+    left: 10px;
+    background: rgba(15, 23, 42, 0.85);
+    padding: 4px 10px;
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    backdrop-filter: blur(4px);
+  }
+  .dot { width: 8px; height: 8px; border-radius: 50%; }
+  .dot-ok { background: var(--success); }
+  .dot-warn { background: var(--warning); }
+  .dot-bad { background: var(--danger); }
+  
+  .status-footer {
+    display: flex;
+    justify-content: space-between;
+    font-size: 13px;
+    color: var(--text-muted);
+  }
+  .ok { color: #4ade80; }
+  .bad { color: #f87171; }
+  .warn { color: #fbbf24; }
+  
+  /* Modal xác nhận nộp bài */
+  .modal-overlay {
+    position: fixed;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: rgba(0,0,0,0.7);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 16px;
+    z-index: 1000;
+  }
+  .modal-box {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 24px;
+    max-width: 400px;
+    width: 100%;
+    text-align: center;
+  }
+  .modal-box h4 { margin-bottom: 8px; font-size: 18px; color: #f8fafc; }
+  .modal-box p { font-size: 14px; color: var(--text-muted); margin-bottom: 20px; line-height: 1.4; }
+  .modal-actions { display: flex; gap: 10px; }
+  .btn-outline { background: transparent; border: 1px solid var(--border); color: var(--text); }
+  .btn-outline:hover { background: #334155; }
 </style>
 </head>
 <body>
+
 <div class="card">
-  <h3>Phòng thi online</h3>
-  <div id="joinBox">
-    <input id="sbd" placeholder="Nhập số báo danh (VD: TS001)">
-    <button onclick="joinExam()">Vào thi</button>
+  <div class="header">
+    <h2>Hệ Thống Giám Sát Thi Trực Tuyến</h2>
+    <p>Giám sát tự động AI (YOLO & Pose) trong suốt ca thi</p>
   </div>
+
+  <!-- Hộp tham gia thi -->
+  <div id="joinBox">
+    <div id="sessionBadge" style="margin-bottom: 12px; font-size: 13px; color: #38bdf8; background: #0f172a; padding: 6px 12px; border-radius: 6px; display: inline-block;"></div>
+    <div class="input-group">
+      <label for="sbd">Số báo danh (SBD)</label>
+      <input id="sbd" placeholder="VD: TS001, 202601..." autocomplete="off">
+    </div>
+    <button class="btn-primary" id="btnJoin" onclick="joinExam()">Vào Phòng Thi</button>
+  </div>
+
+  <!-- Giao diện làm bài thi & camera -->
   <div id="examBox" style="display:none">
-    <div id="clock">00:00:00</div>
-    <video id="cam" autoplay playsinline muted></video>
-    <div id="status" class="ok">Đang kết nối camera...</div>
-    <div id="net">Mạng: <span id="netState" class="ok">ổn định</span></div>
+    <div class="info-bar">
+      <div>Thí sinh: <span class="candidate-badge" id="candName">--</span> (<span id="candSBD">--</span>)</div>
+      <div id="clock">00:00:00</div>
+    </div>
+
+    <div class="video-container">
+      <video id="cam" autoplay playsinline muted></video>
+      <div class="status-pill">
+        <span class="dot dot-ok" id="statusDot"></span>
+        <span id="statusText">Giám sát AI hoạt động</span>
+      </div>
+    </div>
+
+    <div class="status-footer">
+      <div>Đường truyền: <span id="netState" class="ok">Ổn định</span></div>
+      <div id="roomSubject">Phòng thi</div>
+    </div>
+
+    <button class="btn-danger" id="btnFinish" onclick="confirmFinish()">Nộp Bài Thi</button>
+  </div>
+
+  <!-- Màn hình kết thúc ca thi -->
+  <div id="finishedBox" style="display:none; text-align: center; padding: 24px 0;">
+    <div style="font-size: 48px; margin-bottom: 12px;">✅</div>
+    <h3 style="color: #4ade80; margin-bottom: 8px;">Đã Nộp Bài Thi Thành Công</h3>
+    <p style="color: var(--text-muted); font-size: 14px; margin-bottom: 16px;" id="finishedDesc">
+      Phiên giám sát ca thi của bạn đã kết thúc. Bạn có thể đóng trình duyệt.
+    </p>
+    <div style="font-size: 13px; color: #64748b;">Thời gian làm bài: <strong id="totalExamTime">00:00:00</strong></div>
   </div>
 </div>
+
+<!-- Modal xác nhận nộp bài -->
+<div id="confirmModal" class="modal-overlay" style="display: none;">
+  <div class="modal-box">
+    <h4>Xác nhận nộp bài thi?</h4>
+    <p>Bạn có chắc chắn muốn nộp bài thi? Camera và phiên giám sát AI sẽ dừng lại ngay lập tức.</p>
+    <div class="modal-actions">
+      <button class="btn-outline" onclick="closeConfirmModal()">Hủy bỏ</button>
+      <button class="btn-danger" id="btnModalConfirm" style="margin-top: 0;" onclick="submitFinishExam()">Xác Nhận Nộp</button>
+    </div>
+  </div>
+</div>
+
 <script>
-let sessionId = null, token = null, timer = null, failStreak = 0, startTime = null;
+let sessionId = null, token = null;
+let tickTimer = null, frameTimer = null;
+let startTime = null, localStream = null;
+let failStreak = 0;
+let isFinished = false;
+
 const API = location.origin;
 const urlParams = new URLSearchParams(window.location.search);
 const querySessionId = urlParams.get("session_id") || urlParams.get("session");
 
 if (querySessionId) {
-  const infoEl = document.createElement("div");
-  infoEl.style.fontSize = "13px";
-  infoEl.style.color = "#475569";
-  infoEl.style.marginBottom = "8px";
-  infoEl.textContent = `Mã ca thi: #${querySessionId}`;
-  document.getElementById("joinBox").prepend(infoEl);
+  document.getElementById("sessionBadge").textContent = `Mã ca thi: #${querySessionId}`;
+} else {
+  document.getElementById("sessionBadge").style.display = "none";
 }
 
 document.getElementById("sbd").addEventListener("keydown", (e) => {
@@ -52,7 +246,11 @@ document.getElementById("sbd").addEventListener("keydown", (e) => {
 async function joinExam() {
   const sbd = document.getElementById("sbd").value.trim();
   if (!sbd) { alert("Vui lòng nhập số báo danh (SBD)"); return; }
-  
+
+  const btnJoin = document.getElementById("btnJoin");
+  btnJoin.disabled = true;
+  btnJoin.textContent = "Đang kiểm tra...";
+
   const payload = { SBD: sbd };
   if (querySessionId) {
     const parsedId = parseInt(querySessionId, 10);
@@ -67,78 +265,191 @@ async function joinExam() {
       headers: {"Content-Type": "application/json"},
       body: JSON.stringify(payload),
     });
+
     if (!r.ok) {
-      let errMsg = "Không thể vào thi";
+      let errMsg = "Không thể vào phòng thi";
       try {
         const err = await r.json();
         if (err && err.detail) errMsg = err.detail;
       } catch (_) {}
       alert(errMsg);
+      btnJoin.disabled = false;
+      btnJoin.textContent = "Vào Phòng Thi";
       return;
     }
+
     const d = await r.json();
-    sessionId = d.PK_MaPhienGiamSat; token = d.token;
+    sessionId = d.PK_MaPhienGiamSat;
+    token = d.token;
+
+    // Cập nhật thông tin thí sinh
+    if (d.candidate) {
+      document.getElementById("candName").textContent = d.candidate.HoTen || "Thí sinh";
+      document.getElementById("candSBD").textContent = d.candidate.SBD || sbd;
+    }
+
+    // Yêu cầu quyền camera
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({video: {width: 640}, audio: false});
-      document.getElementById("cam").srcObject = stream;
-    } catch (e) { setStatus("Không mở được camera! Vui lòng cấp quyền camera.", "bad"); return; }
+      localStream = await navigator.mediaDevices.getUserMedia({
+        video: { width: { ideal: 640 }, height: { ideal: 480 } },
+        audio: false
+      });
+      document.getElementById("cam").srcObject = localStream;
+    } catch (e) {
+      alert("Không thể mở camera! Vui lòng cấp quyền truy cập camera trong trình duyệt.");
+      btnJoin.disabled = false;
+      btnJoin.textContent = "Vào Phòng Thi";
+      return;
+    }
+
+    // Hiển thị giao diện thi
     document.getElementById("joinBox").style.display = "none";
     document.getElementById("examBox").style.display = "block";
     startTime = Date.now();
-    setInterval(tick, 1000);
-    timer = setInterval(sendFrame, 2500);
-    setStatus("Đang thi - camera giám sát bật", "ok");
+
+    tickTimer = setInterval(tick, 1000);
+    frameTimer = setInterval(sendFrame, 2500);
+    setStatus("Đang giám sát AI", "ok");
+
   } catch (err) {
     alert("Lỗi kết nối máy chủ: " + err.message);
+    btnJoin.disabled = false;
+    btnJoin.textContent = "Vào Phòng Thi";
   }
 }
 
 function tick() {
+  if (!startTime) return;
   const s = Math.floor((Date.now() - startTime) / 1000);
   const h = String(Math.floor(s / 3600)).padStart(2, "0");
   const m = String(Math.floor((s % 3600) / 60)).padStart(2, "0");
   const ss = String(s % 60).padStart(2, "0");
-  document.getElementById("clock").textContent = `${h}:${m}:${ss}`;
+  const formatted = `${h}:${m}:${ss}`;
+  document.getElementById("clock").textContent = formatted;
+  document.getElementById("totalExamTime").textContent = formatted;
 }
 
-function setStatus(msg, cls) {
-  const el = document.getElementById("status");
-  el.textContent = msg; el.className = cls;
+function setStatus(msg, type) {
+  const textEl = document.getElementById("statusText");
+  const dotEl = document.getElementById("statusDot");
+  textEl.textContent = msg;
+  dotEl.className = "dot " + (type === "ok" ? "dot-ok" : (type === "warn" ? "dot-warn" : "dot-bad"));
 }
 
 async function sendFrame() {
+  if (isFinished) return;
   try {
     const video = document.getElementById("cam");
-    if (video.readyState < 2) return;
+    if (video.readyState < 2 || !video.videoWidth || !video.videoHeight) return;
+
     const c = document.createElement("canvas");
     const scale = 640 / video.videoWidth;
-    c.width = 640; c.height = Math.round(video.videoHeight * scale);
-    c.getContext("2d").drawImage(video, 0, 0, c.width, c.height);
-    const blob = await new Promise(r => c.toBlob(r, "image/jpeg", 0.7));
+    c.width = 640;
+    c.height = Math.round(video.videoHeight * scale);
+    const ctx = c.getContext("2d");
+    ctx.drawImage(video, 0, 0, c.width, c.height);
+
+    const blob = await new Promise(r => c.toBlob(r, "image/jpeg", 0.75));
+    if (!blob) return;
+
     const fd = new FormData();
     fd.append("session_id", sessionId);
     fd.append("token", token);
     fd.append("ts_client", Date.now() / 1000);
-    fd.append("frame", blob, "f.jpg");
+    fd.append("frame", blob, "frame.jpg");
+
     const ctl = new AbortController();
     const t = setTimeout(() => ctl.abort(), 8000);
-    const r = await fetch(API + "/ingest/frame", {method: "POST", body: fd, signal: ctl.signal});
+    const r = await fetch(API + "/ingest/frame", {
+      method: "POST",
+      body: fd,
+      signal: ctl.signal
+    });
     clearTimeout(t);
+
+    if (r.status === 400 || r.status === 403) {
+      // Giám thị đã kết thúc ca thi hoặc token hết hạn
+      handleExamClosedBySupervisor();
+      return;
+    }
+
     if (!r.ok) throw new Error("HTTP " + r.status);
+
     failStreak = 0;
-    document.getElementById("netState").textContent = "ổn định";
-    document.getElementById("netState").className = "ok";
+    const netEl = document.getElementById("netState");
+    netEl.textContent = "Ổn định";
+    netEl.className = "ok";
+    setStatus("Đang giám sát AI", "ok");
+
   } catch (e) {
     failStreak++;
-    document.getElementById("netState").textContent = "chập chờn (" + failStreak + ")";
-    document.getElementById("netState").className = "warn";
-    if (failStreak >= 6) setStatus("MẤT KẾT NỐI quá 15s - kiểm tra mạng!", "bad");
+    const netEl = document.getElementById("netState");
+    netEl.textContent = `Chập chờn (${failStreak})`;
+    netEl.className = "warn";
+    if (failStreak >= 6) {
+      setStatus("Mất kết nối > 15s (kiểm tra mạng)", "bad");
+    }
   }
 }
 
-// Cảnh báo chuyển tab/ẩn trang (mức cơ bản, có thể vượt qua - chỉ để răn đe + ghi nhận)
+function handleExamClosedBySupervisor() {
+  isFinished = true;
+  stopAllMedia();
+  document.getElementById("examBox").style.display = "none";
+  document.getElementById("finishedBox").style.display = "block";
+  document.getElementById("finishedDesc").textContent = "Ca thi đã được kết thúc bởi giám thị phòng thi. Cảm ơn bạn đã tham gia!";
+}
+
+function confirmFinish() {
+  document.getElementById("confirmModal").style.display = "flex";
+}
+
+function closeConfirmModal() {
+  document.getElementById("confirmModal").style.display = "none";
+}
+
+async function submitFinishExam() {
+  const btn = document.getElementById("btnModalConfirm");
+  btn.disabled = true;
+  btn.textContent = "Đang nộp...";
+
+  try {
+    const r = await fetch(API + "/candidates/finish", {
+      method: "POST",
+      headers: {"Content-Type": "application/json"},
+      body: JSON.stringify({
+        session_id: sessionId,
+        token: token
+      }),
+    });
+    closeConfirmModal();
+    isFinished = true;
+    stopAllMedia();
+    document.getElementById("examBox").style.display = "none";
+    document.getElementById("finishedBox").style.display = "block";
+  } catch (err) {
+    alert("Không thể kết nối để nộp bài: " + err.message);
+    btn.disabled = false;
+    btn.textContent = "Xác Nhận Nộp";
+  }
+}
+
+function stopAllMedia() {
+  if (tickTimer) clearInterval(tickTimer);
+  if (frameTimer) clearInterval(frameTimer);
+  if (localStream) {
+    localStream.getTracks().forEach(track => track.stop());
+    localStream = null;
+  }
+  const video = document.getElementById("cam");
+  if (video) video.srcObject = null;
+}
+
+// Cảnh báo rời tab
 document.addEventListener("visibilitychange", () => {
-  if (document.hidden) setStatus("CẢNH BÁO: không được rời khỏi trang thi!", "bad");
+  if (document.hidden && !isFinished && sessionId) {
+    setStatus("CẢNH BÁO: Không được rời khỏi màn hình thi!", "bad");
+  }
 });
 </script>
 </body>

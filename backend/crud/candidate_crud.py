@@ -133,6 +133,9 @@ def create_sub_session(
     candidate: Candidate,
 ) -> MonitoringSession:
     """Mở phiên con cho thí sinh: kế thừa phòng/môn từ ca thi, không gắn thiết bị biên."""
+    from models.edge_device import EdgeDevice
+    from sqlalchemy.exc import IntegrityError
+
     exam = (
         db.query(MonitoringSession)
         .filter(MonitoringSession.PK_MaPhienGiamSat == candidate.FK_MaPhienGiamSat)
@@ -145,9 +148,18 @@ def create_sub_session(
         FK_MaNguoiDung=user_id,
         FK_MaThietBi=None,
         FK_MaThiSinh=candidate.PK_MaThiSinh,
+        TrangThai="dang_giam_sat",
     )
     db.add(session)
-    db.commit()
+    try:
+        db.commit()
+    except IntegrityError:
+        db.rollback()
+        first_dev = db.query(EdgeDevice).first()
+        session.FK_MaThietBi = first_dev.PK_MaThietBi if first_dev else None
+        db.add(session)
+        db.commit()
+
     db.refresh(session)
     return session
 

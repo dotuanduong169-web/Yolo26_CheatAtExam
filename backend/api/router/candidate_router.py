@@ -2,6 +2,8 @@
 Logic chính: giám thị cần đăng nhập; thí sinh join chỉ cần SBD đúng ca đang mở.
 """
 
+import time
+
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
@@ -34,6 +36,11 @@ from service import ingest_service
 
 logger = get_logger(__name__)
 router = APIRouter(prefix="/candidates", tags=["ThiSinh"])
+
+
+class CandidateFinish(BaseModel):
+    session_id: int
+    token: str
 
 
 class CreateOnlineSession(BaseModel):
@@ -127,15 +134,31 @@ def exam_overview(
     db = SessionLocal()
     try:
         items: list[CandidateStatusItem] = []
+        now = time.time()
         for c in list_candidates(db, session_id):
             open_sub = get_open_sub_session(db, c.PK_MaThiSinh)
             latest_sub = open_sub or get_latest_sub_session(db, c.PK_MaThiSinh)
             sid = latest_sub.PK_MaPhienGiamSat if latest_sub else None
             total, pending = (0, 0)
             latest = None
+            is_active = False
+
+            if open_sub:
+                # Kiểm tra worker có đang chạy và gửi frame trong thời gian gần không
+                w = ingest_service._workers.get(open_sub.PK_MaPhienGiamSat)
+                if w and w.running and (now - w.last_activity <= 25.0):
+                    is_active = True
+                elif w and w.running and (now - w.last_activity <= 60.0):
+                    # Thí sinh mới join hoặc mạng hơi chậm
+                    is_active = True
+                elif not w and (now - open_sub.ThoiGianBatDau.timestamp() <= 30.0):
+                    # Vừa tạo phiên trong 30s
+                    is_active = True
+
             if sid:
                 total, pending = count_unverified_by_candidate(db, sid)
                 latest = latest_evidence_time(db, sid)
+
             items.append(
                 CandidateStatusItem(
                     PK_MaThiSinh=c.PK_MaThiSinh,
@@ -143,13 +166,36 @@ def exam_overview(
                     HoTen=c.HoTen,
                     Lop=c.Lop,
                     PK_MaPhienGiamSat=sid,
-                    dang_giam_sat=open_sub is not None,
+                    dang_giam_sat=is_active,
                     cho_kiem_tra=pending,
                     tong_su_kien=total,
                     anh_moi_nhat=latest,
                 )
             )
         return items
+    finally:
+        db.close()
+
+
+@router.post("/finish")
+def finish_exam(data: CandidateFinish):
+    """Thí sinh tự nộp bài thi từ trình duyệt. Xác thực qua token, không cần JWT giám thị."""
+    from database.database import SessionLocal
+
+    expected_sid = ingest_service.resolve_token(data.token)
+    if expected_sid != data.session_id:
+        raise HTTPException(
+            status_code=400,
+            detail="Token nộp bài không hợp lệ hoặc ca thi đã kết thúc.",
+        )
+    db = SessionLocal()
+    try:
+        sub = get_session_by_id(db, data.session_id)
+        if not sub or sub.FK_MaThiSinh is None:
+            raise HTTPException(status_code=404, detail="Không tìm thấy phiên con của thí sinh.")
+        end_session(db, data.session_id)
+        ingest_service.stop_session_workers(data.session_id)
+        return {"message": "Đã nộp bài thi thành công", "session_id": data.session_id}
     finally:
         db.close()
 

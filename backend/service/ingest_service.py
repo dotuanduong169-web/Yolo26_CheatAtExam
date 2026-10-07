@@ -213,6 +213,10 @@ class _SessionWorker:
         """Dừng worker khi phiên kết thúc hoặc quá lâu không có frame."""
         if time.time() - self.last_activity > IDLE_STOP_SECONDS:
             self.running = False
+            try:
+                end_session(db, self.session_id)
+            except Exception as exc:
+                logger.debug(f"End session #{self.session_id} on idle timeout failed: {exc}")
             return True
         try:
             s = get_session_by_id(db, self.session_id)

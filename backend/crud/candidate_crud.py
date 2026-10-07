@@ -133,7 +133,7 @@ def create_sub_session(
     candidate: Candidate,
 ) -> MonitoringSession:
     """Mở phiên con cho thí sinh: kế thừa phòng/môn từ ca thi, không gắn thiết bị biên."""
-    from models.edge_device import EdgeDevice
+    from models.edgedevice import EdgeDevice
     from sqlalchemy.exc import IntegrityError
 
     exam = (

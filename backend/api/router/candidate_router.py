@@ -305,7 +305,7 @@ def create_online_session(
     from datetime import datetime, timezone
     from database.database import SessionLocal
     from models.monitoring_session import MonitoringSession
-    from models.edge_device import EdgeDevice
+    from models.edgedevice import EdgeDevice
     from sqlalchemy.exc import IntegrityError
     from sqlalchemy import text
 

@@ -1,5 +1,7 @@
 """Trang Quản lý Tài khoản (FR01): Danh sách người dùng, phân quyền Admin/Giám thị và cài đặt hồ sơ cá nhân."""
 
+import math
+
 import streamlit as st
 from utils.notify import notify
 
@@ -196,8 +198,20 @@ with tab_users:
         if not users:
             notify.empty_state("Không có dữ liệu người dùng", "Chưa có tài khoản nào được ghi nhận trong cơ sở dữ liệu.")
         else:
+            # Phân trang người dùng (10 người dùng / trang)
+            PAGE_SIZE = 10
+            total_users_count = len(users)
+            st.session_state.setdefault("users_page", 1)
+            total_user_pages = max(1, math.ceil(total_users_count / PAGE_SIZE))
+            st.session_state.users_page = min(st.session_state.users_page, total_user_pages)
+            current_user_page = st.session_state.users_page
+
+            user_start_idx = (current_user_page - 1) * PAGE_SIZE
+            user_end_idx = min(user_start_idx + PAGE_SIZE, total_users_count)
+            page_users = users[user_start_idx:user_end_idx]
+
             # Header hàng bảng
-            th1, th2, th3, th4, th5, th6 = st.columns([0.8, 1.6, 2.0, 1.6, 1.0, 1.8])
+            th1, th2, th3, th4, th5, th6 = st.columns([0.8, 1.6, 2.3, 1.6, 1.0, 1.1])
             th1.caption("MÃ ND")
             th2.caption("TÊN ĐĂNG NHẬP")
             th3.caption("HỌ VÀ TÊN")
@@ -207,7 +221,7 @@ with tab_users:
 
             st.markdown("<hr style='margin: 4px 0 8px 0; border: none; border-top: 1px solid var(--wf-border);'>", unsafe_allow_html=True)
 
-            for u in users:
+            for u in page_users:
                 u_id = u.get("PK_MaNguoiDung")
                 u_login = u.get("TenDangNhap")
                 u_name = u.get("HoVaTen")
@@ -218,7 +232,7 @@ with tab_users:
                 status_badge = get_user_status_badge(u_status)
 
                 with st.container():
-                    c1, c2, c3, c4, c5, c6 = st.columns([0.8, 1.6, 2.0, 1.6, 1.0, 1.8])
+                    c1, c2, c3, c4, c5, c6 = st.columns([0.8, 1.6, 2.3, 1.6, 1.0, 1.1])
                     with c1:
                         st.markdown(f"<strong>USR-{u_id:02d}</strong>", unsafe_allow_html=True)
                     with c2:
@@ -260,6 +274,44 @@ with tab_users:
                                     notify.error("Lỗi khi đổi trạng thái tài khoản")
 
                     st.markdown("<hr style='margin: 4px 0 8px 0; border: none; border-top: 1px solid var(--wf-border);'>", unsafe_allow_html=True)
+
+            # Phân trang người dùng chuẩn Figma Standard
+            st.markdown("<div style='height: 14px;'></div>", unsafe_allow_html=True)
+            u_pg_left, u_pg_right = st.columns([3, 1])
+            with u_pg_left:
+                st.markdown(
+                    f"<div style='font-size: 13px; color: #64748b; line-height: 32px; font-weight: 500;'>"
+                    f"Hiển thị <strong>{user_start_idx + 1 if total_users_count > 0 else 0} – {user_end_idx}</strong> trong tổng số <strong>{total_users_count}</strong> tài khoản"
+                    f"</div>",
+                    unsafe_allow_html=True,
+                )
+
+            with u_pg_right:
+                _user_pages: list = []
+                for p in range(1, total_user_pages + 1):
+                    if total_user_pages > 7 and abs(p - current_user_page) > 2 and p != 1 and p != total_user_pages:
+                        if p == 2 or p == total_user_pages - 1:
+                            _user_pages.append(None)
+                        continue
+                    _user_pages.append(p)
+                _ucols = st.columns(len(_user_pages) + 2, gap="small")
+                with _ucols[0]:
+                    if st.button("‹", key="pag_btn_user_prev", disabled=(current_user_page <= 1)):
+                        st.session_state.users_page = current_user_page - 1
+                        st.rerun()
+                for _i, _p in enumerate(_user_pages):
+                    with _ucols[_i + 1]:
+                        if _p is None:
+                            st.markdown("<div style='display:flex;align-items:center;justify-content:center;height:32px;color:#94a3b8;'>…</div>", unsafe_allow_html=True)
+                        elif _p == current_user_page:
+                            st.button(str(_p), key=f"pag_btn_user_cur_{_p}", type="primary", disabled=True)
+                        elif st.button(str(_p), key=f"pag_btn_user_{_p}"):
+                            st.session_state.users_page = _p
+                            st.rerun()
+                with _ucols[-1]:
+                    if st.button("›", key="pag_btn_user_next", disabled=(current_user_page >= total_user_pages)):
+                        st.session_state.users_page = current_user_page + 1
+                        st.rerun()
 
 
 

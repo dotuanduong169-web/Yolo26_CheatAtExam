@@ -1,5 +1,7 @@
 """Trang Thiết bị biên & Hệ thống (FR04): Quản lý camera IP/RTSP và tài nguyên biên."""
 
+import math
+
 import streamlit as st
 from utils.notify import notify
 
@@ -217,8 +219,20 @@ with h_col2:
 if not devices:
     notify.empty_state("Chưa có thiết bị camera nào trong danh mục", "Vui lòng bấm nút '+ Thêm thiết bị mới' ở góc trên để cấu hình camera vào hệ thống.")
 else:
+    # Phân trang thiết bị (10 thiết bị / trang)
+    PAGE_SIZE = 10
+    total_devices_count = len(devices)
+    st.session_state.setdefault("dev_page", 1)
+    total_dev_pages = max(1, math.ceil(total_devices_count / PAGE_SIZE))
+    st.session_state.dev_page = min(st.session_state.dev_page, total_dev_pages)
+    current_dev_page = st.session_state.dev_page
+
+    dev_start_idx = (current_dev_page - 1) * PAGE_SIZE
+    dev_end_idx = min(dev_start_idx + PAGE_SIZE, total_devices_count)
+    page_devices = devices[dev_start_idx:dev_end_idx]
+
     # Header hàng bảng
-    th1, th2, th3, th4, th5, th6 = st.columns([0.8, 1.6, 2.2, 1.6, 1.0, 1.8])
+    th1, th2, th3, th4, th5, th6 = st.columns([0.8, 1.8, 2.5, 1.6, 1.0, 1.1])
     th1.caption("MÃ TB")
     th2.caption("TÊN THIẾT BỊ")
     th3.caption("ĐƯỜNG DẪN RTSP")
@@ -228,7 +242,7 @@ else:
 
     st.markdown("<hr style='margin: 4px 0 8px 0; border: none; border-top: 1px solid var(--wf-border);'>", unsafe_allow_html=True)
 
-    for dev in devices:
+    for dev in page_devices:
         dev_id = dev.get("PK_MaThietBi")
         name = dev.get("TenThietBi", "Camera")
         rtsp = dev.get("DuongDanRTSP", "0")
@@ -237,7 +251,7 @@ else:
         stt_badge = get_device_status_badge(status)
 
         with st.container():
-            c1, c2, c3, c4, c5, c6 = st.columns([0.8, 1.6, 2.2, 1.6, 1.0, 1.8])
+            c1, c2, c3, c4, c5, c6 = st.columns([0.8, 1.8, 2.5, 1.6, 1.0, 1.1])
             with c1:
                 st.markdown(f"**#{dev_id}**")
             with c2:
@@ -276,4 +290,42 @@ else:
                     st.caption("Cán bộ")
 
             st.markdown("<hr style='margin: 4px 0 10px 0; border: none; border-top: 1px solid var(--wf-border);'>", unsafe_allow_html=True)
+
+    # Phân trang thiết bị chuẩn Figma Standard
+    st.markdown("<div style='height: 14px;'></div>", unsafe_allow_html=True)
+    dev_pg_left, dev_pg_right = st.columns([3, 1])
+    with dev_pg_left:
+        st.markdown(
+            f"<div style='font-size: 13px; color: #64748b; line-height: 32px; font-weight: 500;'>"
+            f"Hiển thị <strong>{dev_start_idx + 1 if total_devices_count > 0 else 0} – {dev_end_idx}</strong> trong tổng số <strong>{total_devices_count}</strong> thiết bị"
+            f"</div>",
+            unsafe_allow_html=True,
+        )
+
+    with dev_pg_right:
+        _dev_pages: list = []
+        for p in range(1, total_dev_pages + 1):
+            if total_dev_pages > 7 and abs(p - current_dev_page) > 2 and p != 1 and p != total_dev_pages:
+                if p == 2 or p == total_dev_pages - 1:
+                    _dev_pages.append(None)
+                continue
+            _dev_pages.append(p)
+        _dcols = st.columns(len(_dev_pages) + 2, gap="small")
+        with _dcols[0]:
+            if st.button("‹", key="pag_btn_dev_prev", disabled=(current_dev_page <= 1)):
+                st.session_state.dev_page = current_dev_page - 1
+                st.rerun()
+        for _i, _p in enumerate(_dev_pages):
+            with _dcols[_i + 1]:
+                if _p is None:
+                    st.markdown("<div style='display:flex;align-items:center;justify-content:center;height:32px;color:#94a3b8;'>…</div>", unsafe_allow_html=True)
+                elif _p == current_dev_page:
+                    st.button(str(_p), key=f"pag_btn_dev_cur_{_p}", type="primary", disabled=True)
+                elif st.button(str(_p), key=f"pag_btn_dev_{_p}"):
+                    st.session_state.dev_page = _p
+                    st.rerun()
+        with _dcols[-1]:
+            if st.button("›", key="pag_btn_dev_next", disabled=(current_dev_page >= total_dev_pages)):
+                st.session_state.dev_page = current_dev_page + 1
+                st.rerun()
 

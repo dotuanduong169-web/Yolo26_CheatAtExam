@@ -254,7 +254,7 @@ if not events:
     notify.empty_state("Phiên thi này không có sự kiện vi phạm nào", "Hệ thống camera AI không phát hiện bất kỳ hành vi nghi vấn gian lận nào trong suốt ca thi này.")
 else:
     # Header hàng bảng đồng bộ st.columns đảm bảo thẳng hàng 100% với các hàng dữ liệu
-    th1, th2, th3, th4, th5 = st.columns([1.2, 1.4, 0.9, 1.3, 0.8])
+    th1, th2, th3, th4, th5 = st.columns([1.2, 1.8, 0.9, 1.3, 0.8])
     th1.caption("THỜI GIAN")
     th2.caption("HÀNH VI PHÁT HIỆN")
     th3.caption("ĐỘ TIN CẬY")
@@ -264,7 +264,7 @@ else:
     st.markdown("<hr style='margin: 4px 0 8px 0; border: none; border-top: 1px solid var(--wf-border);'>", unsafe_allow_html=True)
 
     for row in page_events:
-        c1, c2, c3, c4, c5 = st.columns([1.2, 1.4, 0.9, 1.3, 0.8])
+        c1, c2, c3, c4, c5 = st.columns([1.2, 1.8, 0.9, 1.3, 0.8])
 
         c1.markdown(
             f"<div class='tbl-cell'><b>{str(row.get('ThoiGianPhatHien', ''))[:19].replace('T', ' ')}</b></div>",
@@ -304,7 +304,7 @@ else:
     # Phân trang nhỏ gọn Figma Standard
     showing = len(page_events)
     st.markdown("<div style='height: 14px;'></div>", unsafe_allow_html=True)
-    pg_left, pg_right = st.columns([1, 1])
+    pg_left, pg_right = st.columns([3, 1])
 
     with pg_left:
         st.markdown(

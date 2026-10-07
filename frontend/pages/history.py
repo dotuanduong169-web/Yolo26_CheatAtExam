@@ -162,78 +162,42 @@ if "select_session" in st.query_params:
         pass
 
 # ── Quản lý Tab con chuẩn hệ thống: [Danh mục ca thi, Nhật ký sự kiện] ──
-tab_sessions, tab_events = st.tabs(["Danh mục ca thi", "Nhật ký sự kiện"])
+if "tab" in st.query_params:
+    tab_param = st.query_params["tab"]
+    if tab_param in ("sessions", "events"):
+        st.session_state["history_active_tab"] = tab_param
 
-target_tab_idx = 1 if st.session_state.get("history_active_tab") == "events" or st.query_params.get("tab") == "events" else 0
+current_tab = st.session_state.get("history_active_tab", "sessions")
+if current_tab not in ("sessions", "events"):
+    current_tab = "sessions"
+st.query_params["tab"] = current_tab
 
-st.components.v1.html(
-    f"""
-    <script>
-    (function() {{
-        function syncTabs() {{
-            try {{
-                const tabs = window.parent.document.querySelectorAll('div[data-testid="stTabs"] button[role="tab"]');
-                if (!tabs || tabs.length < 2) return;
+# Thanh tab con phẳng chuẩn Govita (native buttons, không reload, không nháy, giữ trạng thái 100%)
+tab_col1, tab_col2, _tab_spacer = st.columns([1, 1, 6], gap="small")
+with tab_col1:
+    is_sess_active = (current_tab == "sessions")
+    sess_btn_key = "subtab_btn_active_sessions" if is_sess_active else "subtab_btn_sessions"
+    if st.button("Danh mục ca thi", key=sess_btn_key):
+        if not is_sess_active:
+            st.session_state["history_active_tab"] = "sessions"
+            st.query_params["tab"] = "sessions"
+            st.rerun()
 
-                if (!tabs[0].dataset.syncListener) {{
-                    tabs[0].dataset.syncListener = "1";
-                    tabs[0].addEventListener('click', function() {{
-                        try {{
-                            window.parent.sessionStorage.setItem('hist_subtab_idx', '0');
-                            const u = new URL(window.parent.location.href);
-                            u.searchParams.set('tab', 'sessions');
-                            window.parent.history.replaceState({{}}, '', u.pathname + u.search);
-                        }} catch(e) {{}}
-                    }});
-                }}
-                if (!tabs[1].dataset.syncListener) {{
-                    tabs[1].dataset.syncListener = "1";
-                    tabs[1].addEventListener('click', function() {{
-                        try {{
-                            window.parent.sessionStorage.setItem('hist_subtab_idx', '1');
-                            const u = new URL(window.parent.location.href);
-                            u.searchParams.set('tab', 'events');
-                            window.parent.history.replaceState({{}}, '', u.pathname + u.search);
-                        }} catch(e) {{}}
-                    }});
-                }}
-
-                const url = new URL(window.parent.location.href);
-                const qTab = url.searchParams.get('tab');
-                const savedIdx = window.parent.sessionStorage.getItem('hist_subtab_idx');
-
-                let shouldBe1 = false;
-                if (qTab === 'events' || {str(target_tab_idx == 1).lower()}) {{
-                    shouldBe1 = true;
-                }} else if (qTab === 'sessions') {{
-                    shouldBe1 = false;
-                }} else if (savedIdx === '1') {{
-                    shouldBe1 = true;
-                }}
-
-                if (shouldBe1 && tabs[1].getAttribute('aria-selected') !== 'true') {{
-                    tabs[1].click();
-                }} else if (!shouldBe1 && tabs[0].getAttribute('aria-selected') !== 'true' && savedIdx === '0') {{
-                    tabs[0].click();
-                }}
-            }} catch(e) {{}}
-        }}
-
-        syncTabs();
-        setTimeout(syncTabs, 40);
-        setTimeout(syncTabs, 120);
-    }})();
-    </script>
-    """,
-    height=0,
-    width=0,
-)
+with tab_col2:
+    is_ev_active = (current_tab == "events")
+    ev_btn_key = "subtab_btn_active_events" if is_ev_active else "subtab_btn_events"
+    if st.button("Nhật ký sự kiện", key=ev_btn_key):
+        if not is_ev_active:
+            st.session_state["history_active_tab"] = "events"
+            st.query_params["tab"] = "events"
+            st.rerun()
 
 
 # =========================================================================
 # TAB 1: DANH MỤC CA THI
 # =========================================================================
-with tab_sessions:
+if current_tab == "sessions":
+    st.session_state["history_active_tab"] = "sessions"
     # Phân trang & Tìm kiếm ca thi
     if "hist_page" not in st.session_state:
         st.session_state.hist_page = 1
@@ -296,6 +260,8 @@ with tab_sessions:
     def _on_hist_search_change() -> None:
         st.session_state.hist_search = st.session_state.get("hist_search_input", "")
         st.session_state.hist_page = 1
+        st.session_state["history_active_tab"] = "sessions"
+        st.query_params["tab"] = "sessions"
 
     if "hist_search_input" not in st.session_state:
         st.session_state.hist_search_input = st.session_state.hist_search
@@ -382,6 +348,8 @@ with tab_sessions:
             _cols = st.columns(len(_pages) + 2, gap="small")
             with _cols[0]:
                 if st.button("‹", key="pag_btn_sess_prev", disabled=(current_page <= 1)):
+                    st.session_state["history_active_tab"] = "sessions"
+                    st.query_params["tab"] = "sessions"
                     st.session_state.hist_page = current_page - 1
                     st.rerun()
             for _i, _p in enumerate(_pages):
@@ -391,10 +359,14 @@ with tab_sessions:
                     elif _p == current_page:
                         st.button(str(_p), key=f"pag_btn_sess_cur_{_p}", type="primary", disabled=True)
                     elif st.button(str(_p), key=f"pag_btn_sess_{_p}"):
+                        st.session_state["history_active_tab"] = "sessions"
+                        st.query_params["tab"] = "sessions"
                         st.session_state.hist_page = _p
                         st.rerun()
             with _cols[-1]:
                 if st.button("›", key="pag_btn_sess_next", disabled=(current_page >= total_pages)):
+                    st.session_state["history_active_tab"] = "sessions"
+                    st.query_params["tab"] = "sessions"
                     st.session_state.hist_page = current_page + 1
                     st.rerun()
 
@@ -402,7 +374,8 @@ with tab_sessions:
 # =========================================================================
 # TAB 2: NHẬT KÝ SỰ KIỆN GIAN LẬN
 # =========================================================================
-with tab_events:
+else:
+    st.session_state["history_active_tab"] = "events"
     all_sessions_list = get_all_sessions(client)
 
     # 1. Bộ lọc 3 cột
@@ -433,6 +406,8 @@ with tab_events:
             key="hist_events_sel_session",
         )
         st.session_state["history_selected_sid"] = selected_sid
+        st.session_state["history_active_tab"] = "events"
+        st.query_params["tab"] = "events"
 
     with f_c2:
         filter_behavior = st.selectbox(
@@ -440,6 +415,8 @@ with tab_events:
             ["Tất cả", "Tài liệu giấy (Cheat_Paper)", "Điện thoại di động (cellphone)", "Quay đầu trao đổi (Head_Turn)", "Vắng mặt (vang_mat)", "Nhiều người (nhieu_nguoi)"],
             key="hist_events_filter_bh",
         )
+        st.session_state["history_active_tab"] = "events"
+        st.query_params["tab"] = "events"
 
     with f_c3:
         filter_status_vn = st.selectbox(
@@ -447,6 +424,8 @@ with tab_events:
             ["Tất cả", "Chờ kiểm tra", "Đã xác nhận", "Bác bỏ"],
             key="hist_events_filter_stt",
         )
+        st.session_state["history_active_tab"] = "events"
+        st.query_params["tab"] = "events"
         status_map = {"Tất cả": "", "Chờ kiểm tra": "cho_kiem_tra", "Đã xác nhận": "dung", "Bác bỏ": "sai"}
         filter_status = status_map.get(filter_status_vn, "")
 
@@ -562,10 +541,13 @@ with tab_events:
                     eb1, eb2, eb3 = st.columns(3, gap="small")
                     with eb1:
                         if st.button("Xem", key=f"btn_act_view_ev_{ev_id}", help="Xem nhanh bằng chứng vi phạm"):
+                            st.session_state["history_active_tab"] = "events"
+                            st.query_params["tab"] = "events"
                             show_evidence_dialog(ev_id)
                     with eb2:
                         if st.button("Duyệt", key=f"btn_act_confirm_ev_{ev_id}", help=f"Xác nhận đúng vi phạm ({friendly_label})"):
                             st.session_state["history_active_tab"] = "events"
+                            st.query_params["tab"] = "events"
                             res = verify_event(client, ev_id, "dung", raw_label)
                             if res is not None and res.status_code == 200:
                                 notify.defer_success(f"Đã xác nhận sự kiện EV-{ev_id:02d} là Vi phạm")
@@ -575,6 +557,7 @@ with tab_events:
                     with eb3:
                         if st.button("Bỏ", key=f"btn_act_reject_ev_{ev_id}", help="Bác bỏ vi phạm (Giấy thi hợp lệ)"):
                             st.session_state["history_active_tab"] = "events"
+                            st.query_params["tab"] = "events"
                             res = verify_event(client, ev_id, "sai", "Answer_paper")
                             if res is not None and res.status_code == 200:
                                 notify.defer_success(f"Đã bác bỏ sự kiện EV-{ev_id:02d} (Giấy thi hợp lệ)")
@@ -607,6 +590,8 @@ with tab_events:
             _ecols = st.columns(len(_ev_pages) + 2, gap="small")
             with _ecols[0]:
                 if st.button("‹", key="pag_btn_ev_prev", disabled=(cur_ev_p <= 1)):
+                    st.session_state["history_active_tab"] = "events"
+                    st.query_params["tab"] = "events"
                     st.session_state.hist_ev_page = cur_ev_p - 1
                     st.rerun()
             for _i, _p in enumerate(_ev_pages):
@@ -616,9 +601,13 @@ with tab_events:
                     elif _p == cur_ev_p:
                         st.button(str(_p), key=f"pag_btn_ev_cur_{_p}", type="primary", disabled=True)
                     elif st.button(str(_p), key=f"pag_btn_ev_{_p}"):
+                        st.session_state["history_active_tab"] = "events"
+                        st.query_params["tab"] = "events"
                         st.session_state.hist_ev_page = _p
                         st.rerun()
             with _ecols[-1]:
                 if st.button("›", key="pag_btn_ev_next", disabled=(cur_ev_p >= total_ev_pages)):
+                    st.session_state["history_active_tab"] = "events"
+                    st.query_params["tab"] = "events"
                     st.session_state.hist_ev_page = cur_ev_p + 1
                     st.rerun()

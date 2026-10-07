@@ -376,6 +376,82 @@ div[data-baseweb="tab-border"] {
   display: none !important;
 }
 
+/* Sub-tabs phẳng native button (Chuẩn Govita / Med Working, không reload, không nhảy tab) */
+div[data-testid="stHorizontalBlock"]:has(div[class*="st-key-subtab_btn_"]) {
+  border-bottom: 2px solid #e2e8f0 !important;
+  gap: 32px !important;
+  padding: 0 4px !important;
+  margin-bottom: 20px !important;
+  align-items: flex-end !important;
+}
+
+div[data-testid="stHorizontalBlock"]:has(div[class*="st-key-subtab_btn_"]) > div[data-testid="stColumn"]:has(div[class*="st-key-subtab_btn_"]),
+div[data-testid="stHorizontalBlock"]:has(div[class*="st-key-subtab_btn_"]) > div[data-testid="column"]:has(div[class*="st-key-subtab_btn_"]),
+div[data-testid="stHorizontalBlock"]:has(div[class*="st-key-subtab_btn_"]) > div.stColumn:has(div[class*="st-key-subtab_btn_"]) {
+  width: auto !important;
+  min-width: auto !important;
+  flex: 0 0 auto !important;
+}
+
+div[class*="st-key-subtab_btn_"] {
+  width: auto !important;
+  margin-bottom: -2px !important;
+}
+
+div[class*="st-key-subtab_btn_"] button {
+  background: transparent !important;
+  background-color: transparent !important;
+  border: none !important;
+  border-bottom: 3px solid transparent !important;
+  border-radius: 0 !important;
+  font-size: 15px !important;
+  font-weight: 500 !important;
+  color: #475569 !important;
+  padding: 10px 4px 14px 4px !important;
+  margin-bottom: 0 !important;
+  transition: all 0.2s ease !important;
+  box-shadow: none !important;
+  outline: none !important;
+  height: auto !important;
+  min-height: 0 !important;
+  width: auto !important;
+  cursor: pointer !important;
+}
+
+div[class*="st-key-subtab_btn_"] button p {
+  font-size: 15px !important;
+  font-weight: inherit !important;
+  color: inherit !important;
+  margin: 0 !important;
+}
+
+div[class*="st-key-subtab_btn_"]:not([class*="st-key-subtab_btn_active_"]) button:hover {
+  background: transparent !important;
+  background-color: transparent !important;
+  color: #0f172a !important;
+  border-bottom: 3px solid #cbd5e1 !important;
+  transform: none !important;
+  box-shadow: none !important;
+}
+
+div[class*="st-key-subtab_btn_active_"] button {
+  background: transparent !important;
+  background-color: transparent !important;
+  color: #1e3a8a !important;
+  font-weight: 700 !important;
+  border-bottom: 3px solid #1e3a8a !important;
+  box-shadow: none !important;
+  transform: none !important;
+}
+
+div[class*="st-key-subtab_btn_active_"] button:hover {
+  background: transparent !important;
+  background-color: transparent !important;
+  color: #1e3a8a !important;
+  transform: none !important;
+  box-shadow: none !important;
+}
+
 /* ==========================================================================
    ACTION SVG BUTTONS TRỰC TIẾP (VECTOR ICONS THEO ĐÚNG MẪU ĐĂNG XUẤT / ĐỔI MK)
    Hiển thị icon SVG vector trực quan, không phụ thuộc vào widget Streamlit button

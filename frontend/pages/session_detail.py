@@ -54,6 +54,7 @@ if not session_id:
     render_page_header("Chi tiết phiên giám sát", active="history")
     notify.inline("Không tìm thấy mã phiên giám sát cần xem. Vui lòng quay lại danh sách lịch sử ca thi.", kind="warning", title="Thiếu thông tin phiên")
     if st.button("← Quay lại danh mục ca thi", key="btn_back_hist_nosess"):
+        st.session_state["history_active_tab"] = "sessions"
         st.switch_page("pages/history.py")
     st.stop()
 
@@ -85,6 +86,7 @@ if st.button(back_label, key="btn_back_to_history"):
     if return_target == "online_exam":
         st.switch_page("pages/online_exam.py")
     else:
+        st.session_state["history_active_tab"] = "sessions"
         st.switch_page("pages/history.py")
 
 status_text = get_session_status_label(sess.get("TrangThai"), sess.get("ThoiGianKetThuc")).upper()

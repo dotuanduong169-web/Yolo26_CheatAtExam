@@ -87,13 +87,10 @@ st.markdown(f"""
 username = st.text_input("Tên đăng nhập :red[(*)]", placeholder="Nhập tên đăng nhập")
 password = st.text_input("Mật khẩu :red[(*)]", type="password", placeholder="Nhập mật khẩu")
 
-msg_slot = st.empty()
 login_clicked = st.button("Đăng nhập", type="primary", use_container_width=True)
 
 if login_clicked:
     if not username or not password:
-        with msg_slot:
-            notify.inline_warning("Vui lòng nhập đầy đủ tên đăng nhập và mật khẩu")
         notify.warning("Vui lòng nhập đầy đủ tên đăng nhập và mật khẩu")
     else:
         with st.spinner("Đang kiểm tra..."):
@@ -101,8 +98,6 @@ if login_clicked:
 
         if res is None:
             err_txt = "Không kết nối được đến máy chủ hoặc máy chủ không phản hồi (hết thời gian chờ)."
-            with msg_slot:
-                notify.inline_error(err_txt)
             notify.error(err_txt)
         elif res.status_code == 200:
             data = res.json()
@@ -160,13 +155,9 @@ if login_clicked:
                 err_txt = "Tài khoản của bạn đã bị khóa. Vui lòng liên hệ quản trị viên."
             else:
                 err_txt = "Tên đăng nhập hoặc mật khẩu không chính xác. Vui lòng kiểm tra lại."
-            with msg_slot:
-                notify.inline_error(err_txt)
             notify.error(err_txt)
         else:
             err_txt = f"Lỗi đăng nhập: {res.text}"
-            with msg_slot:
-                notify.inline_error(err_txt)
             notify.error(err_txt)
 
 # Flush hàng đợi (trang login không có header chung)

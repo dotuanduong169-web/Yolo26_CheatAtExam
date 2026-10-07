@@ -232,7 +232,7 @@ else:
     page_devices = devices[dev_start_idx:dev_end_idx]
 
     # Header hàng bảng
-    th1, th2, th3, th4, th5, th6 = st.columns([0.8, 1.8, 2.5, 1.6, 1.0, 1.1])
+    th1, th2, th3, th4, th5, th6 = st.columns([0.8, 1.9, 2.7, 1.7, 1.0, 0.9])
     th1.caption("MÃ TB")
     th2.caption("TÊN THIẾT BỊ")
     th3.caption("ĐƯỜNG DẪN RTSP")
@@ -251,7 +251,7 @@ else:
         stt_badge = get_device_status_badge(status)
 
         with st.container():
-            c1, c2, c3, c4, c5, c6 = st.columns([0.8, 1.8, 2.5, 1.6, 1.0, 1.1])
+            c1, c2, c3, c4, c5, c6 = st.columns([0.8, 1.9, 2.7, 1.7, 1.0, 0.9])
             with c1:
                 st.markdown(f"**#{dev_id}**")
             with c2:

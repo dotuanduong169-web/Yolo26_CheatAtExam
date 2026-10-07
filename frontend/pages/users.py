@@ -211,7 +211,7 @@ with tab_users:
             page_users = users[user_start_idx:user_end_idx]
 
             # Header hàng bảng
-            th1, th2, th3, th4, th5, th6 = st.columns([0.8, 1.6, 2.3, 1.6, 1.0, 1.1])
+            th1, th2, th3, th4, th5, th6 = st.columns([0.8, 1.7, 2.6, 1.7, 1.0, 0.9])
             th1.caption("MÃ ND")
             th2.caption("TÊN ĐĂNG NHẬP")
             th3.caption("HỌ VÀ TÊN")
@@ -232,7 +232,7 @@ with tab_users:
                 status_badge = get_user_status_badge(u_status)
 
                 with st.container():
-                    c1, c2, c3, c4, c5, c6 = st.columns([0.8, 1.6, 2.3, 1.6, 1.0, 1.1])
+                    c1, c2, c3, c4, c5, c6 = st.columns([0.8, 1.7, 2.6, 1.7, 1.0, 0.9])
                     with c1:
                         st.markdown(f"<strong>USR-{u_id:02d}</strong>", unsafe_allow_html=True)
                     with c2:

@@ -663,20 +663,60 @@ div[class*="st-key-pag_btn_cur_"] button:disabled {
    CỤM NÚT THAO TÁC & PHÂN TRANG (CHUẨN FIGMA)
    ========================================================================== */
 
-/* Cụm nút thao tác (Xem, Xác nhận, Bác bỏ, Test, Sửa, Xóa): gom về lề phải cột */
+/* Cụm nút thao tác (Xem, Xác nhận, Bác bỏ, Test, Sửa, Xóa): co lại ôm sát nút, gap 6px, dồn phải */
 div[data-testid="stColumn"]:has(div[class*="st-key-btn_act_"]) > div[data-testid="stVerticalBlock"] > div[data-testid="stHorizontalBlock"],
 div.stColumn:has(div[class*="st-key-btn_act_"]) > div[data-testid="stVerticalBlock"] > div[data-testid="stHorizontalBlock"] {
+    display: flex !important;
+    flex-direction: row !important;
     justify-content: flex-end !important;
+    align-items: center !important;
     gap: 6px !important;
+    width: fit-content !important;
+    max-width: 100% !important;
     margin-left: auto !important;
 }
 
-/* Cụm nút phân trang: gom về lề phải cột phân trang */
+/* Ép cứng các cột con chứa từng nút thao tác về đúng 28px */
+div[data-testid="stColumn"]:has(div[class*="st-key-btn_act_"]) > div[data-testid="stVerticalBlock"] > div[data-testid="stHorizontalBlock"] > div[data-testid="stColumn"],
+div[data-testid="stColumn"]:has(div[class*="st-key-btn_act_"]) > div[data-testid="stVerticalBlock"] > div[data-testid="stHorizontalBlock"] > div[data-testid="column"],
+div[data-testid="stColumn"]:has(div[class*="st-key-btn_act_"]) > div[data-testid="stVerticalBlock"] > div[data-testid="stHorizontalBlock"] > div.stColumn,
+div.stColumn:has(div[class*="st-key-btn_act_"]) > div[data-testid="stVerticalBlock"] > div[data-testid="stHorizontalBlock"] > div[data-testid="stColumn"],
+div.stColumn:has(div[class*="st-key-btn_act_"]) > div[data-testid="stVerticalBlock"] > div[data-testid="stHorizontalBlock"] > div[data-testid="column"],
+div.stColumn:has(div[class*="st-key-btn_act_"]) > div[data-testid="stVerticalBlock"] > div[data-testid="stHorizontalBlock"] > div.stColumn {
+    width: 28px !important;
+    min-width: 28px !important;
+    max-width: 28px !important;
+    flex: 0 0 28px !important;
+    padding: 0 !important;
+    margin: 0 !important;
+}
+
+/* Cụm nút phân trang: co lại ôm sát nút, gap 4px, dồn phải */
 div[data-testid="stColumn"]:has(div[class*="st-key-pag_btn_"]) > div[data-testid="stVerticalBlock"] > div[data-testid="stHorizontalBlock"],
 div.stColumn:has(div[class*="st-key-pag_btn_"]) > div[data-testid="stVerticalBlock"] > div[data-testid="stHorizontalBlock"] {
+    display: flex !important;
+    flex-direction: row !important;
     justify-content: flex-end !important;
+    align-items: center !important;
     gap: 4px !important;
+    width: fit-content !important;
+    max-width: 100% !important;
     margin-left: auto !important;
+}
+
+/* Ép cứng các cột con chứa từng nút phân trang về đúng 32px */
+div[data-testid="stColumn"]:has(div[class*="st-key-pag_btn_"]) > div[data-testid="stVerticalBlock"] > div[data-testid="stHorizontalBlock"] > div[data-testid="stColumn"],
+div[data-testid="stColumn"]:has(div[class*="st-key-pag_btn_"]) > div[data-testid="stVerticalBlock"] > div[data-testid="stHorizontalBlock"] > div[data-testid="column"],
+div[data-testid="stColumn"]:has(div[class*="st-key-pag_btn_"]) > div[data-testid="stVerticalBlock"] > div[data-testid="stHorizontalBlock"] > div.stColumn,
+div.stColumn:has(div[class*="st-key-pag_btn_"]) > div[data-testid="stVerticalBlock"] > div[data-testid="stHorizontalBlock"] > div[data-testid="stColumn"],
+div.stColumn:has(div[class*="st-key-pag_btn_"]) > div[data-testid="stVerticalBlock"] > div[data-testid="stHorizontalBlock"] > div[data-testid="column"],
+div.stColumn:has(div[class*="st-key-pag_btn_"]) > div[data-testid="stVerticalBlock"] > div[data-testid="stHorizontalBlock"] > div.stColumn {
+    width: 32px !important;
+    min-width: 32px !important;
+    max-width: 32px !important;
+    flex: 0 0 32px !important;
+    padding: 0 !important;
+    margin: 0 !important;
 }
 
 /* Ô dấu 3 chấm (…) trong phân trang */

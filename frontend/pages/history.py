@@ -312,7 +312,7 @@ with tab_sessions:
         notify.empty_state("Không tìm thấy ca thi nào phù hợp", "Vui lòng thử tìm kiếm với từ khóa khác để hiển thị toàn bộ ca thi.")
     else:
         # Tiêu đề hàng bảng ca thi
-        sh1, sh2, sh3, sh4, sh5 = st.columns([1.0, 2.3, 2.3, 1.2, 1.0])
+        sh1, sh2, sh3, sh4, sh5 = st.columns([1.0, 2.5, 2.5, 1.2, 0.8])
         sh1.caption("MÃ CA")
         sh2.caption("PHÒNG / MÔN THI")
         sh3.caption("THỜI GIAN")
@@ -332,7 +332,7 @@ with tab_sessions:
             status_badge = get_session_status_badge(s.get("TrangThai"), s.get("ThoiGianKetThuc"))
 
             with st.container():
-                sc1, sc2, sc3, sc4, sc5 = st.columns([1.0, 2.3, 2.3, 1.2, 1.0])
+                sc1, sc2, sc3, sc4, sc5 = st.columns([1.0, 2.5, 2.5, 1.2, 0.8])
                 with sc1:
                     st.markdown(f"<strong>Ca #{s_id}</strong>", unsafe_allow_html=True)
                 with sc2:
@@ -518,7 +518,7 @@ with tab_events:
         page_events = events[ev_start_idx:ev_end_idx]
 
         # Header hàng bảng
-        th1, th2, th3, th4, th5, th6, th7 = st.columns([0.8, 1.3, 2.3, 0.8, 1.3, 1.1, 1.1])
+        th1, th2, th3, th4, th5, th6, th7 = st.columns([0.8, 1.3, 2.7, 0.8, 1.3, 1.0, 0.9])
         th1.caption("MÃ SỰ KIỆN")
         th2.caption("THỜI GIAN")
         th3.caption("HÀNH VI PHÁT HIỆN")
@@ -541,7 +541,7 @@ with tab_events:
             stt_badge = get_event_status_badge(stt)
 
             with st.container():
-                c1, c2, c3, c4, c5, c6, c7 = st.columns([0.8, 1.3, 2.3, 0.8, 1.3, 1.1, 1.1])
+                c1, c2, c3, c4, c5, c6, c7 = st.columns([0.8, 1.3, 2.7, 0.8, 1.3, 1.0, 0.9])
                 with c1:
                     st.markdown(f"<strong>EV-{ev_id:02d}</strong>", unsafe_allow_html=True)
                 with c2:

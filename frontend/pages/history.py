@@ -437,7 +437,7 @@ with tab_events:
     with f_c2:
         filter_behavior = st.selectbox(
             "Loại hành vi",
-            ["Tất cả", "Tài liệu giấy (Cheat_Paper)", "Điện thoại di động (cellphone)", "Quay đầu trao đổi (Head_Turn)"],
+            ["Tất cả", "Tài liệu giấy (Cheat_Paper)", "Điện thoại di động (cellphone)", "Quay đầu trao đổi (Head_Turn)", "Vắng mặt (vang_mat)", "Nhiều người (nhieu_nguoi)"],
             key="hist_events_filter_bh",
         )
 
@@ -468,7 +468,16 @@ with tab_events:
 
     # Lọc hành vi phía client
     if filter_behavior != "Tất cả":
-        key_check = "Cheat_Paper" if "Cheat_Paper" in filter_behavior else ("cellphone" if "cellphone" in filter_behavior else "Head_Turn")
+        if "Cheat_Paper" in filter_behavior:
+            key_check = "Cheat_Paper"
+        elif "cellphone" in filter_behavior:
+            key_check = "cellphone"
+        elif "vang_mat" in filter_behavior:
+            key_check = "vang_mat"
+        elif "nhieu_nguoi" in filter_behavior:
+            key_check = "nhieu_nguoi"
+        else:
+            key_check = "Head_Turn"
         events = [e for e in events if key_check.lower() in (e.get("LoaiHanhVi") or "").lower()]
 
     st.markdown(f"""

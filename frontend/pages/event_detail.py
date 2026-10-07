@@ -212,13 +212,15 @@ with right_col:
 
     st.markdown('<div class="right-section-title">Xác minh nghiệp vụ</div>', unsafe_allow_html=True)
 
-    available_labels = ["Cheat_Paper", "cellphone", "quay_dau", "quay_sau", "cui_xuong", "Answer_paper"]
+    available_labels = ["Cheat_Paper", "cellphone", "quay_dau", "quay_sau", "cui_xuong", "vang_mat", "nhieu_nguoi", "Answer_paper"]
     label_names = {
         "Cheat_Paper": "Tài liệu giấy (Cheat_Paper)",
         "cellphone": "Điện thoại di động (cellphone)",
         "quay_dau": "Quay đầu (>45°)",
         "quay_sau": "Quay người về sau trao đổi bài",
         "cui_xuong": "Cúi đầu nhìn xuống gầm bàn",
+        "vang_mat": "Vắng mặt khỏi khung hình (vang_mat)",
+        "nhieu_nguoi": "Nhiều người trong khung hình (nhieu_nguoi)",
         "Answer_paper": "Giấy thi hợp lệ (Answer_paper - Không vi phạm)",
     }
     cur_choice = data.get("NhanNguoiDung") or data.get("NhanAI") or "Cheat_Paper"

@@ -151,6 +151,8 @@ BEHAVIOR_LABEL_MAP = {
     "head_turn": "Quay đầu trao đổi",
     "quay_sau": "Quay người về sau",
     "cui_xuong": "Cúi đầu nhìn xuống bàn",
+    "vang_mat": "Vắng mặt khỏi khung hình",
+    "nhieu_nguoi": "Nhiều người trong khung hình",
     "answer_paper": "Giấy thi hợp lệ",
     "hop_le": "Giấy thi hợp lệ",
 }

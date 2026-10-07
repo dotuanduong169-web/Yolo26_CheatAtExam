@@ -642,6 +642,24 @@ div[data-testid="column"]:has(div[class*="st-key-btn_act_"]) > div[data-testid="
     width: auto !important;
 }
 
+/* Cụm nút action lồng st.columns: ép các cột con ôm sát nút (28px),
+   cả cụm dồn về lề phải với gap 6px — thay cho kiểu dàn đều full-width */
+div[data-testid="column"]:has(div[class*="st-key-btn_act_"]) div[data-testid="stHorizontalBlock"] {
+    justify-content: flex-end !important;
+    gap: 6px !important;
+    flex-wrap: nowrap !important;
+    margin-left: auto !important;
+    width: auto !important;
+    max-width: 100% !important;
+}
+
+div[data-testid="column"]:has(div[class*="st-key-btn_act_"]) div[data-testid="stHorizontalBlock"] > div[data-testid="column"] {
+    flex: 0 0 auto !important;
+    width: auto !important;
+    min-width: 0 !important;
+    max-width: none !important;
+}
+
 /* Layout flex gom nút phân trang sát lề phải chuẩn Figma */
 div[data-testid="column"]:has(div[class*="st-key-pag_btn_"]) {
     display: flex !important;
@@ -661,6 +679,23 @@ div[data-testid="column"]:has(div[class*="st-key-pag_btn_"]) > div[data-testid="
 div[data-testid="column"]:has(div[class*="st-key-pag_btn_"]) > div[data-testid="stVerticalBlock"] > div {
     margin: 0 !important;
     width: auto !important;
+}
+
+/* Cụm nút phân trang lồng st.columns: gom sát nhau về lề phải */
+div[data-testid="column"]:has(div[class*="st-key-pag_btn_"]) div[data-testid="stHorizontalBlock"] {
+    justify-content: flex-end !important;
+    gap: 4px !important;
+    flex-wrap: nowrap !important;
+    margin-left: auto !important;
+    width: auto !important;
+    max-width: 100% !important;
+}
+
+div[data-testid="column"]:has(div[class*="st-key-pag_btn_"]) div[data-testid="stHorizontalBlock"] > div[data-testid="column"] {
+    flex: 0 0 auto !important;
+    width: auto !important;
+    min-width: 0 !important;
+    max-width: none !important;
 }
 
 /* PHÂN TRANG NHỎ GỌN FIGMA STANDARD */

@@ -62,13 +62,15 @@ def render_evidence_content(event_id: int):
         st.markdown("<hr style='margin: 10px 0;'>", unsafe_allow_html=True)
 
         # Trường xác minh lại nhãn đúng (NhanNguoiDung)
-        available_labels = ["Cheat_Paper", "cellphone", "quay_dau", "quay_sau", "cui_xuong", "Answer_paper"]
+        available_labels = ["Cheat_Paper", "cellphone", "quay_dau", "quay_sau", "cui_xuong", "vang_mat", "nhieu_nguoi", "Answer_paper"]
         label_names = {
             "Cheat_Paper": "Tài liệu giấy (Cheat_Paper)",
             "cellphone": "Điện thoại di động (cellphone)",
             "quay_dau": "Quay đầu (>45°)",
             "quay_sau": "Quay người về sau",
             "cui_xuong": "Cúi đầu nhìn xuống gầm bàn",
+            "vang_mat": "Vắng mặt khỏi khung hình (vang_mat)",
+            "nhieu_nguoi": "Nhiều người trong khung hình (nhieu_nguoi)",
             "Answer_paper": "Giấy thi hợp lệ (Answer_paper - Không vi phạm)",
         }
         current_choice = user_label if user_label in available_labels else (data.get("NhanAI") if data.get("NhanAI") in available_labels else "Cheat_Paper")

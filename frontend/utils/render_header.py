@@ -25,6 +25,7 @@ def render_page_header(title: str, active: str | None = None):
     cls_dev = "active" if active_key in ("devices", "thietbi") else ""
     cls_stats = "active" if active_key in ("statistics", "thongke") else ""
     cls_set = "active" if active_key in ("setting", "users", "caidat") else ""
+    cls_online = "active" if active_key in ("online_exam", "thionline") else ""
 
     from utils.http import auth_query_params
     aqs = auth_query_params()
@@ -38,6 +39,7 @@ def render_page_header(title: str, active: str | None = None):
         ("devices", "pages/devices.py"),
         ("statistics", "pages/statistics.py"),
         ("users", "pages/users.py"),
+        ("online_exam", "pages/online_exam.py"),
     )
     st.markdown(
         "<style>div[class*='st-key-hidden_nav_'],div[data-testid^='st-key-hidden_nav_']"
@@ -93,6 +95,7 @@ def render_page_header(title: str, active: str | None = None):
         f'    <a href="/devices?{aqs}" target="_self" data-page="devices" class="nav-tab-btn {cls_dev}">Thiết bị</a>'
         f'    <a href="/statistics?{aqs}" target="_self" data-page="statistics" class="nav-tab-btn {cls_stats}">Thống kê</a>'
         f'    <a href="/users?{aqs}" target="_self" data-page="users" class="nav-tab-btn {cls_set}">Cài đặt</a>'
+        f'    <a href="/online_exam?{aqs}" target="_self" data-page="online_exam" class="nav-tab-btn {cls_online}">Thi online</a>'
         '  </div>'
         '</div>'
         '<script>'

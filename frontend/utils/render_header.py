@@ -26,6 +26,29 @@ def render_page_header(title: str, active: str | None = None):
     cls_stats = "active" if active_key in ("statistics", "thongke") else ""
     cls_set = "active" if active_key in ("setting", "users", "caidat") else ""
 
+    from utils.http import auth_query_params
+    aqs = auth_query_params()
+
+    # ── Trigger điều hướng native (ẩn): visual giữ nguyên HTML,
+    # click trên thanh nav sẽ bấm nút ẩn này → st.switch_page (rerun nhẹ,
+    # không reload toàn trình duyệt nên không chớp màn hình) ──
+    _NAV_TARGETS = (
+        ("home", "pages/home.py"),
+        ("history", "pages/history.py"),
+        ("devices", "pages/devices.py"),
+        ("statistics", "pages/statistics.py"),
+        ("users", "pages/users.py"),
+    )
+    st.markdown(
+        "<style>div[class*='st-key-hidden_nav_'],div[data-testid^='st-key-hidden_nav_']"
+        "{display:none!important;height:0!important;min-height:0!important;margin:0!important;"
+        "padding:0!important;visibility:hidden!important;overflow:hidden!important}</style>",
+        unsafe_allow_html=True,
+    )
+    for _nav_key, _nav_target in _NAV_TARGETS:
+        if st.button("", key=f"hidden_nav_{_nav_key}"):
+            st.switch_page(_nav_target)
+
     header_html = (
         '<div class="global-top-bar">'
         '  <div class="top-logo-section">'
@@ -63,49 +86,54 @@ def render_page_header(title: str, active: str | None = None):
         '    </a>'
         '  </div>'
         '</div>'
+        '<div class="global-nav-bar">'
+        '  <div class="nav-container">'
+        f'    <a href="/home?{aqs}" target="_self" data-page="home" class="nav-tab-btn {cls_home}">Giám sát</a>'
+        f'    <a href="/history?{aqs}" target="_self" data-page="history" class="nav-tab-btn {cls_hist}">Lịch sử</a>'
+        f'    <a href="/devices?{aqs}" target="_self" data-page="devices" class="nav-tab-btn {cls_dev}">Thiết bị</a>'
+        f'    <a href="/statistics?{aqs}" target="_self" data-page="statistics" class="nav-tab-btn {cls_stats}">Thống kê</a>'
+        f'    <a href="/users?{aqs}" target="_self" data-page="users" class="nav-tab-btn {cls_set}">Cài đặt</a>'
+        '  </div>'
+        '</div>'
+        '<script>'
+        '(function() {'
+        '  window.addEventListener("error", function(e) {'
+        '    if (e && e.message && typeof e.message === "string" && e.message.indexOf("toLowerCase") >= 0) {'
+        '      e.preventDefault();'
+        '      e.stopPropagation();'
+        '      return true;'
+        '    }'
+        '  }, true);'
+        ''
+        '  function setupNavTabs() {'
+        '    var navLinks = document.querySelectorAll(".global-nav-bar .nav-tab-btn");'
+        '    if (!navLinks || !navLinks.length) return;'
+        '    navLinks.forEach(function(btn) {'
+        '      if (btn.dataset.bound) return;'
+        '      btn.dataset.bound = "1";'
+        '      btn.onclick = function(e) {'
+        '        e.preventDefault();'
+        '        if (this.classList.contains("active")) {'
+        '          return false;'
+        '        }'
+        '        var pageKey = this.getAttribute("data-page") || "";'
+        '        navLinks.forEach(function(b) { b.classList.remove("active"); });'
+        '        this.classList.add("active");'
+        '        try {'
+        '          var frame = window.parent.document;'
+        '          var hid = frame.querySelector("[data-testid=\'st-key-hidden_nav_" + pageKey + "\'] button");'
+        '          if (hid) { hid.click(); return false; }'
+        '        } catch(err) {}'
+        '        return false;'
+        '      };'
+        '    });'
+        '  }'
+        '  setupNavTabs();'
+        '  setTimeout(setupNavTabs, 200);'
+        '})();'
+        '</script>'
     )
     st.markdown(header_html, unsafe_allow_html=True)
-
-    # ── THANH ĐIỀU HƯỚNG 5 TRANG NATIVE STREAMLIT SPA (KHÔNG RELOAD, KHÔNG CHỚP TRẮNG) ──
-    nav_c1, nav_c2, nav_c3, nav_c4, nav_c5 = st.columns(5, gap="small")
-    with nav_c1:
-        st.page_link("pages/home.py", label="Giám sát", use_container_width=True)
-    with nav_c2:
-        st.page_link("pages/history.py", label="Lịch sử", use_container_width=True)
-    with nav_c3:
-        st.page_link("pages/devices.py", label="Thiết bị", use_container_width=True)
-    with nav_c4:
-        st.page_link("pages/statistics.py", label="Thống kê", use_container_width=True)
-    with nav_c5:
-        st.page_link("pages/users.py", label="Cài đặt", use_container_width=True)
-
-    # Đảm bảo tab tương ứng luôn active kể cả khi ở các trang con (session_detail, event_detail)
-    active_idx_map = {
-        "home": 1, "giamsat": 1,
-        "history": 2, "lichsu": 2, "events": 2, "sukien": 2,
-        "devices": 3, "thietbi": 3,
-        "statistics": 4, "thongke": 4,
-        "setting": 5, "users": 5, "caidat": 5,
-    }
-    cur_idx = active_idx_map.get(active_key, 1)
-    active_css = f"""
-    <style>
-    div[data-testid="stHorizontalBlock"]:has(div[data-testid="stPageLink-NavLink"]) div[data-testid="column"]:nth-child({cur_idx}) div[data-testid="stPageLink-NavLink"] a {{
-        background-color: #eff6ff !important;
-        border-color: #bfdbfe !important;
-        color: #2563eb !important;
-        font-weight: 600 !important;
-        box-shadow: 0 1px 3px rgba(37, 99, 235, 0.12) !important;
-    }}
-    div[data-testid="stHorizontalBlock"]:has(div[data-testid="stPageLink-NavLink"]) div[data-testid="column"]:nth-child({cur_idx}) div[data-testid="stPageLink-NavLink"] a * {{
-        color: #2563eb !important;
-        font-weight: 600 !important;
-    }}
-    </style>
-    """
-    st.markdown(active_css, unsafe_allow_html=True)
-
-
 
     # Flush toast xếp hàng tại top-level để luôn neo ngoài, đúng góc hệ thống
     from utils.notify import flush as _flush_toasts

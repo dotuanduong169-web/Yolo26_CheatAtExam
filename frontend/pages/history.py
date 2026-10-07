@@ -14,7 +14,7 @@ from services.history_api import (
 )
 from utils.auth_guard import require_auth
 from utils.hide_streamlit_sidebar import hide_sidebar
-from utils.http import auth_query_params, init_session_state
+from utils.http import init_session_state
 from utils.load_css import load_css
 from utils.render_header import render_page_header
 from utils.status_helpers import (
@@ -37,8 +37,6 @@ render_page_header("Lịch sử giám sát", active="history")
 
 PAGE_SIZE = 5
 client = st.session_state.client
-# Chuỗi giữ phiên cho link HTML (tránh reload mất đăng nhập)
-aqs = auth_query_params()
 
 # ── Dialogs & Thao tác nghiệp vụ ───────────────────────────
 def handle_delete(session_id: int) -> None:
@@ -245,6 +243,7 @@ with tab_sessions:
     if "p" in st.query_params:
         try:
             st.session_state.hist_page = max(1, int(st.query_params["p"]))
+            del st.query_params["p"]
         except Exception:
             pass
 
@@ -292,17 +291,21 @@ with tab_sessions:
 
     st.markdown("<div style='height: 6px;'></div>", unsafe_allow_html=True)
 
-    # 2. Ô tìm kiếm
-    search_val = st.text_input(
+    # 2. Ô tìm kiếm (callback chạy trước body nên fetch ở trên đã thấy
+    # giá trị mới trong cùng 1 rerun — không rerun thủ công lần 2)
+    def _on_hist_search_change() -> None:
+        st.session_state.hist_search = st.session_state.get("hist_search_input", "")
+        st.session_state.hist_page = 1
+
+    if "hist_search_input" not in st.session_state:
+        st.session_state.hist_search_input = st.session_state.hist_search
+    st.text_input(
         "Tìm kiếm theo phòng hoặc môn thi",
-        value=st.session_state.hist_search,
         placeholder="Nhập tên phòng hoặc môn thi để lọc danh mục...",
         label_visibility="collapsed",
+        key="hist_search_input",
+        on_change=_on_hist_search_change,
     )
-    if search_val != st.session_state.hist_search:
-        st.session_state.hist_search = search_val
-        st.session_state.hist_page = 1
-        st.rerun()
 
     # 3. Bảng danh mục ca thi
     if not sessions:
@@ -339,25 +342,17 @@ with tab_sessions:
                 with sc4:
                     st.markdown(f"<span class='wf-badge danger'>Sự kiện: {event_count}</span><br>{status_badge}", unsafe_allow_html=True)
                 with sc5:
-                    action_sess_html = (
-                        f'<div style="display:flex; align-items:center; justify-content:flex-end; gap:6px;">'
-                        f'  <a href="/session_detail?id={s_id}&{aqs}" target="_self" class="action-svg-btn view-btn" title="Xem báo cáo chi tiết ca thi #{s_id}">'
-                        f'    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">'
-                        f'      <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8z"/>'
-                        f'      <circle cx="12" cy="12" r="3"/>'
-                        f'    </svg>'
-                        f'  </a>'
-                        f'  <a href="/history?{aqs}&tab=sessions&confirm_delete={s_id}" target="_self" class="action-svg-btn del-btn" title="Xóa ca thi này khỏi hệ thống">'
-                        f'    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">'
-                        f'      <polyline points="3 6 5 6 21 6"/>'
-                        f'      <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>'
-                        f'      <line x1="10" y1="11" x2="10" y2="17"/>'
-                        f'      <line x1="14" y1="11" x2="14" y2="17"/>'
-                        f'    </svg>'
-                        f'  </a>'
-                        f'</div>'
-                    )
-                    st.markdown(action_sess_html, unsafe_allow_html=True)
+                    # Nút native (icon vẽ bằng CSS btn_act_*) → rerun nhẹ,
+                    # không reload trình duyệt nên không chớp (giao diện giữ nguyên)
+                    ab1, ab2 = st.columns([1, 1], gap="small")
+                    with ab1:
+                        if st.button("Xem", key=f"btn_act_view_sess_{s_id}", help=f"Xem báo cáo chi tiết ca thi #{s_id}"):
+                            st.session_state["selected_session"] = s_id
+                            st.session_state["session_id"] = s_id
+                            st.switch_page("pages/session_detail.py")
+                    with ab2:
+                        if st.button("Xóa", key=f"btn_act_del_sess_{s_id}", help="Xóa ca thi này khỏi hệ thống"):
+                            confirm_delete_dialog(s_id)
 
             st.markdown("<hr style='margin: 4px 0 10px 0; border: none; border-top: 1px solid var(--wf-border);'>", unsafe_allow_html=True)
 
@@ -376,30 +371,32 @@ with tab_sessions:
             )
 
         with pg_right:
-            pag_items = []
-            btn_base = "display: inline-flex; align-items: center; justify-content: center; width: 32px; height: 32px; border-radius: 6px; text-decoration: none; font-size: 13px; transition: all 0.2s;"
-
-            if current_page <= 1:
-                pag_items.append(f'<span style="{btn_base} border: 1px solid #e2e8f0; background: #f8fafc; color: #cbd5e1; cursor: not-allowed;">‹</span>')
-            else:
-                pag_items.append(f'<a href="/history?{aqs}&tab=sessions&p={current_page - 1}" target="_self" style="{btn_base} border: 1px solid #cbd5e1; background: #ffffff; color: #334155;">‹</a>')
-
+            # Phân trang native (key pag_btn_sess_*, CSS Figma sẵn) — rerun nhẹ
+            _pages: list = []
             for p in range(1, total_pages + 1):
                 if total_pages > 7 and abs(p - current_page) > 2 and p != 1 and p != total_pages:
                     if p == 2 or p == total_pages - 1:
-                        pag_items.append('<span style="display: inline-flex; align-items: center; justify-content: center; width: 18px; height: 32px; color: #94a3b8; font-size: 13px;">…</span>')
+                        _pages.append(None)
                     continue
-                if p == current_page:
-                    pag_items.append(f'<span style="{btn_base} border: 1px solid #2563eb; background: #2563eb; color: #ffffff; font-weight: 700;">{p}</span>')
-                else:
-                    pag_items.append(f'<a href="/history?{aqs}&tab=sessions&p={p}" target="_self" style="{btn_base} border: 1px solid #cbd5e1; background: #ffffff; color: #334155; font-weight: 500;">{p}</a>')
-
-            if current_page >= total_pages:
-                pag_items.append(f'<span style="{btn_base} border: 1px solid #e2e8f0; background: #f8fafc; color: #cbd5e1; cursor: not-allowed;">›</span>')
-            else:
-                pag_items.append(f'<a href="/history?{aqs}&tab=sessions&p={current_page + 1}" target="_self" style="{btn_base} border: 1px solid #cbd5e1; background: #ffffff; color: #334155;">›</a>')
-
-            st.markdown(f'<div class="history-pagination" style="display: flex !important; align-items: center !important; justify-content: flex-end !important; gap: 4px !important; width: 100% !important;">{"".join(pag_items)}</div>', unsafe_allow_html=True)
+                _pages.append(p)
+            _cols = st.columns(len(_pages) + 2, gap="small")
+            with _cols[0]:
+                if st.button("‹", key="pag_btn_sess_prev", disabled=(current_page <= 1)):
+                    st.session_state.hist_page = current_page - 1
+                    st.rerun()
+            for _i, _p in enumerate(_pages):
+                with _cols[_i + 1]:
+                    if _p is None:
+                        st.markdown("<div style='display:flex;align-items:center;justify-content:center;height:32px;color:#94a3b8;'>…</div>", unsafe_allow_html=True)
+                    elif _p == current_page:
+                        st.button(str(_p), key=f"pag_btn_sess_cur_{_p}", type="primary", disabled=True)
+                    elif st.button(str(_p), key=f"pag_btn_sess_{_p}"):
+                        st.session_state.hist_page = _p
+                        st.rerun()
+            with _cols[-1]:
+                if st.button("›", key="pag_btn_sess_next", disabled=(current_page >= total_pages)):
+                    st.session_state.hist_page = current_page + 1
+                    st.rerun()
 
 
 # =========================================================================
@@ -493,14 +490,19 @@ with tab_events:
         total_ev_count = len(events)
         total_ev_pages = max(1, (total_ev_count - 1) // EV_PAGE_SIZE + 1)
 
-        cur_ev_p = 1
+        if "hist_ev_page" not in st.session_state:
+            st.session_state.hist_ev_page = 1
+        cur_ev_p = st.session_state.hist_ev_page
         if "p_ev" in st.query_params:
             try:
                 cur_ev_p = max(1, int(st.query_params["p_ev"]))
+                st.session_state.hist_ev_page = cur_ev_p
+                del st.query_params["p_ev"]
             except Exception:
                 pass
         if cur_ev_p > total_ev_pages:
             cur_ev_p = total_ev_pages
+            st.session_state.hist_ev_page = cur_ev_p
 
         ev_start_idx = (cur_ev_p - 1) * EV_PAGE_SIZE
         ev_end_idx = min(ev_start_idx + EV_PAGE_SIZE, total_ev_count)
@@ -547,28 +549,29 @@ with tab_events:
                 with c6:
                     st.markdown(stt_badge, unsafe_allow_html=True)
                 with c7:
-                    action_ev_html = (
-                        f'<div style="display:flex; align-items:center; justify-content:flex-end; gap:6px;">'
-                        f'  <a href="/history?{aqs}&tab=events&view_ev={ev_id}" target="_self" class="action-svg-btn view-btn" title="Xem nhanh bằng chứng vi phạm">'
-                        f'    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">'
-                        f'      <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8z"/>'
-                        f'      <circle cx="12" cy="12" r="3"/>'
-                        f'    </svg>'
-                        f'  </a>'
-                        f'  <a href="/history?{aqs}&tab=events&confirm_ev={ev_id}&raw_label={raw_label}" target="_self" class="action-svg-btn confirm-btn" title="Xác nhận đúng vi phạm ({friendly_label})">'
-                        f'    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">'
-                        f'      <polyline points="20 6 9 17 4 12"/>'
-                        f'    </svg>'
-                        f'  </a>'
-                        f'  <a href="/history?{aqs}&tab=events&reject_ev={ev_id}" target="_self" class="action-svg-btn reject-btn" title="Bác bỏ vi phạm (Giấy thi hợp lệ)">'
-                        f'    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">'
-                        f'      <line x1="18" y1="6" x2="6" y2="18"/>'
-                        f'      <line x1="6" y1="6" x2="18" y2="18"/>'
-                        f'    </svg>'
-                        f'  </a>'
-                        f'</div>'
-                    )
-                    st.markdown(action_ev_html, unsafe_allow_html=True)
+                    # Nút native (icon CSS btn_act_*) → dialog/API trực tiếp, không qua URL
+                    eb1, eb2, eb3 = st.columns(3, gap="small")
+                    with eb1:
+                        if st.button("Xem", key=f"btn_act_view_ev_{ev_id}", help="Xem nhanh bằng chứng vi phạm"):
+                            show_evidence_dialog(ev_id)
+                    with eb2:
+                        if st.button("Duyệt", key=f"btn_act_confirm_ev_{ev_id}", help=f"Xác nhận đúng vi phạm ({friendly_label})"):
+                            st.session_state["history_active_tab"] = "events"
+                            res = verify_event(client, ev_id, "dung", raw_label)
+                            if res is not None and res.status_code == 200:
+                                notify.defer_success(f"Đã xác nhận sự kiện EV-{ev_id:02d} là Vi phạm")
+                                st.rerun()
+                            else:
+                                notify.error("Không thể cập nhật trạng thái sự kiện")
+                    with eb3:
+                        if st.button("Bỏ", key=f"btn_act_reject_ev_{ev_id}", help="Bác bỏ vi phạm (Giấy thi hợp lệ)"):
+                            st.session_state["history_active_tab"] = "events"
+                            res = verify_event(client, ev_id, "sai", "Answer_paper")
+                            if res is not None and res.status_code == 200:
+                                notify.defer_success(f"Đã bác bỏ sự kiện EV-{ev_id:02d} (Giấy thi hợp lệ)")
+                                st.rerun()
+                            else:
+                                notify.error("Không thể cập nhật trạng thái sự kiện")
 
             st.markdown("<hr style='margin: 4px 0 8px 0; border: none; border-top: 1px solid var(--wf-border);'>", unsafe_allow_html=True)
 
@@ -584,27 +587,29 @@ with tab_events:
             )
 
         with ev_pg_right:
-            ev_pag_items = []
-            btn_base = "display: inline-flex; align-items: center; justify-content: center; width: 32px; height: 32px; border-radius: 6px; text-decoration: none; font-size: 13px; transition: all 0.2s;"
-
-            if cur_ev_p <= 1:
-                ev_pag_items.append(f'<span style="{btn_base} border: 1px solid #e2e8f0; background: #f8fafc; color: #cbd5e1; cursor: not-allowed;">‹</span>')
-            else:
-                ev_pag_items.append(f'<a href="/history?{aqs}&tab=events&p_ev={cur_ev_p - 1}" target="_self" style="{btn_base} border: 1px solid #cbd5e1; background: #ffffff; color: #334155;">‹</a>')
-
+            # Phân trang native — rerun nhẹ, không reload trình duyệt
+            _ev_pages: list = []
             for p in range(1, total_ev_pages + 1):
                 if total_ev_pages > 7 and abs(p - cur_ev_p) > 2 and p != 1 and p != total_ev_pages:
                     if p == 2 or p == total_ev_pages - 1:
-                        ev_pag_items.append('<span style="display: inline-flex; align-items: center; justify-content: center; width: 18px; height: 32px; color: #94a3b8; font-size: 13px;">…</span>')
+                        _ev_pages.append(None)
                     continue
-                if p == cur_ev_p:
-                    ev_pag_items.append(f'<span style="{btn_base} border: 1px solid #2563eb; background: #2563eb; color: #ffffff; font-weight: 700;">{p}</span>')
-                else:
-                    ev_pag_items.append(f'<a href="/history?{aqs}&tab=events&p_ev={p}" target="_self" style="{btn_base} border: 1px solid #cbd5e1; background: #ffffff; color: #334155; font-weight: 500;">{p}</a>')
-
-            if cur_ev_p >= total_ev_pages:
-                ev_pag_items.append(f'<span style="{btn_base} border: 1px solid #e2e8f0; background: #f8fafc; color: #cbd5e1; cursor: not-allowed;">›</span>')
-            else:
-                ev_pag_items.append(f'<a href="/history?{aqs}&tab=events&p_ev={cur_ev_p + 1}" target="_self" style="{btn_base} border: 1px solid #cbd5e1; background: #ffffff; color: #334155;">›</a>')
-
-            st.markdown(f'<div class="history-pagination" style="display: flex !important; align-items: center !important; justify-content: flex-end !important; gap: 4px !important; width: 100% !important;">{"".join(ev_pag_items)}</div>', unsafe_allow_html=True)
+                _ev_pages.append(p)
+            _ecols = st.columns(len(_ev_pages) + 2, gap="small")
+            with _ecols[0]:
+                if st.button("‹", key="pag_btn_ev_prev", disabled=(cur_ev_p <= 1)):
+                    st.session_state.hist_ev_page = cur_ev_p - 1
+                    st.rerun()
+            for _i, _p in enumerate(_ev_pages):
+                with _ecols[_i + 1]:
+                    if _p is None:
+                        st.markdown("<div style='display:flex;align-items:center;justify-content:center;height:32px;color:#94a3b8;'>…</div>", unsafe_allow_html=True)
+                    elif _p == cur_ev_p:
+                        st.button(str(_p), key=f"pag_btn_ev_cur_{_p}", type="primary", disabled=True)
+                    elif st.button(str(_p), key=f"pag_btn_ev_{_p}"):
+                        st.session_state.hist_ev_page = _p
+                        st.rerun()
+            with _ecols[-1]:
+                if st.button("›", key="pag_btn_ev_next", disabled=(cur_ev_p >= total_ev_pages)):
+                    st.session_state.hist_ev_page = cur_ev_p + 1
+                    st.rerun()

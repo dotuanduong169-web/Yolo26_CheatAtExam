@@ -1,19 +1,28 @@
-/* ===== SIDEBAR CONTAINER ===== */
-section[data-testid="stSidebar"] {
-    background-color: #ffffff !important;
-    border-right: 1px solid #e9ecef !important;
+/* ===== LOẠI BỎ HOÀN TOÀN SIDEBAR BÊN TRÁI (KHÔNG SỬ DỤNG) ===== */
+[data-testid="stSidebar"],
+section[data-testid="stSidebar"],
+[data-testid="stSidebarNav"],
+[data-testid="collapsedControl"],
+[data-testid="stSidebarCollapsedControl"],
+[data-testid="stSidebarCollapseButton"],
+[data-testid="stSidebarHeader"],
+[data-testid="stSidebarUserContent"],
+button[kind="header"] {
+    display: none !important;
+    width: 0 !important;
+    min-width: 0 !important;
+    max-width: 0 !important;
+    height: 0 !important;
+    visibility: hidden !important;
+    pointer-events: none !important;
+    position: absolute !important;
+    left: -9999px !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    border: none !important;
 }
 
-/* Sidebar Menu Buttons */
-div[data-testid="stSidebar"] button {
-    border-radius: 8px !important;
-    height: 48px !important;
-    font-size: 14px !important;
-    font-weight: 500 !important;
-    margin-bottom: 4px !important;
-}
-
-/* Divider styling */
+/* Divider styling chung */
 hr {
     margin: 15px 0 !important;
     border: none !important;

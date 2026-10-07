@@ -5,7 +5,7 @@ import logging
 import requests
 
 from config import API_BASE_URL
-from utils.http import get_auth_headers
+from utils.http import cache_get, cache_set, get_auth_headers
 
 logger = logging.getLogger(__name__)
 
@@ -29,13 +29,18 @@ def get_daily_stats(session: requests.Session, days: int = 30) -> list:
 
 def get_stats_summary(session: requests.Session) -> dict:
     """Lấy tóm tắt thống kê toàn hệ thống."""
+    hit, val = cache_get("stats:summary", 20)
+    if hit:
+        return val
     try:
         res = session.get(
             f"{API_BASE_URL}/stats/summary",
             headers=get_auth_headers(),
         )
         if res.status_code == 200:
-            return res.json()
+            data = res.json()
+            cache_set("stats:summary", data)
+            return data
         logger.warning(f"get_stats_summary failed: {res.status_code}")
         return {}
     except requests.RequestException as exc:
@@ -79,13 +84,18 @@ def get_weekly_stats(session: requests.Session, weeks: int = 4) -> list:
 
 def get_behavior_distribution(session: requests.Session) -> list:
     """Lấy phân bố hành vi vi phạm thực tế từ backend."""
+    hit, val = cache_get("stats:distr", 20)
+    if hit:
+        return val
     try:
         res = session.get(
             f"{API_BASE_URL}/stats/distribution",
             headers=get_auth_headers(),
         )
         if res.status_code == 200:
-            return res.json()
+            data = res.json()
+            cache_set("stats:distr", data)
+            return data
         logger.warning(f"get_behavior_distribution failed: {res.status_code}")
         return []
     except requests.RequestException as exc:

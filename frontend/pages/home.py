@@ -206,7 +206,7 @@ else:
         h, m, s = elapsed // 3600, (elapsed % 3600) // 60, elapsed % 60
         elapsed_str = f"{h:02d}:{m:02d}:{s:02d}"
 
-        cache_bust = int(time.time())
+        cache_bust = st.session_state.get("session_id") or 0
 
         st.markdown(f"""
         <div class="wf-box" style="margin-bottom: 0;">
@@ -254,9 +254,11 @@ else:
         st.caption("Đang phân tích luồng video phát hiện gian lận thời gian thực qua mô hình YOLO26 trên máy chủ.")
 
 
-    # Cột phải: Cảnh báo Nghi vấn Thời gian thực (Sửa Lỗi 5 tràn màn hình & Sửa Lỗi 6 điều kiện hiển thị cảnh báo mới)
-    with right_col:
-        # Lỗi 6: Thiết lập điều kiện check rõ ràng:
+    # Cột phải: Cảnh báo Nghi vấn Thời gian thực — chạy trong fragment riêng:
+    # tự refresh mỗi 8s mà KHÔNG rerun toàn trang nên camera/header không chớp
+    @st.fragment
+    def _render_live_alerts() -> None:
+        st_autorefresh(interval=8000, key=f"refresh_{st.session_state['refresh_key']}")
         # Mặc định chỉ lấy các cảnh báo mới CHƯA KIỂM TRA (cho_kiem_tra)
         filter_unverified = st.checkbox("Chỉ cảnh báo chờ kiểm tra", value=True, key="filter_unverified_home")
         status_filter = "cho_kiem_tra" if filter_unverified else ""
@@ -279,7 +281,7 @@ else:
         if not all_events:
             notify.inline("Chưa có cảnh báo nghi vấn nào trong ca thi.", kind="info", title="Thời gian thực")
         else:
-            # Sửa Lỗi 5: Bọc trong container có thanh cuộn và khống chế chiều cao, không làm tràn trang
+            # Bọc trong container có thanh cuộn và khống chế chiều cao, không làm tràn trang
             st.markdown('<div class="record-scroll-container" style="max-height: 440px; overflow-y: auto; padding-right: 4px;">', unsafe_allow_html=True)
             for ev in all_events:
                 ev_id = ev.get("PK_MaSuKien")
@@ -320,6 +322,5 @@ else:
                 st.session_state["history_selected_sid"] = st.session_state.get("session_id")
                 st.switch_page("pages/history.py")
 
-
-    # Tự động refresh khi đang chạy
-    st_autorefresh(interval=8000, key=f"refresh_{st.session_state['refresh_key']}")
+    with right_col:
+        _render_live_alerts()

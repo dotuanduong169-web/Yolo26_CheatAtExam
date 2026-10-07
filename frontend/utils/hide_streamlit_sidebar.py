@@ -4,15 +4,27 @@ import streamlit as st
 
 _HIDE_CSS = """
 <style>
-[data-testid="stSidebar"], section[data-testid="stSidebar"] {
+[data-testid="stSidebar"], 
+section[data-testid="stSidebar"], 
+[data-testid="stSidebarNav"], 
+[data-testid="collapsedControl"], 
+[data-testid="stSidebarCollapsedControl"],
+[data-testid="stSidebarCollapseButton"],
+[data-testid="stSidebarHeader"],
+[data-testid="stSidebarUserContent"],
+button[kind="header"] {
     display: none !important;
-    width: 0px !important;
-}
-[data-testid="stSidebarNav"] {
-    display: none !important;
-}
-[data-testid="collapsedControl"] {
-    display: none !important;
+    width: 0 !important;
+    min-width: 0 !important;
+    max-width: 0 !important;
+    height: 0 !important;
+    visibility: hidden !important;
+    pointer-events: none !important;
+    position: absolute !important;
+    left: -9999px !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    border: none !important;
 }
 .main .block-container {
     padding-left: 2rem !important;

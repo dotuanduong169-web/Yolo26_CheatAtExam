@@ -4,6 +4,7 @@ primaryColor="#1677ff"
 
 [client]
 toolbarMode = "minimal"
+showSidebarNavigation = false
 
 [browser]
 gatherUsageStats = false

@@ -5,7 +5,7 @@ import logging
 import requests
 
 from config import API_BASE_URL
-from utils.http import get_auth_headers
+from utils.http import cache_get, cache_invalidate, cache_set, get_auth_headers
 
 logger = logging.getLogger(__name__)
 
@@ -18,6 +18,10 @@ def list_session_events(
     limit: int = 50,
 ) -> list:
     """Liệt kê sự kiện của phiên. Lỗi trả []."""
+    key = f"ev:sess:{session_id}:{trang_thai}:{skip}:{limit}"
+    hit, val = cache_get(key, 8)
+    if hit:
+        return val
     try:
         params = {"skip": skip, "limit": limit}
         if trang_thai:
@@ -28,7 +32,9 @@ def list_session_events(
             headers=get_auth_headers(),
         )
         if res.status_code == 200:
-            return res.json()
+            data = res.json()
+            cache_set(key, data)
+            return data
         logger.warning(f"list_session_events failed: {res.status_code}")
         return []
     except requests.RequestException as exc:
@@ -43,6 +49,10 @@ def list_all_events(
     limit: int = 200,
 ) -> list:
     """Liệt kê toàn bộ sự kiện của tất cả các phiên trong hệ thống. Lỗi trả []."""
+    key = f"ev:all:{trang_thai}:{skip}:{limit}"
+    hit, val = cache_get(key, 12)
+    if hit:
+        return val
     try:
         params = {"skip": skip, "limit": limit}
         if trang_thai:
@@ -53,7 +63,9 @@ def list_all_events(
             headers=get_auth_headers(),
         )
         if res.status_code == 200:
-            return res.json()
+            data = res.json()
+            cache_set(key, data)
+            return data
         logger.warning(f"list_all_events failed: {res.status_code}")
         return []
     except requests.RequestException as exc:
@@ -85,11 +97,14 @@ def verify_event(
 ):
     """Xác minh đúng/sai kèm nhãn sửa. Trả response thô."""
     try:
-        return session.patch(
+        res = session.patch(
             f"{API_BASE_URL}/events/{event_id}",
             json={"TrangThaiKiemTra": trang_thai, "NhanNguoiDung": nhan_nguoi_dung or None},
             headers=get_auth_headers(),
         )
+        if res is not None and res.status_code == 200:
+            cache_invalidate("ev:")
+        return res
     except requests.RequestException as exc:
         logger.warning(f"verify_event error: {exc}")
         return None

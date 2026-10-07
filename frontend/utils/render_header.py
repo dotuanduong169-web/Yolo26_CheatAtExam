@@ -29,6 +29,26 @@ def render_page_header(title: str, active: str | None = None):
     from utils.http import auth_query_params
     aqs = auth_query_params()
 
+    # ── Trigger điều hướng native (ẩn): visual giữ nguyên HTML,
+    # click trên thanh nav sẽ bấm nút ẩn này → st.switch_page (rerun nhẹ,
+    # không reload toàn trình duyệt nên không chớp màn hình) ──
+    _NAV_TARGETS = (
+        ("home", "pages/home.py"),
+        ("history", "pages/history.py"),
+        ("devices", "pages/devices.py"),
+        ("statistics", "pages/statistics.py"),
+        ("users", "pages/users.py"),
+    )
+    st.markdown(
+        "<style>div[class*='st-key-hidden_nav_'],div[data-testid^='st-key-hidden_nav_']"
+        "{display:none!important;height:0!important;min-height:0!important;margin:0!important;"
+        "padding:0!important;visibility:hidden!important;overflow:hidden!important}</style>",
+        unsafe_allow_html=True,
+    )
+    for _nav_key, _nav_target in _NAV_TARGETS:
+        if st.button("", key=f"hidden_nav_{_nav_key}"):
+            st.switch_page(_nav_target)
+
     header_html = (
         '<div class="global-top-bar">'
         '  <div class="top-logo-section">'
@@ -85,26 +105,6 @@ def render_page_header(title: str, active: str | None = None):
         '    }'
         '  }, true);'
         ''
-        '  function findStreamlitNavLink(pageKey) {'
-        '    var selectors = ['
-        '      "a[data-testid=\'stSidebarNavLink\']",'
-        '      "section[data-testid=\'stSidebar\'] a",'
-        '      "[data-testid=\'stSidebarNav\'] a",'
-        '      "ul[data-testid=\'stSidebarNavItems\'] a"'
-        '    ];'
-        '    var allLinks = document.querySelectorAll(selectors.join(", "));'
-        '    for (var i = 0; i < allLinks.length; i++) {'
-        '      var a = allLinks[i];'
-        '      var hrefAttr = a.getAttribute("href");'
-        '      if (!hrefAttr || typeof hrefAttr !== "string") continue;'
-        '      var h = hrefAttr.toLowerCase().trim();'
-        '      if (h.endsWith("/" + pageKey) || h.endsWith(pageKey) || h === pageKey || h.indexOf("/" + pageKey) >= 0) {'
-        '        return a;'
-        '      }'
-        '    }'
-        '    return null;'
-        '  }'
-        ''
         '  function setupNavTabs() {'
         '    var navLinks = document.querySelectorAll(".global-nav-bar .nav-tab-btn");'
         '    if (!navLinks || !navLinks.length) return;'
@@ -112,32 +112,24 @@ def render_page_header(title: str, active: str | None = None):
         '      if (btn.dataset.bound) return;'
         '      btn.dataset.bound = "1";'
         '      btn.onclick = function(e) {'
+        '        e.preventDefault();'
         '        if (this.classList.contains("active")) {'
-        '          e.preventDefault();'
         '          return false;'
         '        }'
         '        var pageKey = this.getAttribute("data-page") || "";'
-        '        var dest = this.getAttribute("href") || ("/" + pageKey);'
         '        navLinks.forEach(function(b) { b.classList.remove("active"); });'
         '        this.classList.add("active");'
-        '        var stLink = findStreamlitNavLink(pageKey);'
-        '        if (stLink) {'
-        '          try { stLink.click(); return false; } catch(err) {}'
-        '        }'
-        '        window.top.location.href = dest;'
+        '        try {'
+        '          var frame = window.parent.document;'
+        '          var hid = frame.querySelector("[data-testid=\'st-key-hidden_nav_" + pageKey + "\'] button");'
+        '          if (hid) { hid.click(); return false; }'
+        '        } catch(err) {}'
         '        return false;'
         '      };'
         '    });'
-        '    var otherLinks = document.querySelectorAll(".action-svg-btn, .history-pagination a");'
-        '    otherLinks.forEach(function(el) {'
-        '      el.setAttribute("target", "_self");'
-        '      el.removeAttribute("rel");'
-        '    });'
         '  }'
         '  setupNavTabs();'
-        '  setTimeout(setupNavTabs, 60);'
         '  setTimeout(setupNavTabs, 200);'
-        '  setTimeout(setupNavTabs, 600);'
         '})();'
         '</script>'
     )

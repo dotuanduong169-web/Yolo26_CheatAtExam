@@ -5,20 +5,25 @@ import logging
 import requests
 
 from config import API_BASE_URL
-from utils.http import get_auth_headers
+from utils.http import cache_get, cache_invalidate, cache_set, get_auth_headers
 
 logger = logging.getLogger(__name__)
 
 
 def list_devices(session: requests.Session) -> list:
     """Liệt kê thiết bị biên. Lỗi trả []."""
+    hit, val = cache_get("devices:all", 15)
+    if hit:
+        return val
     try:
         res = session.get(
             f"{API_BASE_URL}/devices",
             headers=get_auth_headers(),
         )
         if res.status_code == 200:
-            return res.json()
+            data = res.json()
+            cache_set("devices:all", data)
+            return data
         logger.warning(f"list_devices failed: {res.status_code}")
         return []
     except requests.RequestException as exc:
@@ -29,11 +34,14 @@ def list_devices(session: requests.Session) -> list:
 def create_device(session: requests.Session, name: str, rtsp: str, location: str = ""):
     """Đăng ký thiết bị mới. Trả response thô."""
     try:
-        return session.post(
+        res = session.post(
             f"{API_BASE_URL}/devices",
             json={"TenThietBi": name, "DuongDanRTSP": rtsp, "MoTaViTri": location or None},
             headers=get_auth_headers(),
         )
+        if res is not None and res.status_code == 200:
+            cache_invalidate("devices:")
+        return res
     except requests.RequestException as exc:
         logger.warning(f"create_device error: {exc}")
         return None
@@ -42,11 +50,14 @@ def create_device(session: requests.Session, name: str, rtsp: str, location: str
 def update_device(session: requests.Session, device_id: int, data: dict):
     """Sửa thiết bị. Trả response thô."""
     try:
-        return session.put(
+        res = session.put(
             f"{API_BASE_URL}/devices/{device_id}",
             json=data,
             headers=get_auth_headers(),
         )
+        if res is not None and res.status_code == 200:
+            cache_invalidate("devices:")
+        return res
     except requests.RequestException as exc:
         logger.warning(f"update_device error: {exc}")
         return None
@@ -55,10 +66,13 @@ def update_device(session: requests.Session, device_id: int, data: dict):
 def delete_device(session: requests.Session, device_id: int):
     """Xóa thiết bị. Trả response thô."""
     try:
-        return session.delete(
+        res = session.delete(
             f"{API_BASE_URL}/devices/{device_id}",
             headers=get_auth_headers(),
         )
+        if res is not None and res.status_code == 200:
+            cache_invalidate("devices:")
+        return res
     except requests.RequestException as exc:
         logger.warning(f"delete_device error: {exc}")
         return None

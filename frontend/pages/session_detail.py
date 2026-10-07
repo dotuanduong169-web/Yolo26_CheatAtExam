@@ -10,7 +10,7 @@ import plotly.graph_objects as go
 from services.history_api import get_session_detail
 from utils.auth_guard import require_auth
 from utils.hide_streamlit_sidebar import hide_sidebar
-from utils.http import auth_query_params, init_session_state
+from utils.http import init_session_state
 from utils.load_css import load_css
 from utils.render_header import render_page_header
 from utils.status_helpers import (
@@ -45,6 +45,7 @@ if "id" in st.query_params:
 if "p" in st.query_params:
     try:
         st.session_state["detail_page"] = max(1, int(st.query_params["p"]))
+        del st.query_params["p"]
     except Exception:
         pass
 
@@ -262,7 +263,6 @@ else:
 
     st.markdown("<hr style='margin: 4px 0 8px 0; border: none; border-top: 1px solid var(--wf-border);'>", unsafe_allow_html=True)
 
-    aqs = auth_query_params()
     for row in page_events:
         c1, c2, c3, c4, c5 = st.columns([1.2, 1.4, 0.9, 1.3, 0.8])
 
@@ -292,17 +292,12 @@ else:
 
         with c5:
             ev_pk = row["PK_MaSuKien"]
-            action_html = (
-                f'<div style="display:flex; align-items:center; justify-content:flex-end; padding-right:8px; height:100%;">'
-                f'  <a href="/event_detail?id={ev_pk}&from_session={session_id}&{aqs}" target="_self" class="action-svg-btn view-btn" title="Xem chi tiết vi phạm #{ev_pk}">'
-                f'    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">'
-                f'      <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8z"/>'
-                f'      <circle cx="12" cy="12" r="3"/>'
-                f'    </svg>'
-                f'  </a>'
-                f'</div>'
-            )
-            st.markdown(action_html, unsafe_allow_html=True)
+            if st.button("Xem", key=f"btn_act_view_devt_{ev_pk}", help=f"Xem chi tiết vi phạm #{ev_pk}"):
+                st.session_state["event_id"] = ev_pk
+                st.session_state["from_session_id"] = session_id
+                st.session_state["selected_session"] = session_id
+                st.session_state["session_id"] = session_id
+                st.switch_page("pages/event_detail.py")
 
         st.markdown("<hr style='margin: 4px 0 8px 0; border: none; border-top: 1px solid var(--wf-border);'>", unsafe_allow_html=True)
 
@@ -320,30 +315,32 @@ else:
         )
 
     with pg_right:
-        pag_items = []
-        btn_base = "display: inline-flex; align-items: center; justify-content: center; width: 32px; height: 32px; border-radius: 6px; text-decoration: none; font-size: 13px; transition: all 0.2s;"
-
-        if page <= 1:
-            pag_items.append(f'<span style="{btn_base} border: 1px solid #e2e8f0; background: #f8fafc; color: #cbd5e1; cursor: not-allowed;">‹</span>')
-        else:
-            pag_items.append(f'<a href="/session_detail?id={session_id}&{aqs}&p={page - 1}" target="_self" style="{btn_base} border: 1px solid #cbd5e1; background: #ffffff; color: #334155;">‹</a>')
-
+        # Phân trang native — rerun nhẹ, không reload trình duyệt
+        _pages: list = []
         for p in range(1, total_pages + 1):
             if total_pages > 7 and abs(p - page) > 2 and p != 1 and p != total_pages:
                 if p == 2 or p == total_pages - 1:
-                    pag_items.append('<span style="display: inline-flex; align-items: center; justify-content: center; width: 18px; height: 32px; color: #94a3b8; font-size: 13px;">…</span>')
+                    _pages.append(None)
                 continue
-            if p == page:
-                pag_items.append(f'<span style="{btn_base} border: 1px solid #2563eb; background: #2563eb; color: #ffffff; font-weight: 700;">{p}</span>')
-            else:
-                pag_items.append(f'<a href="/session_detail?id={session_id}&{aqs}&p={p}" target="_self" style="{btn_base} border: 1px solid #cbd5e1; background: #ffffff; color: #334155; font-weight: 500;">{p}</a>')
-
-        if page >= total_pages:
-            pag_items.append(f'<span style="{btn_base} border: 1px solid #e2e8f0; background: #f8fafc; color: #cbd5e1; cursor: not-allowed;">›</span>')
-        else:
-            pag_items.append(f'<a href="/session_detail?id={session_id}&{aqs}&p={page + 1}" target="_self" style="{btn_base} border: 1px solid #cbd5e1; background: #ffffff; color: #334155;">›</a>')
-
-        st.markdown(f'<div class="history-pagination" style="display: flex !important; align-items: center !important; justify-content: flex-end !important; gap: 4px !important; width: 100% !important;">{"".join(pag_items)}</div>', unsafe_allow_html=True)
+            _pages.append(p)
+        _cols = st.columns(len(_pages) + 2, gap="small")
+        with _cols[0]:
+            if st.button("‹", key="pag_btn_det_prev", disabled=(page <= 1)):
+                st.session_state.detail_page = page - 1
+                st.rerun()
+        for _i, _p in enumerate(_pages):
+            with _cols[_i + 1]:
+                if _p is None:
+                    st.markdown("<div style='display:flex;align-items:center;justify-content:center;height:32px;color:#94a3b8;'>…</div>", unsafe_allow_html=True)
+                elif _p == page:
+                    st.button(str(_p), key=f"pag_btn_det_cur_{_p}", type="primary", disabled=True)
+                elif st.button(str(_p), key=f"pag_btn_det_{_p}"):
+                    st.session_state.detail_page = _p
+                    st.rerun()
+        with _cols[-1]:
+            if st.button("›", key="pag_btn_det_next", disabled=(page >= total_pages)):
+                st.session_state.detail_page = page + 1
+                st.rerun()
 
 
 

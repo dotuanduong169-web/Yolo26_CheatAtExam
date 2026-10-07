@@ -91,6 +91,17 @@ def require_auth() -> None:
 
     try:
         from utils.http import get_auth_headers
+        import time
+
+        # Bỏ qua gọi /users/profile chặn rerun nếu token vừa được xác thực
+        # (<60s): mỗi click/widget trước đây đều chờ API này nên thấy "tải lại".
+        token_now = st.session_state.get("access_token_value") or token
+        if (
+            token_now
+            and st.session_state.get("_auth_ok_token") == token_now
+            and float(st.session_state.get("_auth_ok_ts") or 0) + 60 > time.time()
+        ):
+            return
 
         res = st.session_state.client.get(
             f"{API_BASE_URL}/users/profile",
@@ -98,6 +109,8 @@ def require_auth() -> None:
             timeout=4,
         )
         if res.status_code == 200:
+            st.session_state["_auth_ok_token"] = token_now
+            st.session_state["_auth_ok_ts"] = time.time()
             return
 
         # Khi access token hết hạn (401), tự động gọi refresh_token thay vì đá ra login ngay
@@ -109,12 +122,17 @@ def require_auth() -> None:
                 new_token = data.get("access_token")
                 if new_token:
                     st.session_state["access_token_value"] = new_token
+                    st.session_state["_auth_ok_token"] = new_token
+                    import time as _t
+                    st.session_state["_auth_ok_ts"] = _t.time()
                     st.query_params["auth"] = new_token
                     return
 
             # Chỉ đăng xuất khi cả refresh token cũng hết hạn: xoá localStorage và đá về login
             st.session_state["access_token_value"] = None
             st.session_state["is_login"] = False
+            st.session_state.pop("_auth_ok_token", None)
+            st.session_state.pop("_auth_ok_ts", None)
             for _k in ("auth", "refresh", "role", "u"):
                 if _k in st.query_params:
                     del st.query_params[_k]

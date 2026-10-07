@@ -136,3 +136,33 @@ def auth_query_params() -> str:
     if refresh:
         parts.append(f"refresh={quote(str(refresh), safe='')}")
     return "&".join(parts)
+
+
+def cache_get(key: str, ttl_sec: float):
+    """Lấy giá trị cache theo session (tránh gọi API chặn mỗi rerun). Trả (hit, value)."""
+    import time as _t
+
+    slot = st.session_state.get("_api_cache", {}).get(key)
+    if slot and _t.time() - float(slot[0]) < ttl_sec:
+        return True, slot[1]
+    return False, None
+
+
+def cache_set(key: str, value) -> None:
+    """Lưu giá trị vào cache theo session."""
+    import time as _t
+
+    store = st.session_state.get("_api_cache", {})
+    store[key] = (_t.time(), value)
+    st.session_state["_api_cache"] = store
+
+
+def cache_invalidate(prefix: str = "") -> None:
+    """Xóa cache API; gọi sau mọi thao tác ghi để dữ liệu mới hiện ngay."""
+    store = st.session_state.get("_api_cache", {})
+    if not prefix:
+        st.session_state["_api_cache"] = {}
+        return
+    for k in [k for k in store if str(k).startswith(prefix)]:
+        store.pop(k, None)
+    st.session_state["_api_cache"] = store

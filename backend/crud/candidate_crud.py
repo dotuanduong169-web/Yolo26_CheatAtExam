@@ -115,6 +115,18 @@ def get_open_sub_session(
     )
 
 
+def get_latest_sub_session(
+    db: DBSession, candidate_id: int
+) -> Optional[MonitoringSession]:
+    """Phiên con mới nhất của thí sinh (kể cả đã kết thúc để xem lịch sử)."""
+    return (
+        db.query(MonitoringSession)
+        .filter(MonitoringSession.FK_MaThiSinh == candidate_id)
+        .order_by(MonitoringSession.ThoiGianBatDau.desc())
+        .first()
+    )
+
+
 def create_sub_session(
     db: DBSession,
     user_id: int,
@@ -151,6 +163,23 @@ def latest_evidence_time(db: DBSession, session_id: int):
             DetectedEvent.PK_MaSuKien == Evidence.FK_MaSuKien,
         )
         .filter(DetectedEvent.FK_MaPhienGiamSat == session_id)
+        .order_by(Evidence.ThoiGianTao.desc())
+        .first()
+    )
+    return row[0] if row else None
+
+
+def get_latest_evidence_image(db: DBSession, session_id: int) -> Optional[str]:
+    """Đường dẫn file ảnh bằng chứng mới nhất của phiên."""
+    from models.evidence import Evidence
+
+    row = (
+        db.query(Evidence.DuongDanTep)
+        .join(
+            DetectedEvent,
+            DetectedEvent.PK_MaSuKien == Evidence.FK_MaSuKien,
+        )
+        .filter(DetectedEvent.FK_MaPhienGiamSat == session_id, Evidence.LoaiTep == "anh")
         .order_by(Evidence.ThoiGianTao.desc())
         .first()
     )

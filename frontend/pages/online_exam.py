@@ -8,6 +8,8 @@ from services.candidate_api import (
     close_session,
     create_online_session,
     exam_overview,
+    extract_error_detail,
+    get_candidate_snapshot,
     import_candidates,
     list_candidates,
     open_session,
@@ -59,7 +61,8 @@ with st.expander("➕ Tạo ca thi online mới", expanded=not bool(sessions)):
                     st.session_state["online_exam_session"] = new_id
                     st.rerun()
                 else:
-                    notify.error("Tạo ca thi thất bại.")
+                    err_msg = extract_error_detail(resp, default="Tạo ca thi thất bại")
+                    notify.error(err_msg, title="Lỗi tạo ca thi")
 
 if not sessions:
     notify.info("Chưa có ca thi nào. Bạn hãy tạo ca thi mới ở trên.")
@@ -99,7 +102,8 @@ with col_action:
                 notify.success(f"Đã kết thúc ca thi #{sel_id}.")
                 st.rerun()
             else:
-                notify.error("Không thể kết thúc ca thi.")
+                err_msg = extract_error_detail(res, default="Không thể kết thúc ca thi")
+                notify.error(err_msg, title="Lỗi kết thúc ca thi")
     else:
         if st.button("🟢 Mở ca thi", type="primary", key=f"btn_open_sess_{sel_id}"):
             res = open_session(st.session_state.client, sel_id)
@@ -108,7 +112,8 @@ with col_action:
                 notify.success(f"Đã mở ca thi #{sel_id}! Thí sinh có thể vào phòng thi.")
                 st.rerun()
             else:
-                notify.error("Không thể mở ca thi.")
+                err_msg = extract_error_detail(res, default="Không thể mở ca thi")
+                notify.error(err_msg, title="Lỗi mở ca thi")
 
 # ── Link trang thi cho thí sinh ─────────────────────────────
 exam_url = f"{API_BASE_URL}/exam?session_id={sel_id}"
@@ -154,16 +159,36 @@ else:
     cols = st.columns(4)
     for i, c in enumerate(rows):
         with cols[i % 4]:
-            dot = "🟢" if c.get("dang_giam_sat") else "⚪"
+            is_active = c.get("dang_giam_sat")
+            dot = "🟢" if is_active else "⚪"
+            status_text = "Đang thi" if is_active else ("Đã dừng" if c.get("PK_MaPhienGiamSat") else "Chưa vào")
             alert = f"🚨 {c.get('cho_kiem_tra', 0)} chờ" if c.get("cho_kiem_tra") else "yên tĩnh"
+            sid = c.get("PK_MaPhienGiamSat")
+
             st.markdown(
                 f"**{dot} {c.get('SBD')} - {c.get('HoTen')}**  \n"
-                f"{c.get('Lop') or ''} · {alert} · tổng {c.get('tong_su_kien', 0)} sự kiện"
+                f"{c.get('Lop') or ''} · *{status_text}* · {alert} · {c.get('tong_su_kien', 0)} sự kiện"
             )
+
+            # Hiển thị ảnh snapshot cắt lên giao diện
+            if sid:
+                snap_bytes = get_candidate_snapshot(st.session_state.client, sid)
+                if snap_bytes:
+                    st.image(snap_bytes, use_container_width=True)
+                else:
+                    if is_active:
+                        st.caption("📷 Đang chờ frame camera...")
+                    else:
+                        st.caption("📷 Chưa có ảnh vi phạm")
+            else:
+                st.caption("⏳ Thí sinh chưa vào phòng thi")
+
             if st.button("Chi tiết", key=f"online_ev_{c['PK_MaThiSinh']}"):
-                sid = c.get("PK_MaPhienGiamSat")
                 if sid:
                     st.session_state["selected_session"] = sid
+                    st.session_state["detail_return_to"] = "online_exam"
                     st.switch_page("pages/session_detail.py")
+                else:
+                    notify.info(f"Thí sinh {c.get('HoTen')} ({c.get('SBD')}) chưa vào thi, chưa có dữ liệu phiên.")
 
 st_autorefresh(interval=10000, key="online_grid_refresh")

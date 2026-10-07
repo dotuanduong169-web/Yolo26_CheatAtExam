@@ -87,6 +87,7 @@ class _SessionWorker:
         self.last_seen_person = time.time()
         self.vang_fired = False
         self.last_activity = time.time()
+        self.latest_jpeg: bytes | None = None
         self.running = True
         self.thread = threading.Thread(target=self._loop, daemon=True)
         self.thread.start()
@@ -126,6 +127,9 @@ class _SessionWorker:
                     annotated, results = process_frame(
                         frame, self.frame_count, tracker_ns=self.ns
                     )
+                    ok, buf = cv2.imencode(".jpg", annotated, [cv2.IMWRITE_JPEG_QUALITY, 75])
+                    if ok:
+                        self.latest_jpeg = buf.tobytes()
                     self.recent.append((annotated, list(results)))
                     self._note_windows(results)
                     if time.time() - self.last_save > SAVE_INTERVAL_SECONDS:
@@ -255,3 +259,12 @@ def stop_session_workers(session_id: int) -> None:
         worker.running = False
     revoke_session_tokens(session_id)
     ai_pipeline.reset_tracker(f"ingest-{session_id}")
+
+
+def get_latest_frame(session_id: int) -> bytes | None:
+    """Lấy frame JPEG đã qua AI mới nhất của phiên con (nếu worker đang chạy)."""
+    with _workers_lock:
+        worker = _workers.get(session_id)
+        if worker and worker.latest_jpeg:
+            return worker.latest_jpeg
+    return None

@@ -92,3 +92,46 @@ def create_online_session(session: requests.Session, phong_thi: str, mon_thi: st
     except requests.RequestException as exc:
         logger.warning(f"create_online_session error: {exc}")
         return None
+
+
+def get_candidate_snapshot(session: requests.Session, session_id: int) -> bytes | None:
+    """Tải ảnh snapshot mới nhất của thí sinh. Trả bytes nếu có, None nếu chưa có ảnh."""
+    try:
+        res = session.get(
+            f"{API_BASE_URL}/candidates/session/{session_id}/snapshot",
+            headers=get_auth_headers(),
+            timeout=3,
+        )
+        if res.status_code == 200:
+            return res.content
+        return None
+    except Exception as exc:
+        logger.debug(f"get_candidate_snapshot error: {exc}")
+        return None
+
+
+def extract_error_detail(resp: requests.Response | None, default: str = "Thao tác thất bại") -> str:
+    """Bóc tách thông báo lỗi chi tiết từ HTTP response hoặc lỗi kết nối."""
+    if resp is None:
+        return "Không thể kết nối đến máy chủ Backend (vui lòng kiểm tra tiến trình Backend trên cổng 8000)."
+    if resp.status_code == 404:
+        return (
+            "API chưa sẵn sàng (HTTP 404). Backend uvicorn đang chạy mã cũ, "
+            "vui lòng khởi động lại backend để nạp các endpoint mới."
+        )
+    if resp.status_code == 401:
+        return "Phiên làm việc đã hết hạn (HTTP 401). Vui lòng đăng nhập lại."
+    if resp.status_code == 403:
+        return "Bạn không có quyền thực hiện thao tác này (HTTP 403)."
+    try:
+        data = resp.json()
+        if isinstance(data, dict):
+            detail = data.get("detail") or data.get("message")
+            if detail:
+                return str(detail)
+    except Exception:
+        pass
+    text = (resp.text or "").strip()
+    if text and len(text) < 120 and "<html" not in text.lower():
+        return f"{default}: {text}"
+    return f"{default} (Mã lỗi HTTP: {resp.status_code})"

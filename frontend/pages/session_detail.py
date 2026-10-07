@@ -79,8 +79,13 @@ cheat_pct = 100 - clean_pct
 # ── Page Header ─────────────────────────────────────────────
 render_page_header("Chi tiết lịch sử phiên", active="history")
 
-if st.button("Quay lại danh sách lịch sử", key="btn_back_to_history"):
-    st.switch_page("pages/history.py")
+return_target = st.session_state.get("detail_return_to", "history")
+back_label = "← Quay lại Lưới giám thị online" if return_target == "online_exam" else "Quay lại danh sách lịch sử"
+if st.button(back_label, key="btn_back_to_history"):
+    if return_target == "online_exam":
+        st.switch_page("pages/online_exam.py")
+    else:
+        st.switch_page("pages/history.py")
 
 status_text = get_session_status_label(sess.get("TrangThai"), sess.get("ThoiGianKetThuc")).upper()
 status_cls = "status-running" if is_active else "status-done"

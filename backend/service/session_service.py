@@ -99,6 +99,7 @@ def get_session_detail(db: DBSession, session_id: int) -> dict:
             "MonThi": session.MonThi,
             "FK_MaNguoiDung": session.FK_MaNguoiDung,
             "FK_MaThietBi": session.FK_MaThietBi,
+            "FK_MaThiSinh": session.FK_MaThiSinh,
             "ThoiGianTao": session.ThoiGianTao,
         },
         "tong_su_kien": total,

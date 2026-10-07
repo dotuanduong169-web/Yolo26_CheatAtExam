@@ -11,6 +11,8 @@ from crud.candidate_crud import (
     count_unverified_by_candidate,
     create_sub_session,
     find_candidate_for_join,
+    get_latest_evidence_image,
+    get_latest_sub_session,
     get_open_sub_session,
     import_candidates,
     latest_evidence_time,
@@ -126,8 +128,9 @@ def exam_overview(
     try:
         items: list[CandidateStatusItem] = []
         for c in list_candidates(db, session_id):
-            sub = get_open_sub_session(db, c.PK_MaThiSinh)
-            sid = sub.PK_MaPhienGiamSat if sub else None
+            open_sub = get_open_sub_session(db, c.PK_MaThiSinh)
+            latest_sub = open_sub or get_latest_sub_session(db, c.PK_MaThiSinh)
+            sid = latest_sub.PK_MaPhienGiamSat if latest_sub else None
             total, pending = (0, 0)
             latest = None
             if sid:
@@ -140,7 +143,7 @@ def exam_overview(
                     HoTen=c.HoTen,
                     Lop=c.Lop,
                     PK_MaPhienGiamSat=sid,
-                    dang_giam_sat=sid is not None,
+                    dang_giam_sat=open_sub is not None,
                     cho_kiem_tra=pending,
                     tong_su_kien=total,
                     anh_moi_nhat=latest,
@@ -172,6 +175,7 @@ def leave_exam(
 
 
 @router.post("/session/{session_id}/open")
+@router.post("/sessions/{session_id}/open")
 def open_exam_session(
     session_id: int,
     user: User = Depends(get_current_user),
@@ -192,11 +196,18 @@ def open_exam_session(
             "session_id": session_id,
             "TrangThai": "dang_giam_sat",
         }
+    except HTTPException:
+        raise
+    except Exception as exc:
+        db.rollback()
+        logger.error(f"open_exam_session error: {exc}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Lỗi mở ca thi: {str(exc)}")
     finally:
         db.close()
 
 
 @router.post("/session/{session_id}/close")
+@router.post("/sessions/{session_id}/close")
 def close_exam_session(
     session_id: int,
     user: User = Depends(get_current_user),
@@ -210,21 +221,36 @@ def close_exam_session(
         if not exam:
             raise HTTPException(status_code=404, detail="Không tìm thấy ca thi")
         end_session(db, session_id)
-        for c in list_candidates(db, session_id):
-            sub = get_open_sub_session(db, c.PK_MaThiSinh)
-            if sub:
-                end_session(db, sub.PK_MaPhienGiamSat)
-                ingest_service.stop_session_workers(sub.PK_MaPhienGiamSat)
+        try:
+            for c in list_candidates(db, session_id):
+                sub = get_open_sub_session(db, c.PK_MaThiSinh)
+                if sub:
+                    end_session(db, sub.PK_MaPhienGiamSat)
+                    try:
+                        ingest_service.stop_session_workers(sub.PK_MaPhienGiamSat)
+                    except Exception as wex:
+                        logger.warning(f"Lỗi dừng worker cho sub session {sub.PK_MaPhienGiamSat}: {wex}")
+        except Exception as cex:
+            logger.warning(f"Lỗi duyệt thí sinh khi kết thúc ca thi: {cex}")
+
         return {
             "message": "Ca thi đã kết thúc",
             "session_id": session_id,
             "TrangThai": "ket_thuc",
         }
+    except HTTPException:
+        raise
+    except Exception as exc:
+        db.rollback()
+        logger.error(f"close_exam_session error: {exc}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Lỗi kết thúc ca thi: {str(exc)}")
     finally:
         db.close()
 
 
 @router.post("/session/create")
+@router.post("/sessions/create")
+@router.post("/create-session")
 def create_online_session(
     data: CreateOnlineSession,
     user: User = Depends(get_current_user),
@@ -233,9 +259,19 @@ def create_online_session(
     from datetime import datetime, timezone
     from database.database import SessionLocal
     from models.monitoring_session import MonitoringSession
+    from models.edge_device import EdgeDevice
+    from sqlalchemy.exc import IntegrityError
+    from sqlalchemy import text
 
     db = SessionLocal()
     try:
+        # Thử DROP NOT NULL nếu cột FK_MaThietBi vẫn còn constraint NOT NULL cũ
+        try:
+            db.execute(text('ALTER TABLE tbl_monitoring_sessions ALTER COLUMN "FK_MaThietBi" DROP NOT NULL;'))
+            db.commit()
+        except Exception:
+            db.rollback()
+
         session = MonitoringSession(
             ThoiGianBatDau=datetime.now(timezone.utc),
             PhongThi=data.PhongThi.strip(),
@@ -245,7 +281,16 @@ def create_online_session(
             TrangThai="dang_giam_sat",
         )
         db.add(session)
-        db.commit()
+        try:
+            db.commit()
+        except IntegrityError:
+            # Fallback nếu DB vẫn ép FK_MaThietBi NOT NULL và không cho phép ALTER
+            db.rollback()
+            first_dev = db.query(EdgeDevice).first()
+            session.FK_MaThietBi = first_dev.PK_MaThietBi if first_dev else None
+            db.add(session)
+            db.commit()
+
         db.refresh(session)
         return {
             "PK_MaPhienGiamSat": session.PK_MaPhienGiamSat,
@@ -253,6 +298,42 @@ def create_online_session(
             "MonThi": session.MonThi,
             "TrangThai": session.TrangThai,
         }
+    except Exception as exc:
+        db.rollback()
+        logger.error(f"create_online_session error: {exc}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Lỗi tạo ca thi: {str(exc)}")
     finally:
         db.close()
+
+
+@router.get("/session/{session_id}/snapshot")
+def get_candidate_snapshot_endpoint(
+    session_id: int,
+    user: User = Depends(get_current_user),
+):
+    """Trả ảnh snapshot mới nhất của thí sinh (frame live AI hoặc ảnh vi phạm gần nhất)."""
+    from pathlib import Path
+    from fastapi import Response
+    from fastapi.responses import FileResponse
+    from database.database import SessionLocal
+    from crud.candidate_crud import get_latest_evidence_image
+
+    # 1. Thử lấy live frame từ worker đang chạy
+    live_jpg = ingest_service.get_latest_frame(session_id)
+    if live_jpg:
+        return Response(content=live_jpg, media_type="image/jpeg")
+
+    # 2. Thử lấy ảnh bằng chứng mới nhất từ DB
+    db = SessionLocal()
+    try:
+        img_path = get_latest_evidence_image(db, session_id)
+        if img_path:
+            p = Path(img_path)
+            if p.is_file():
+                return FileResponse(p, media_type="image/jpeg")
+    finally:
+        db.close()
+
+    raise HTTPException(status_code=404, detail="Chưa có ảnh snapshot")
+
 

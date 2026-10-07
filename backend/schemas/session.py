@@ -26,7 +26,8 @@ class SessionResponse(BaseModel):
     PhongThi: Optional[str] = None
     MonThi: Optional[str] = None
     FK_MaNguoiDung: int
-    FK_MaThietBi: int
+    FK_MaThietBi: Optional[int] = None
+    FK_MaThiSinh: Optional[int] = None
     ThoiGianTao: datetime
 
     model_config = {"from_attributes": True}

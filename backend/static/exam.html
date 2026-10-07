@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Thi online - Giám sát</title>
+<style>
+  body { font-family: sans-serif; max-width: 640px; margin: 0 auto; padding: 16px; background: #f4f6f8; }
+  .card { background: #fff; border-radius: 10px; padding: 16px; margin-bottom: 12px; box-shadow: 0 1px 4px rgba(0,0,0,.08); }
+  video { width: 100%; border-radius: 8px; background: #000; }
+  input, button { font-size: 16px; padding: 10px; margin: 4px 0; width: 100%; box-sizing: border-box; }
+  button { background: #166534; color: #fff; border: none; border-radius: 8px; cursor: pointer; }
+  button:disabled { background: #999; }
+  #status { font-weight: bold; }
+  .ok { color: #166534; } .bad { color: #b91c1c; } .warn { color: #b45309; }
+  #clock { font-size: 28px; text-align: center; }
+</style>
+</head>
+<body>
+<div class="card">
+  <h3>Phòng thi online</h3>
+  <div id="joinBox">
+    <input id="sbd" placeholder="Nhập số báo danh (VD: TS001)">
+    <button onclick="joinExam()">Vào thi</button>
+  </div>
+  <div id="examBox" style="display:none">
+    <div id="clock">00:00:00</div>
+    <video id="cam" autoplay playsinline muted></video>
+    <div id="status" class="ok">Đang kết nối camera...</div>
+    <div id="net">Mạng: <span id="netState" class="ok">ổn định</span></div>
+  </div>
+</div>
+<script>
+let sessionId = null, token = null, timer = null, failStreak = 0, startTime = null;
+const API = location.origin;
+
+async function joinExam() {
+  const sbd = document.getElementById("sbd").value.trim();
+  if (!sbd) { alert("Nhập SBD"); return; }
+  const r = await fetch(API + "/candidates/join", {
+    method: "POST", headers: {"Content-Type": "application/json"},
+    body: JSON.stringify({SBD: sbd}),
+  });
+  if (!r.ok) { alert("SBD không có trong ca thi đang mở"); return; }
+  const d = await r.json();
+  sessionId = d.PK_MaPhienGiamSat; token = d.token;
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({video: {width: 640}, audio: false});
+    document.getElementById("cam").srcObject = stream;
+  } catch (e) { setStatus("Không mở được camera!", "bad"); return; }
+  document.getElementById("joinBox").style.display = "none";
+  document.getElementById("examBox").style.display = "block";
+  startTime = Date.now();
+  setInterval(tick, 1000);
+  timer = setInterval(sendFrame, 2500);
+  setStatus("Đang thi - camera giám sát bật", "ok");
+}
+
+function tick() {
+  const s = Math.floor((Date.now() - startTime) / 1000);
+  const h = String(Math.floor(s / 3600)).padStart(2, "0");
+  const m = String(Math.floor((s % 3600) / 60)).padStart(2, "0");
+  const ss = String(s % 60).padStart(2, "0");
+  document.getElementById("clock").textContent = `${h}:${m}:${ss}`;
+}
+
+function setStatus(msg, cls) {
+  const el = document.getElementById("status");
+  el.textContent = msg; el.className = cls;
+}
+
+async function sendFrame() {
+  try {
+    const video = document.getElementById("cam");
+    if (video.readyState < 2) return;
+    const c = document.createElement("canvas");
+    const scale = 640 / video.videoWidth;
+    c.width = 640; c.height = Math.round(video.videoHeight * scale);
+    c.getContext("2d").drawImage(video, 0, 0, c.width, c.height);
+    const blob = await new Promise(r => c.toBlob(r, "image/jpeg", 0.7));
+    const fd = new FormData();
+    fd.append("session_id", sessionId);
+    fd.append("token", token);
+    fd.append("ts_client", Date.now() / 1000);
+    fd.append("frame", blob, "f.jpg");
+    const ctl = new AbortController();
+    const t = setTimeout(() => ctl.abort(), 8000);
+    const r = await fetch(API + "/ingest/frame", {method: "POST", body: fd, signal: ctl.signal});
+    clearTimeout(t);
+    if (!r.ok) throw new Error("HTTP " + r.status);
+    failStreak = 0;
+    document.getElementById("netState").textContent = "ổn định";
+    document.getElementById("netState").className = "ok";
+  } catch (e) {
+    failStreak++;
+    document.getElementById("netState").textContent = "chập chờn (" + failStreak + ")";
+    document.getElementById("netState").className = "warn";
+    if (failStreak >= 6) setStatus("MẤT KẾT NỐI quá 15s - kiểm tra mạng!", "bad");
+  }
+}
+
+// Cảnh báo chuyển tab/ẩn trang (mức cơ bản, có thể vượt qua - chỉ để răn đe + ghi nhận)
+document.addEventListener("visibilitychange", () => {
+  if (document.hidden) setStatus("CẢNH BÁO: không được rời khỏi trang thi!", "bad");
+});
+</script>
+</body>
+</html>

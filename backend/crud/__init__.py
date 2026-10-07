@@ -10,6 +10,16 @@ from crud.user_crud import (
     update_user_profile,
 )
 
+from crud.candidate_crud import (
+    count_unverified_by_candidate,
+    create_sub_session,
+    find_candidate_for_join,
+    get_open_sub_session,
+    import_candidates,
+    latest_evidence_time,
+    list_candidates,
+)
+
 from crud.device_crud import (
     create_device,
     delete_device,
@@ -53,6 +63,13 @@ __all__ = [
     "list_users",
     "update_user_password",
     "update_user_profile",
+    "count_unverified_by_candidate",
+    "create_sub_session",
+    "find_candidate_for_join",
+    "get_open_sub_session",
+    "import_candidates",
+    "latest_evidence_time",
+    "list_candidates",
     "create_device",
     "delete_device",
     "get_device_by_id",

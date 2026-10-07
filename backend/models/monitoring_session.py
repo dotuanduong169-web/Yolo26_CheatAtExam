@@ -26,11 +26,19 @@ class MonitoringSession(Base):
     MonThi = Column(String(255), nullable=True)
     ThoiGianTao = Column(TIMESTAMP, nullable=False, default=lambda: datetime.now(timezone.utc))
     FK_MaNguoiDung = Column(BigInteger, ForeignKey("tbl_user.PK_MaNguoiDung", ondelete="SET NULL"), nullable=False)
-    FK_MaThietBi = Column(BigInteger, ForeignKey("tbl_edgedevice.PK_MaThietBi", ondelete="RESTRICT"), nullable=False)
+    FK_MaThietBi = Column(BigInteger, ForeignKey("tbl_edgedevice.PK_MaThietBi", ondelete="RESTRICT"), nullable=True)
+    FK_MaThiSinh = Column(BigInteger, ForeignKey("tbl_thi_sinh.PK_MaThiSinh", ondelete="SET NULL"), nullable=True)
 
     # Quan hệ
     user = relationship("User", back_populates="sessions")
     device = relationship("EdgeDevice", back_populates="sessions")
+    candidate = relationship("Candidate", back_populates="sub_sessions", foreign_keys=[FK_MaThiSinh])
+    candidates = relationship(
+        "Candidate",
+        back_populates="exam_session",
+        foreign_keys="Candidate.FK_MaPhienGiamSat",
+        cascade="all, delete",
+    )
     events = relationship("DetectedEvent", back_populates="session", cascade="all, delete")
     statistics = relationship("Statistic", back_populates="session", cascade="all, delete")
 

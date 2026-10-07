@@ -39,6 +39,19 @@ from schemas.statistics import (
     WeeklyStatItem,
 )
 
+from schemas.candidate import (
+    CandidateImport,
+    CandidateItem,
+    CandidateJoin,
+    CandidateJoinResponse,
+    CandidateResponse,
+)
+
+from schemas.ingest import (
+    CandidateStatusItem,
+    IngestAccepted,
+)
+
 from schemas.camera import (
     CameraDevice,
     CameraInfoResponse,
@@ -79,6 +92,15 @@ __all__ = [
     "StatisticResponse",
     "StatsSummaryResponse",
     "WeeklyStatItem",
+    # Candidate
+    "CandidateImport",
+    "CandidateItem",
+    "CandidateJoin",
+    "CandidateJoinResponse",
+    "CandidateResponse",
+    # Ingest
+    "CandidateStatusItem",
+    "IngestAccepted",
     # Camera
     "CameraDevice",
     "CameraInfoResponse",

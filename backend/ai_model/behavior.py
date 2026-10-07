@@ -17,7 +17,7 @@ TURN_RATIO = float(os.getenv("BEH_TURN_RATIO", "0.35"))  # mũi lệch / rộng 
 BEND_RATIO = float(os.getenv("BEH_BEND_RATIO", "0.9"))  # mũi dưới vai / rộng vai
 
 BEHAVIOR_LABELS = ("nhin_thang", "quay_dau", "quay_sau", "cui_xuong")
-CHEAT_BEHAVIORS = {"quay_dau", "quay_sau", "cui_xuong"}
+CHEAT_BEHAVIORS = {"quay_dau", "quay_sau", "cui_xuong", "vang_mat", "nhieu_nguoi"}
 
 
 def _v(kpts, i):

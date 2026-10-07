@@ -2,6 +2,7 @@
 Luồng chính: đọc frame → infer một lần → vẽ khung và polygon rồi gắn cờ gian lận."""
 
 import os
+import threading
 from pathlib import Path
 
 import cv2
@@ -50,7 +51,17 @@ IMGSZ = int(os.getenv("MODEL_IMGSZ", "512"))
 TRACK_ENABLED = os.getenv("MODEL_TRACK", "1") == "1"
 TRACK_STRIDE = max(1, int(os.getenv("MODEL_STRIDE", "2")))
 TRACK_KEEP = max(1, int(os.getenv("MODEL_KEEP", "5")))
-_track_alive: dict[int, list] = {}  # track_id -> [label, conf, bbox, ttl]
+_trackers: dict[str, dict[int, list]] = {}  # ns -> {track_id -> [label, conf, bbox, ttl]
+_last_pose_info: dict[str, tuple[int, float]] = {}  # ns -> (số người, conf cao nhất) lần pose gần nhất
+
+# Khóa serialize mọi lệnh infer: model đơn, tracker persist và runtime OV đều
+# không an toàn luồng khi worker nhiều phiên gọi đồng thời (CPU-bound nên không mất tốc độ)
+_INFER_LOCK = threading.Lock()
+
+
+def _alive(ns: str = "default") -> dict[int, list]:
+    """Bảng track riêng cho từng nguồn (camera phòng / từng thí sinh online)."""
+    return _trackers.setdefault(ns, {})
 
 # Model pose (YOLO26n-pose OpenVINO): phát hiện hành vi quay đầu/cúi.
 # OV export khóa imgsz 320 — không chỉnh POSE_IMGSZ lên cao hơn.
@@ -100,11 +111,16 @@ except Exception as exc:
     _pose_model = None
 
 
-def reset_tracker() -> None:
+def reset_tracker(ns: str | None = None) -> None:
     """Xóa trạng thái track (gọi khi đổi nguồn video/camera).
     Điểm logic: luôn xóa box giữ lại; chỉ reset predictor với model .pt
     (null predictor làm track() trên OpenVINO trả rỗng vĩnh viễn)."""
-    _track_alive.clear()
+    if ns is None:
+        _trackers.clear()
+        _last_pose_info.clear()
+    else:
+        _trackers.pop(ns, None)
+        _last_pose_info.pop(ns, None)
     try:
         # Đặt predictor về None để lần track sau dựng mới hoàn toàn;
         # gán trackers=[] làm track() trả rỗng (đã gặp thực tế).
@@ -131,11 +147,13 @@ def _draw_detection(frame, label, conf, bbox, track_id=None) -> None:
 def process_frame(
     frame: np.ndarray,
     frame_count: int = 0,
+    tracker_ns: str = "default",
 ) -> tuple[np.ndarray, list[dict]]:
     """
     Chạy YOLO26-seg trên một frame BGR.
     Điểm logic: ngưỡng tin cậy 0,5 và ảnh infer 512; thiếu model hoặc frame rỗng
     thì trả rỗng; mask nhỏ dưới 100 điểm ảnh thì bỏ để khỏi nhiễu.
+    tracker_ns tách bảng track theo nguồn (mặc định giữ tương thích gọi cũ).
 
     Returns:
         (annotated_frame, detections). Mỗi detection:
@@ -147,10 +165,11 @@ def process_frame(
         return frame, results_data
 
     if TRACK_ENABLED:
-        return _process_frame_tracked(frame, frame_count)
+        return _process_frame_tracked(frame, frame_count, tracker_ns)
 
     try:
-        res = _yolo_model(frame, imgsz=IMGSZ, conf=CONF_THRESHOLD, verbose=False)[0]
+        with _INFER_LOCK:
+            res = _yolo_model(frame, imgsz=IMGSZ, conf=CONF_THRESHOLD, verbose=False)[0]
     except Exception as exc:
         logger.debug(f"Inference failed: {exc}")
         return frame, results_data
@@ -218,17 +237,24 @@ def process_frame(
     return frame, results_data
 
 
-def _run_pose(frame: np.ndarray) -> list[dict]:
-    """Chạy pose + rule hành vi, trả detection kind=behavior (chỉ hành vi gian lận).
-    Điểm logic: bỏ nhin_thang; conf lấy từ rule keypoints."""
+def _run_pose(frame: np.ndarray) -> tuple[list[dict], int, float]:
+    """Chạy pose + rule hành vi, trả (detection kind=behavior, số người, conf người cao nhất).
+    Điểm logic: bỏ nhin_thang; conf lấy từ rule keypoints; đếm người phục vụ luật vắng mặt/nhiều người."""
     out: list[dict] = []
     try:
-        res = _pose_model(frame, imgsz=POSE_IMGSZ, conf=POSE_CONF, verbose=False)[0]
+        with _INFER_LOCK:
+            res = _pose_model(frame, imgsz=POSE_IMGSZ, conf=POSE_CONF, verbose=False)[0]
     except Exception as exc:
         logger.debug(f"Pose inference failed: {exc}")
-        return out
+        return out, 0, 0.0
     if res.boxes is None or res.keypoints is None:
-        return out
+        return out, 0, 0.0
+    n_persons = len(res.boxes)
+    try:
+        person_confs = [float(c) for c in res.boxes.conf.tolist()]
+    except Exception:
+        person_confs = []
+    max_conf = max(person_confs) if person_confs else 0.0
     kpts = res.keypoints.data
     for i, box in enumerate(res.boxes):
         try:
@@ -252,23 +278,27 @@ def _run_pose(frame: np.ndarray) -> list[dict]:
             "is_cheat": True,
             "kind": "behavior",
         })
-    return out
+    return out, n_persons, round(max_conf, 4)
 
 
 def _process_frame_tracked(
-    frame: np.ndarray, frame_count: int = 0
+    frame: np.ndarray, frame_count: int = 0, tracker_ns: str = "default"
 ) -> tuple[np.ndarray, list[dict]]:
     """Bản tối ưu: ByteTrack + infer cách frame + giữ box khi flicker.
     Điểm logic: frame lẻ tái dùng box frame chẵn (giảm nửa infer);
     box mất dấu được giữ TRACK_KEEP frame trước khi xóa;
-    pose chạy stride riêng, hành vi gian lận gắn kind=behavior."""
+    pose chạy stride riêng, hành vi gian lận gắn kind=behavior.
+    tracker_ns tách bảng track theo nguồn để worker nhiều phiên không lẫn nhau;
+    persist=False + lock để an toàn luồng (keep-alive TTL vẫn lo mượt)."""
+    alive = _alive(tracker_ns)
     results_data: list[dict] = []
     if frame_count % TRACK_STRIDE == 0:
         try:
-            res = _yolo_model.track(
-                frame, persist=True, tracker="bytetrack.yaml",
-                imgsz=IMGSZ, conf=CONF_THRESHOLD, verbose=False,
-            )[0]
+            with _INFER_LOCK:
+                res = _yolo_model.track(
+                    frame, persist=False, tracker="bytetrack.yaml",
+                    imgsz=IMGSZ, conf=CONF_THRESHOLD, verbose=False,
+                )[0]
         except Exception as exc:
             logger.debug(f"Track inference failed: {exc}")
             return frame, results_data
@@ -289,15 +319,15 @@ def _process_frame_tracked(
                     continue
                 label = names.get(
                     cls_id, LABELS[cls_id] if cls_id < len(LABELS) else str(cls_id))
-                _track_alive[track_id] = [label, conf, bbox, TRACK_KEEP]
+                alive[track_id] = [label, conf, bbox, TRACK_KEEP]
                 seen.add(track_id)
-        for track_id in list(_track_alive):
+        for track_id in list(alive):
             if track_id not in seen:
-                _track_alive[track_id][3] -= 1
-                if _track_alive[track_id][3] <= 0:
-                    del _track_alive[track_id]
+                alive[track_id][3] -= 1
+                if alive[track_id][3] <= 0:
+                    del alive[track_id]
 
-    for track_id, (label, conf, bbox, _ttl) in _track_alive.items():
+    for track_id, (label, conf, bbox, _ttl) in alive.items():
         _draw_detection(frame, label, conf, bbox, track_id)
         results_data.append({
             "bbox": bbox,
@@ -310,7 +340,9 @@ def _process_frame_tracked(
         })
 
     if _pose_model is not None and frame_count % POSE_STRIDE == 0:
-        for b in _run_pose(frame):
+        pose_dets, n_persons, max_conf = _run_pose(frame)
+        _last_pose_info[tracker_ns] = (n_persons, max_conf)
+        for b in pose_dets:
             _draw_detection(frame, b["label"], b["confidence"], b["bbox"])
             results_data.append(b)
 

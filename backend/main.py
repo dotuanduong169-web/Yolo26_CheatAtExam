@@ -11,9 +11,11 @@ import models
 
 from api.router import (
     camera_router,
+    candidate_router,
     device_router,
     event_router,
     history_router,
+    ingest_router,
     statistics_router,
     user_router,
 )
@@ -89,7 +91,9 @@ app.add_middleware(
 # ── Khai báo router ─────────────────────────────────────────────────
 app.include_router(user_router.router)
 app.include_router(camera_router.router)
+app.include_router(candidate_router.router)
 app.include_router(device_router.router)
+app.include_router(ingest_router.router)
 app.include_router(event_router.router)
 app.include_router(statistics_router.router)
 app.include_router(history_router.router)
@@ -107,3 +111,10 @@ def health_check():
 def camera_test_page():
     """Trả trang HTML test camera máy + AI nhận diện."""
     return FileResponse(Path(__file__).resolve().parent / "static" / "camera_test.html")
+
+
+# ── Trang thi online cho thí sinh ────────────────────────────
+@app.get("/exam", include_in_schema=False)
+def exam_page():
+    """Trả trang HTML thí sinh: nhập SBD, mở camera, nộp frame nền."""
+    return FileResponse(Path(__file__).resolve().parent / "static" / "exam.html")

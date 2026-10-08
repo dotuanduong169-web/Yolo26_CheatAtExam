@@ -354,15 +354,15 @@ with tab_profile:
             new_name_val = st.text_input("Họ và tên hiển thị", value=full_name, key="profile_fullname_input")
             if st.button("Lưu thay đổi họ tên", type="primary", use_container_width=True, key="btn_save_profile_name"):
                 if not new_name_val.strip():
-                    notify.inline_warning("Họ tên không được để trống")
+                    notify.warning("Họ tên không được để trống.", title="Cảnh báo")
                 else:
                     ok, res = update_user(client, new_name_val.strip())
                     if ok:
                         st.session_state["user_fullname"] = new_name_val.strip()
-                        notify.defer_success("Đã cập nhật họ tên thành công!")
+                        notify.defer_success("Đã cập nhật họ tên thành công!", title="Thành công")
                         st.rerun()
                     else:
-                        notify.inline_error("Lỗi khi cập nhật thông tin")
+                        notify.error(f"{res}", title="Cập nhật thất bại")
 
         # Cột 2: Bảo mật & Đổi mật khẩu
         with col_security_card:
@@ -398,17 +398,17 @@ with tab_profile:
 
             if st.button("Cập nhật mật khẩu", type="primary", use_container_width=True, key="btn_update_password"):
                 if not old_p or not new_p or not confirm_p:
-                    notify.warning("Vui lòng điền đầy đủ tất cả các trường mật khẩu.")
+                    notify.warning("Vui lòng điền đầy đủ tất cả các trường mật khẩu.", title="Cảnh báo")
                 elif new_p != confirm_p:
-                    notify.error("Mật khẩu xác nhận không khớp với mật khẩu mới.")
+                    notify.error("Mật khẩu xác nhận không khớp với mật khẩu mới.", title="Đổi mật khẩu thất bại")
                 else:
                     is_valid, errors = validate_password_rules(new_p)
                     if not is_valid:
-                        notify.error(f"Mật khẩu mới không hợp lệ: Cần bổ sung {', '.join(errors)}.")
+                        notify.error(f"Mật khẩu mới không hợp lệ: Cần bổ sung {', '.join(errors)}.", title="Mật khẩu không hợp lệ")
                     else:
                         ok, res = change_password(client, old_p, new_p)
                         if ok:
-                            notify.success("Đổi mật khẩu thành công! Mật khẩu mới đã được lưu.")
+                            notify.success("Đổi mật khẩu thành công! Mật khẩu mới đã được lưu.", title="Thành công")
                         else:
-                            notify.inline_error(f"{res}")
+                            notify.error(f"{res}", title="Đổi mật khẩu thất bại")
 

@@ -65,16 +65,30 @@ def change_password(
         if res.status_code == 200:
             return True, res.json()
         if res.status_code == 401:
-            return False, "Phiên hết hạn. Vui lòng đăng nhập lại"
-        if res.status_code == 422:
-            detail = res.json().get("detail", "Mật khẩu cũ không đúng") if res.text else "Mật khẩu cũ không đúng"
-            return False, detail
+            return False, "Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại."
 
-        detail = res.json().get("detail", "Lỗi server") if res.text else "Lỗi server"
+        detail = "Lỗi khi đổi mật khẩu"
+        if res.text:
+            try:
+                err_json = res.json()
+                raw_detail = err_json.get("detail", detail)
+                if isinstance(raw_detail, list) and raw_detail:
+                    detail = raw_detail[0].get("msg", str(raw_detail[0]))
+                else:
+                    detail = str(raw_detail)
+            except Exception:
+                detail = res.text
+
+        detail_lower = detail.lower()
+        if "old password is incorrect" in detail_lower or "mật khẩu hiện tại không chính xác" in detail_lower:
+            detail = "Mật khẩu hiện tại không chính xác. Vui lòng kiểm tra lại."
+        elif "user not found" in detail_lower:
+            detail = "Không tìm thấy thông tin tài khoản người dùng."
+
         return False, detail
 
     except requests.RequestException as exc:
-        return False, f"Lỗi kết nối: {exc}"
+        return False, f"Lỗi kết nối máy chủ: {exc}"
 
 
 def list_all_users(session: requests.Session, skip: int = 0, limit: int = 50) -> list:

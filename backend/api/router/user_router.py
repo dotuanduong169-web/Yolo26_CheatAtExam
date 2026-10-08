@@ -108,7 +108,7 @@ def change_password(
 ):
     """Đổi mật khẩu. Service đối chiếu mật khẩu cũ trước khi băm và lưu mật khẩu mới."""
     change_user_password(db, user.PK_MaNguoiDung, data.MatKhauCu, data.MatKhauMoi)
-    return {"message": "Password changed successfully"}
+    return {"message": "Đổi mật khẩu thành công"}
 
 
 @router.post("/logout", response_model=MessageResponse)

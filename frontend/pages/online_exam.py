@@ -154,13 +154,7 @@ with st.expander("Nhập danh sách thí sinh (SBD, Họ tên, Lớp)", expanded
                 notify.error("Nhập danh sách thất bại.")
 
 # ── Lưới giám thị ───────────────────────────────────────────
-col_head_left, col_head_right = st.columns([4, 1])
-with col_head_left:
-    st.markdown("### Lưới giám thị")
-with col_head_right:
-    st.write("")
-    if st.button("🔄 Cập nhật", key="btn_refresh_grid", use_container_width=True):
-        st.rerun()
+st.markdown("### Lưới giám thị")
 
 rows = exam_overview(st.session_state.client, sel_id)
 if not rows:

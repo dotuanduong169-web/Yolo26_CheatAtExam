@@ -217,6 +217,7 @@ def start_camera(
             pass
 
         state.running = True
+        state.start_time = time.time()
         update_device_status(device_id, "dang_chay")
 
         state.thread = threading.Thread(target=capture_loop, daemon=True)

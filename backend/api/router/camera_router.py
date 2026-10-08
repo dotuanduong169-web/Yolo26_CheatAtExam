@@ -114,6 +114,7 @@ def camera_status():
         "running": state.running,
         "session_id": state.current_session_id,
         "fps": state.fps if state.running else None,
+        "start_time": state.start_time if state.running else None,
     }
 
 

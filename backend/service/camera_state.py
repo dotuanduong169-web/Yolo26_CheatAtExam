@@ -50,6 +50,7 @@ class CameraState:
         self.fps: float = 0.0
         self._fps_last_time: float = 0.0
         self._fps_last_count: int = 0
+        self.start_time: Optional[float] = None
         self._initialized = True
 
     def reset(self) -> None:
@@ -58,6 +59,7 @@ class CameraState:
         self.running = False
         self.thread = None
         self.current_session_id = None
+        self.start_time = None
         self.latest_frame = None
         self.frame_count = 0
         self.source = None

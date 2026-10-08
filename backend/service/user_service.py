@@ -181,7 +181,7 @@ def change_user_password(
         raise NotFoundError(detail="User not found")
 
     if not verify_password(old_password, user.MatKhau):
-        raise ValidationError(detail="Old password is incorrect")
+        raise ValidationError(detail="Mật khẩu hiện tại không chính xác")
 
     update_user_password(db, user_id, hash_password(new_password))
     logger.info(f"Password changed for user: {user_id}")

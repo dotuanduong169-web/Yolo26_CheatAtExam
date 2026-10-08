@@ -2,6 +2,7 @@
 
 import time
 import streamlit as st
+import streamlit.components.v1 as components
 from utils.notify import notify
 from streamlit_autorefresh import st_autorefresh
 
@@ -47,11 +48,13 @@ if status_res and status_res.status_code == 200:
         st.session_state["session_id"] = backend_session
         st.session_state["current_fps"] = data.get("fps")
 
-        if backend_running and not old_running:
-            st.session_state["capture_start_time"] = time.time()
-        if backend_running and not st.session_state["capture_start_time"]:
-            st.session_state["capture_start_time"] = time.time()
-        if not backend_running:
+        if backend_running:
+            backend_start = data.get("start_time")
+            if backend_start:
+                st.session_state["capture_start_time"] = backend_start
+            elif not st.session_state.get("capture_start_time"):
+                st.session_state["capture_start_time"] = time.time()
+        else:
             st.session_state["capture_start_time"] = None
             st.session_state["current_fps"] = None
     except Exception:
@@ -228,27 +231,53 @@ else:
         <div class="camera-feed-wrapper" style="border: 1px solid var(--wf-border); border-top: none; background: #0b0f19; border-radius: 0 0 var(--wf-radius) var(--wf-radius); position: relative; overflow: hidden; width: 100%; min-height: 400px; max-height: 560px; display: flex; align-items: center; justify-content: center; padding: 8px 0;">
             <img src="{CAMERA_URL}/video_feed?t={cache_bust}" alt="Live stream" style="max-height: 540px; width: auto; max-width: 100%; object-fit: contain; display: block; border-radius: 4px; box-shadow: 0 4px 16px rgba(0,0,0,0.5);">
         </div>
-        <script>
-        (function() {{
+        <img src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='1' height='1'%3E%3C/svg%3E" style="display:none;" onload="(function(){{
             function tickRec() {{
-                var timer = document.getElementById("live-rec-timer");
+                var timer = document.getElementById('live-rec-timer');
                 if (!timer) return;
-                var startTs = parseInt(timer.getAttribute("data-start") || "0");
+                var startTs = parseInt(timer.getAttribute('data-start') || '0');
                 if (!startTs) return;
                 var now = Math.floor(Date.now() / 1000);
                 var diff = Math.max(0, now - startTs);
                 var h = Math.floor(diff / 3600);
                 var m = Math.floor((diff % 3600) / 60);
                 var s = diff % 60;
-                timer.textContent = (h < 10 ? "0" + h : h) + ":" + (m < 10 ? "0" + m : m) + ":" + (s < 10 ? "0" + s : s);
+                timer.textContent = (h < 10 ? '0' + h : h) + ':' + (m < 10 ? '0' + m : m) + ':' + (s < 10 ? '0' + s : s);
             }}
             tickRec();
-            if (!window._recTimerInterval) {{
-                window._recTimerInterval = setInterval(tickRec, 1000);
+            if (window._recTimerInterval) {{
+                clearInterval(window._recTimerInterval);
             }}
+            window._recTimerInterval = setInterval(tickRec, 1000);
+        }})()">
+        """, unsafe_allow_html=True)
+
+        components.html(f"""
+        <script>
+        (function() {{
+            function updateTimer() {{
+                try {{
+                    var doc = window.parent.document;
+                    var timer = doc.getElementById("live-rec-timer");
+                    if (!timer) return;
+                    var startTs = parseInt(timer.getAttribute("data-start") || "{start_ts}");
+                    if (!startTs) return;
+                    var now = Math.floor(Date.now() / 1000);
+                    var diff = Math.max(0, now - startTs);
+                    var h = Math.floor(diff / 3600);
+                    var m = Math.floor((diff % 3600) / 60);
+                    var s = diff % 60;
+                    timer.textContent = (h < 10 ? "0" + h : h) + ":" + (m < 10 ? "0" + m : m) + ":" + (s < 10 ? "0" + s : s);
+                }} catch (e) {{}}
+            }}
+            updateTimer();
+            if (window.parent._recTimerParentInterval) {{
+                clearInterval(window.parent._recTimerParentInterval);
+            }}
+            window.parent._recTimerParentInterval = setInterval(updateTimer, 1000);
         }})();
         </script>
-        """, unsafe_allow_html=True)
+        """, height=0, width=0)
 
 
         st.caption("Đang phân tích luồng video phát hiện gian lận thời gian thực qua mô hình YOLO26 trên máy chủ.")

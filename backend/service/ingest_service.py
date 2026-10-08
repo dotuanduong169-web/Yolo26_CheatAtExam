@@ -84,6 +84,8 @@ class _SessionWorker:
         self.recent: deque = deque(maxlen=10)
         self.frame_count = 0
         self.last_save = 0.0
+        self.last_object_save = 0.0
+        self.last_pose_save = 0.0
         self.last_seen_person = time.time()
         self.vang_fired = False
         self.last_activity = time.time()
@@ -99,12 +101,12 @@ class _SessionWorker:
                 self.queue.get_nowait()
             except Exception:
                 break
-        try:
-            self.queue.put_nowait((jpg, time.time()))
-            self.last_activity = time.time()
-            return True
-        except Exception:
-            return False
+            try:
+                self.queue.put_nowait((jpg, time.time()))
+                self.last_activity = time.time()
+                return True
+            except Exception:
+                return False
 
     def _loop(self) -> None:
         db = SessionLocal()
@@ -132,9 +134,25 @@ class _SessionWorker:
                         self.latest_jpeg = buf.tobytes()
                     self.recent.append((annotated, list(results)))
                     self._note_windows(results)
-                    if time.time() - self.last_save > SAVE_INTERVAL_SECONDS:
+
+                    now = time.time()
+                    has_obj = any(
+                        r.get("is_cheat") and r.get("kind", "object") == "object" for r in results
+                    )
+                    has_beh = any(r.get("kind") == "behavior" for r in results)
+                    trigger_obj = has_obj and _window_ok(self.cheat_window, 5, 3) and (now - self.last_object_save >= 15.0)
+                    trigger_beh = has_beh and _window_ok(self.behavior_window, 6, 4) and (now - self.last_pose_save >= 6.0)
+
+                    if trigger_obj or trigger_beh:
+                        if trigger_obj:
+                            self.last_object_save = now
+                        if trigger_beh:
+                            self.last_pose_save = now
                         self._snapshot(db, annotated, results, image_dir)
-                        self.last_save = time.time()
+                        self.last_save = now
+                    elif now - self.last_save > SAVE_INTERVAL_SECONDS:
+                        self._snapshot(db, annotated, results, image_dir)
+                        self.last_save = now
                 except Exception as exc:
                     logger.debug(f"Ingest worker #{self.session_id} failed: {exc}")
         finally:

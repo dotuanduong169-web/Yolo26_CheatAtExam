@@ -284,10 +284,10 @@ else:
 
 
     # Cột phải: Cảnh báo Nghi vấn Thời gian thực — chạy trong fragment riêng:
-    # tự refresh mỗi 8s mà KHÔNG rerun toàn trang nên camera/header không chớp
+    # tự refresh mỗi 2.5s mà KHÔNG rerun toàn trang nên camera/header không chớp
     @st.fragment
     def _render_live_alerts() -> None:
-        st_autorefresh(interval=8000, key=f"refresh_{st.session_state['refresh_key']}")
+        st_autorefresh(interval=2500, key=f"refresh_{st.session_state['refresh_key']}")
         # Mặc định chỉ lấy các cảnh báo mới CHƯA KIỂM TRA (cho_kiem_tra)
         filter_unverified = st.checkbox("Chỉ cảnh báo chờ kiểm tra", value=True, key="filter_unverified_home")
         status_filter = "cho_kiem_tra" if filter_unverified else ""

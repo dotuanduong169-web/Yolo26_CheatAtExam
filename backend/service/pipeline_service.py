@@ -82,24 +82,11 @@ def capture_loop() -> None:
                 # Chỉ giao frame mới nhất cho worker, không chờ infer xong
                 state.raw_frame = frame
 
-                # Đủ chu kỳ thì lưu snapshot: chọn frame gần nhất CÓ cheat trong cửa sổ
+                # Định kỳ lưu thống kê phiên (stats) cho biểu đồ giám sát
                 if time.time() - last_save_time > SAVE_INTERVAL_SECONDS:
                     with state.lock:
-                        pairs = list(state.recent)
-                        annotated = state.latest_frame
                         results = list(state.latest_results)
-                    for frm, res in reversed(pairs):
-                        if any(r.get("is_cheat") for r in res):
-                            annotated, results = frm, list(res)
-                            break
-                    if annotated is None:
-                        annotated = frame
-                    confirmed = [r for r in results if _keep_result(state, r)]
-                    _save_snapshot(
-                        db, state.current_session_id,
-                        annotated,
-                        confirmed, image_dir, frame_count,
-                    )
+                    _save_periodic_stats(db, state.current_session_id, results)
                     last_save_time = time.time()
 
             except KeyboardInterrupt:
@@ -124,9 +111,22 @@ def capture_loop() -> None:
 
 def _infer_worker(state: CameraState) -> None:
     """Worker infer liên tục frame mới nhất.
-    Điểm logic: luôn lấy raw_frame hiện tại (bỏ frame cũ nếu infer chậm);
-    vẽ box xong cập nhật latest_frame để stream hiển thị ngay."""
+    Điểm logic: luôn lấy raw_frame hiện tại; vẽ box xong cập nhật latest_frame;
+    kiểm tra debounce và cooldown để lưu sự kiện vi phạm NGAY LẬP TỨC (Event-driven)
+    thay vì chờ chu kỳ 10s cố định, giúp không bao giờ bỏ sót hành vi pose ngắn hạn."""
     last_id = None
+    db_worker = None
+    try:
+        db_worker = SessionLocal()
+    except Exception as exc:
+        logger.error(f"Infer worker failed to connect DB: {exc}")
+
+    image_dir = settings.IMAGE_DIR
+    try:
+        image_dir.mkdir(parents=True, exist_ok=True)
+    except OSError:
+        pass
+
     while state.running:
         try:
             raw = state.raw_frame
@@ -140,21 +140,35 @@ def _infer_worker(state: CameraState) -> None:
                 state.latest_frame = annotated
                 state.latest_results = results
                 state.recent.append((annotated, results))
-            state.note_frame_cheat(any(
-                r.get("is_cheat") and r.get("kind", "object") == "object" for r in results
-            ))
-            state.note_frame_behavior(any(
-                r.get("kind") == "behavior" for r in results
-            ))
+
+            # Kích hoạt lưu bằng chứng NGAY LẬP TỨC khi vi phạm được xác nhận & hết cooldown
+            now = time.time()
+            should_save, confirmed_cheats, reason = state.check_triggers(results, now)
+            if should_save and state.current_session_id and db_worker is not None:
+                _save_event_snapshot(
+                    db_worker,
+                    state.current_session_id,
+                    annotated,
+                    confirmed_cheats,
+                    image_dir,
+                    state.frame_count,
+                    reason=reason,
+                )
         except Exception as exc:
             logger.debug(f"Infer worker failed: {exc}")
-            time.sleep(0.05)
+        time.sleep(0.04)
+
+    if db_worker is not None:
+        try:
+            db_worker.close()
+        except Exception:
+            pass
 
 
 def _keep_result(state: CameraState, r: dict) -> bool:
     """Quyết định giữ detection vào snapshot.
     Điểm logic: vật sạch luôn giữ; vật gian lận cần debounce 3/5;
-    hành vi quay/cúi cần debounce riêng; quay_sau ghi ngay (hiếm, nghiêm trọng)."""
+    hành vi quay/cúi cần debounce riêng; quay_sau ghi ngay."""
     if not r.get("is_cheat"):
         return True
     if r.get("kind") == "behavior":
@@ -164,30 +178,30 @@ def _keep_result(state: CameraState, r: dict) -> bool:
     return state.is_cheat_confirmed(CHEAT_WINDOW, CHEAT_MIN_HITS)
 
 
-def _save_snapshot(
+def _save_event_snapshot(
     db,
     session_id: int | None,
     frame,
     results: list[dict],
     image_dir: Path,
     frame_count: int,
+    reason: str = "",
 ) -> None:
-    """Lưu một snapshot: 1 ảnh + 1 sự kiện cho mỗi cheat + thống kê kỳ.
-    Điểm logic: model 2 nhãn nên mọi vật detect đều là gian lận, mỗi vật một sự kiện;
-    nhiều sự kiện chung 1 ảnh; thiếu phiên hiện tại thì bỏ qua; lỗi thì rollback để không ghi dở."""
+    """Lưu snapshot sự kiện vi phạm NGAY LẬP TỨC: 1 ảnh bằng chứng + 1 event/vật + cập nhật stats."""
+    if not session_id or not results:
+        return
+
     filename = datetime.now().strftime("%Y%m%d_%H%M%S_%f") + ".jpg"
     image_path = image_dir / filename
 
     try:
         cv2.imwrite(str(image_path), frame)
     except Exception as exc:
-        logger.error(f"Failed to save image: {exc}", exc_info=True)
-        return
-
-    if not session_id:
+        logger.error(f"Failed to save event image: {exc}", exc_info=True)
         return
 
     try:
+        saved_events = 0
         for r in results:
             if not r.get("is_cheat"):
                 continue
@@ -200,27 +214,61 @@ def _save_snapshot(
                 do_tin_cay=float(r.get("confidence", 0.0)),
             )
             create_evidence(db, event.PK_MaSuKien, "anh", str(image_path))
+            saved_events += 1
 
         stats_data = calculate_stats(results)
         create_statistics(db, stats_data, session_id)
 
         db.commit()
-        logger.info(f"Snapshot saved — frames: {frame_count}, events: {len([r for r in results if r.get('is_cheat')])}")
-
+        logger.info(
+            f"Event snapshot saved [{reason}] — frame #{frame_count}, events: {saved_events}, file: {filename}"
+        )
     except Exception as exc:
         db.rollback()
-        logger.error(f"Database transaction failed: {exc}", exc_info=True)
+        logger.error(f"Failed to save event snapshot transaction: {exc}", exc_info=True)
+
+
+def _save_periodic_stats(
+    db,
+    session_id: int | None,
+    results: list[dict],
+) -> None:
+    """Định kỳ ghi bản ghi thống kê Statistic (không ghi ảnh thừa khi không có vi phạm mới)."""
+    if not session_id:
+        return
+    try:
+        stats_data = calculate_stats(results)
+        create_statistics(db, stats_data, session_id)
+        db.commit()
+    except Exception as exc:
+        db.rollback()
+        logger.debug(f"Failed to save periodic statistics: {exc}")
+
+
+def _save_snapshot(
+    db,
+    session_id: int | None,
+    frame,
+    results: list[dict],
+    image_dir: Path,
+    frame_count: int,
+) -> None:
+    """Lưu snapshot định kỳ tương thích ngược (dùng cho ingest online)."""
+    cheats = [r for r in results if r.get("is_cheat")]
+    if cheats:
+        _save_event_snapshot(db, session_id, frame, cheats, image_dir, frame_count, reason="snapshot")
+    else:
+        _save_periodic_stats(db, session_id, results)
 
 
 def calculate_stats(results: list[dict]) -> dict:
     """
     Thống kê gian lận của một snapshot.
-    Điểm logic: model 2 nhãn nên mọi vật detect đều là gian lận;
-    focus_rate nhị phân — frame trắng (không vật) sạch hoàn toàn, có vật là vi phạm.
-    Key dict giữ nguyên (total/sleeping/focus_rate) để hợp schema DB và API cũ.
+    total: tổng số detection; sleeping: số lượng vi phạm gian lận;
+    focus_rate: 1.0 nếu sạch (không vi phạm), 0.0 nếu có vi phạm.
     """
     total = len(results)
-    cheat_count = total
-    clean_rate = 1.0 if total == 0 else 0.0
+    cheat_count = sum(1 for r in results if r.get("is_cheat"))
+    clean_rate = 1.0 if cheat_count == 0 else 0.0
 
     return {"total": total, "sleeping": cheat_count, "focus_rate": clean_rate}

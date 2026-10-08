@@ -66,7 +66,11 @@ def _alive(ns: str = "default") -> dict[int, list]:
 # Model pose (YOLO26n-pose OpenVINO): phát hiện hành vi quay đầu/cúi.
 # OV export khóa imgsz 320 — không chỉnh POSE_IMGSZ lên cao hơn.
 _POSE_DEFAULT = _AI_MODEL_DIR / "weights" / "yolo26n-pose_openvino_model"
-_POSE_PATH = _resolve_weight(os.getenv("POSE_MODEL_PATH"), _POSE_DEFAULT)
+_POSE_FALLBACK = _PROJECT_ROOT / "training" / "yolo26n-pose_openvino_model"
+_POSE_PATH = _resolve_weight(
+    os.getenv("POSE_MODEL_PATH"),
+    _POSE_DEFAULT if _POSE_DEFAULT.exists() else _POSE_FALLBACK,
+)
 POSE_IMGSZ = 320
 POSE_CONF = float(os.getenv("POSE_CONF", "0.25"))
 POSE_STRIDE = max(1, int(os.getenv("POSE_STRIDE", "3")))

@@ -1,6 +1,7 @@
 """Vòng lặp capture: đọc camera hoặc video file, chạy YOLO26-seg, lưu DB.
-Luồng chính: capture đọc liên tục → worker infer riêng vẽ box live → mỗi 30 giây lưu 1 ảnh + sự kiện."""
+Luồng chính: capture đọc liên tục → worker infer riêng vẽ box live → định kỳ lưu 1 ảnh + sự kiện."""
 
+import os
 import threading
 import time
 from datetime import datetime
@@ -18,8 +19,9 @@ from service.camera_state import CameraState
 
 logger = get_logger(__name__)
 
-# Chu kỳ lưu snapshot: 30 giây một ảnh kèm sự kiện và thống kê
-SAVE_INTERVAL_SECONDS = 30
+# Chu kỳ lưu snapshot: 10 giây một ảnh kèm sự kiện và thống kê (chỉnh qua SAVE_INTERVAL_SECONDS).
+# 10 giây đủ nhanh để sự kiện lên list kịp lúc, vẫn tránh spam ảnh/sự kiện khi vật đứng yên.
+SAVE_INTERVAL_SECONDS = int(os.getenv("SAVE_INTERVAL_SECONDS", "10"))
 # Debounce gian lận: cheat chỉ ghi sự kiện khi có >=3 frame gian lận trong 5 frame gần nhất
 CHEAT_WINDOW = 5
 CHEAT_MIN_HITS = 3
@@ -29,7 +31,7 @@ def capture_loop() -> None:
     """
     Vòng lặp capture chính, chạy trong luồng nền.
     Điểm logic: đọc frame liên tục (không chờ infer) → worker infer riêng vẽ box;
-    lưu DB mỗi 30 giây; video hết thì tua lại, camera mất thì chờ 0,2 giây.
+    lưu DB định kỳ; video hết thì tua lại, camera mất thì chờ 0,2 giây.
     """
     state = CameraState()
 
@@ -80,7 +82,7 @@ def capture_loop() -> None:
                 # Chỉ giao frame mới nhất cho worker, không chờ infer xong
                 state.raw_frame = frame
 
-                # Đủ 30 giây thì lưu snapshot: chọn frame gần nhất CÓ cheat trong cửa sổ
+                # Đủ chu kỳ thì lưu snapshot: chọn frame gần nhất CÓ cheat trong cửa sổ
                 if time.time() - last_save_time > SAVE_INTERVAL_SECONDS:
                     with state.lock:
                         pairs = list(state.recent)

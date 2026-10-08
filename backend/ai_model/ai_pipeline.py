@@ -70,6 +70,52 @@ _POSE_PATH = _resolve_weight(os.getenv("POSE_MODEL_PATH"), _POSE_DEFAULT)
 POSE_IMGSZ = 320
 POSE_CONF = float(os.getenv("POSE_CONF", "0.25"))
 POSE_STRIDE = max(1, int(os.getenv("POSE_STRIDE", "3")))
+# Giữ box hành vi khi pose miss thoáng qua (cùng vai trò TRACK_KEEP của object)
+BEH_KEEP = max(1, int(os.getenv("MODEL_BEH_KEEP", "5")))
+BEH_IOU_MATCH = 0.5
+_beh_alive: dict[str, list] = {}  # ns -> [[label, conf, bbox, ttl]]
+
+
+def _bbox_iou(a, b) -> float:
+    """IoU hai bbox [x1,y1,x2,y2] để bám box hành vi qua các frame."""
+    ix = max(0, min(a[2], b[2]) - max(a[0], b[0]))
+    iy = max(0, min(a[3], b[3]) - max(a[1], b[1]))
+    ua = (a[2] - a[0]) * (a[3] - a[1]) + (b[2] - b[0]) * (b[3] - b[1]) - ix * iy
+    return ix * iy / ua if ua > 0 else 0.0
+
+
+def _smooth_behavior(ns: str, dets: list[dict]) -> list[dict]:
+    """Giữ box hành vi ổn định qua frame miss: khớp IoU cùng nhãn thì tươi TTL,
+    box mới thêm vào, box quá hạn xóa. Trả cùng schema kind=behavior."""
+    alive = _beh_alive.setdefault(ns, [])
+    matched = [False] * len(alive)
+    for d in dets:
+        bi, bv = -1, BEH_IOU_MATCH
+        for i, (lab, _cf, bb, _ttl) in enumerate(alive):
+            if matched[i] or lab != d["label"]:
+                continue
+            v = _bbox_iou(bb, d["bbox"])
+            if v >= bv:
+                bv, bi = v, i
+        if bi >= 0:
+            alive[bi] = [d["label"], d["confidence"], d["bbox"], BEH_KEEP]
+            matched[bi] = True
+        else:
+            alive.append([d["label"], d["confidence"], d["bbox"], BEH_KEEP])
+            matched.append(True)
+    kept = []
+    for i, (lab, cf, bb, ttl) in enumerate(alive):
+        if not matched[i]:
+            ttl -= 1
+            alive[i][3] = ttl
+            if ttl <= 0:
+                continue
+        kept.append({
+            "bbox": bb, "mask": None, "label": lab,
+            "confidence": cf, "is_cheat": True, "kind": "behavior",
+        })
+    alive[:] = [e for e in alive if e[3] > 0]
+    return kept
 
 # Màu vẽ khung: phao đỏ, điện thoại cam, hành vi tím
 # (giữ Answer_paper xanh lá để tương thích weights 3 nhãn cũ trong lúc chuyển đổi)
@@ -119,9 +165,11 @@ def reset_tracker(ns: str | None = None) -> None:
     if ns is None:
         _trackers.clear()
         _last_pose_info.clear()
+        _beh_alive.clear()
     else:
         _trackers.pop(ns, None)
         _last_pose_info.pop(ns, None)
+        _beh_alive.pop(ns, None)
     try:
         # Đặt predictor về None để lần track sau dựng mới hoàn toàn;
         # gán trackers=[] làm track() trả rỗng (đã gặp thực tế).
@@ -343,9 +391,14 @@ def _process_frame_tracked(
     if _pose_model is not None and frame_count % POSE_STRIDE == 0:
         pose_dets, n_persons, max_conf = _run_pose(frame)
         _last_pose_info[tracker_ns] = (n_persons, max_conf)
-        for b in pose_dets:
-            _draw_detection(frame, b["label"], b["confidence"], b["bbox"])
-            results_data.append(b)
+        pose_dets = _smooth_behavior(tracker_ns, pose_dets)
+    elif tracker_ns in _beh_alive:
+        pose_dets = _smooth_behavior(tracker_ns, [])
+    else:
+        pose_dets = []
+    for b in pose_dets:
+        _draw_detection(frame, b["label"], b["confidence"], b["bbox"])
+        results_data.append(b)
 
     return frame, results_data
 

@@ -1,4 +1,4 @@
-"""Suy luận YOLO26-seg 3 nhãn Answer_paper/Cheat_Paper/cellphone cho giám sát thi cử.
+"""Suy luận YOLO26-seg 2 nhãn Cheat_Paper/cellphone cho giám sát thi cử.
 Luồng chính: đọc frame → infer một lần → vẽ khung và polygon rồi gắn cờ gian lận."""
 
 import os
@@ -36,9 +36,9 @@ _MODEL_PATH = _resolve_weight(
     _OV_WEIGHTS if _OV_WEIGHTS.exists() else _DEFAULT_WEIGHTS,
 )
 
-# Thứ tự nhãn phải khớp đúng dataset huấn luyện dataset_seg_v4
-LABELS = ["Answer_paper", "Cheat_Paper", "cellphone"]
-# Hai nhãn gian lận: Cheat_Paper và cellphone
+# Thứ tự nhãn phải khớp đúng dataset huấn luyện dataset_kl_rltest_v4 (2 nhãn gian lận)
+LABELS = ["Cheat_Paper", "cellphone"]
+# Cả hai nhãn model đều là gian lận; frame trắng (không vật) mới coi là sạch
 CHEAT_LABELS = {"Cheat_Paper", "cellphone"}
 # Ngưỡng tin cậy 0,25 và kích thước ảnh infer 512, chỉnh qua biến môi trường.
 # 0,25 khớp ngưỡng đã đo kiểm (conf trung bình model ~0,5; 0,5 sẽ lọc mất ~nửa phát hiện đúng)
@@ -71,7 +71,8 @@ POSE_IMGSZ = 320
 POSE_CONF = float(os.getenv("POSE_CONF", "0.25"))
 POSE_STRIDE = max(1, int(os.getenv("POSE_STRIDE", "3")))
 
-# Màu vẽ khung: bài làm xanh lá, phao đỏ, điện thoại cam, hành vi tím
+# Màu vẽ khung: phao đỏ, điện thoại cam, hành vi tím
+# (giữ Answer_paper xanh lá để tương thích weights 3 nhãn cũ trong lúc chuyển đổi)
 COLORS = {
     "Answer_paper": (0, 255, 0),
     "Cheat_Paper": (0, 0, 255),
@@ -351,5 +352,6 @@ def _process_frame_tracked(
 
 def is_cheat_label(label: str | None) -> bool:
     """Kiểm tra nhãn gian lận (Cheat_Paper, cellphone hoặc hành vi quay/cúi).
-    Điểm logic: nhãn rỗng, Answer_paper hay nhin_thang thì coi như không gian lận."""
+    Điểm logic: model 2 nhãn nên mọi vật detect đều là gian lận;
+    nhãn rỗng hay nhãn người sửa Answer_paper/nhin_thang thì coi như không gian lận."""
     return (label or "") in CHEAT_LABELS or (label or "") in CHEAT_BEHAVIORS

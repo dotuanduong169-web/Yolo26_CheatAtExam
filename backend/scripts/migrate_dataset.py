@@ -1,4 +1,4 @@
-"""Gộp dataset_seg và realworld_data thành dataset_seg_v4 với 3 nhãn seg.
+"""Gộp dataset_seg và realworld_data thành dataset_seg_v4 với 2 nhãn seg.
 Luồng chính: lọc nhãn hợp lệ → chép ảnh và nhãn theo từng phần → gộp ảnh thực tế → ghi data.yaml."""
 
 import argparse
@@ -12,14 +12,14 @@ SOURCE_DATASET = TRAIN_DIR / "dataset_seg"
 REALWORLD_DATA = TRAIN_DIR / "realworld_data"
 OUTPUT_DATASET = TRAIN_DIR / "dataset_seg_v4"
 
-VALID_CLASSES = {0, 1, 2}  # Ba nhãn giữ lại: Answer_paper, Cheat_Paper, cellphone
-CLASS_NAMES = ["Answer_paper", "Cheat_Paper", "cellphone"]
+VALID_CLASSES = {0, 1}  # Hai nhãn giữ lại: Cheat_Paper, cellphone
+CLASS_NAMES = ["Cheat_Paper", "cellphone"]
 IMAGE_EXTS = {".jpg", ".jpeg", ".png", ".bmp", ".webp"}
 
 
 def _filter_lines(label_path: Path) -> tuple[list[str], int]:
-    """Lọc giữ ba nhãn hợp lệ trong một file nhãn.
-    Điểm logic: nhãn ngoài 0, 1, 2 như tai nghe hay đồng hồ thì loại bỏ."""
+    """Lọc giữ hai nhãn hợp lệ trong một file nhãn.
+    Điểm logic: nhãn ngoài 0, 1 như tai nghe hay đồng hồ thì loại bỏ."""
     kept, removed = [], 0
     if not label_path.exists():
         return kept, removed
@@ -85,7 +85,7 @@ def add_realworld() -> None:
 
 
 def main() -> int:
-    """Chạy toàn bộ gộp dataset cho ba phần rồi ghi data.yaml 3 nhãn.
+    """Chạy toàn bộ gộp dataset cho ba phần rồi ghi data.yaml 2 nhãn.
     Điểm logic: cờ --clean xóa dataset cũ trước khi gộp lại từ đầu."""
     ap = argparse.ArgumentParser()
     ap.add_argument("--clean", action="store_true", help="Xoá dataset_seg_v4 cũ trước")
@@ -97,8 +97,8 @@ def main() -> int:
         process_split(split)
     add_realworld()
     (OUTPUT_DATASET / "data.yaml").write_text(
-        "train: train/images\nval: valid/images\ntest: test/images\n\nnc: 3\nnames:\n"
-        "- Answer_paper\n- Cheat_Paper\n- cellphone\n",
+        "train: train/images\nval: valid/images\ntest: test/images\n\nnc: 2\nnames:\n"
+        "- Cheat_Paper\n- cellphone\n",
         encoding="utf-8",
     )
     print(f"Xong: {OUTPUT_DATASET} | classes={CLASS_NAMES}")

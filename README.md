@@ -1,15 +1,15 @@
 # ExamCheat AI — Hệ thống phát hiện gian lận phòng thi
 
 Hệ thống giám sát phòng thi bằng AI: camera hoặc video ghi sẵn → mô hình
-YOLO26 instance segmentation phát hiện `Answer_paper / Cheat_Paper / cellphone`
+YOLO26 instance segmentation phát hiện `Cheat_Paper / cellphone`
 → lưu snapshot mỗi 30 giây → dashboard theo dõi, sửa nhãn thủ công, thống kê.
 
 ## Tính năng
 
 * Giám sát trực tiếp: mở camera phòng thi hoặc chạy file video có sẵn,
   xem luồng MJPEG trực tiếp trên dashboard.
-* Phát hiện gian lận: vẽ khung + polygon lên từng vật (giấy thi sạch màu xanh,
-  tài liệu gian lận và điện thoại màu đỏ/cam), phân biệt gian lận/không gian lận.
+* Phát hiện gian lận: vẽ khung + polygon lên từng vật gian lận
+  (tài liệu màu đỏ, điện thoại màu cam); frame không có vật là sạch.
 * Lưu lịch sử: mỗi 30 giây lưu 1 ảnh + sự kiện gian lận đã debounce (≥3/5 frame) + thống kê vào PostgreSQL.
 * Sửa nhãn thủ công: xác minh sự kiện đúng/sai kèm nhãn sửa khi AI sai,
   thống kê tự tính lại theo nhãn đã sửa.
@@ -100,8 +100,8 @@ Chi tiết đầy đủ xem tại `/docs` khi backend đang chạy.
 
 ## Huấn luyện mô hình mới
 
-Dataset chuẩn là `training/dataset_seg_v4/` (3 class, xem
-`training/dataset_seg_v4/data.yaml`). Dựng lại dataset từ dữ liệu gốc:
+Dataset chuẩn là `training/dataset_kl_rltest_v4/` (2 class, xem
+`training/dataset_kl_rltest_v4/data.yaml`). Dựng lại dataset từ dữ liệu gốc:
 
 ```bash
 .venv/bin/python backend/scripts/migrate_dataset.py --clean
@@ -111,7 +111,7 @@ Huấn luyện (đúng cấu hình đã dùng cho `best.pt` hiện tại, chạy
 
 ```bash
 .venv/bin/yolo task=segment mode=train model=training/yolo26n-seg.pt \
-  data=training/dataset_seg_v4/data.yaml epochs=50 patience=15 batch=2 imgsz=512 \
+  data=training/dataset_kl_rltest_v4/data.yaml epochs=50 patience=15 batch=2 imgsz=512 \
   device=cpu optimizer=AdamW lr0=0.0003 mosaic=1.0 erasing=0.4 \
   auto_augment=randaugment
 ```
@@ -140,7 +140,7 @@ frontend/               # Giao diện Streamlit (trang chủ, phân tích, chi t
 training/               # Toàn bộ src huấn luyện AI
   dataset_seg/          # Dataset gốc Roboflow (nguồn rebuild)
   realworld_data/       # Ảnh phòng thi thật bổ sung
-  dataset_seg_v4/       # Dataset huấn luyện chính (data.yaml, nc=3)
+  dataset_kl_rltest_v4/   # Dataset huấn luyện chính (data.yaml, nc=2)
   yolo26n-seg.pt        # Pretrained để train mới
   weights/              # Lưu các bản train (train..train-6-2, *_best/*_last)
   runs/                 # Log, biểu đồ, confusion matrix từng bản train

@@ -8,7 +8,7 @@ from pathlib import Path
 
 import cv2
 
-from ai_model.ai_pipeline import is_cheat_label, process_frame
+from ai_model.ai_pipeline import process_frame
 from core.config import settings
 from core.logger import get_logger
 from crud.event_crud import create_event, create_evidence
@@ -171,8 +171,8 @@ def _save_snapshot(
     frame_count: int,
 ) -> None:
     """Lưu một snapshot: 1 ảnh + 1 sự kiện cho mỗi cheat + thống kê kỳ.
-    Điểm logic: vật sạch (Answer_paper) không tạo sự kiện; nhiều sự kiện chung 1 ảnh;
-    thiếu phiên hiện tại thì bỏ qua; lỗi thì rollback để không ghi dở."""
+    Điểm logic: model 2 nhãn nên mọi vật detect đều là gian lận, mỗi vật một sự kiện;
+    nhiều sự kiện chung 1 ảnh; thiếu phiên hiện tại thì bỏ qua; lỗi thì rollback để không ghi dở."""
     filename = datetime.now().strftime("%Y%m%d_%H%M%S_%f") + ".jpg"
     image_path = image_dir / filename
 
@@ -213,12 +213,12 @@ def _save_snapshot(
 def calculate_stats(results: list[dict]) -> dict:
     """
     Thống kê gian lận của một snapshot.
-    Điểm logic: gian lận là Cheat_Paper và cellphone;
-    clean_rate = 1 - gian lận/tổng, frame trắng thì coi như sạch hoàn toàn.
+    Điểm logic: model 2 nhãn nên mọi vật detect đều là gian lận;
+    focus_rate nhị phân — frame trắng (không vật) sạch hoàn toàn, có vật là vi phạm.
     Key dict giữ nguyên (total/sleeping/focus_rate) để hợp schema DB và API cũ.
     """
     total = len(results)
-    cheat_count = sum(1 for r in results if is_cheat_label(r.get("label", "")))
-    clean_rate = 1 - (cheat_count / total) if total else 1.0
+    cheat_count = total
+    clean_rate = 1.0 if total == 0 else 0.0
 
     return {"total": total, "sleeping": cheat_count, "focus_rate": clean_rate}

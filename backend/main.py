@@ -109,7 +109,7 @@ except Exception as exc:
 # ── Ứng dụng ─────────────────────────────────────────────
 app = FastAPI(
     title="ExamCheat AI Detection API",
-    description="API giám sát gian lận phòng thi (YOLO26-seg: Answer_paper/Cheat_Paper/cellphone)",
+    description="API giám sát gian lận phòng thi (YOLO26-seg: Cheat_Paper/cellphone)",
     version="2.0.0",
 )
 

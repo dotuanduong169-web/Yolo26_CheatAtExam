@@ -1,0 +1,295 @@
+/* ==========================================================================
+   ONLINE EXAM STYLES (ExamCheat AI - Industrial Clean Standard)
+   Đồng bộ với app_theme.css, header.css và các trang giám sát hiện hữu.
+   ========================================================================== */
+
+/* 1. KHỐI THỐNG KÊ KPI CA THI */
+.online-kpi-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 14px;
+    margin-bottom: 20px;
+}
+
+@media (max-width: 900px) {
+    .online-kpi-grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+}
+
+.online-kpi-card {
+    background: #ffffff !important;
+    border: 1px solid #e2e8f0 !important;
+    border-radius: 10px !important;
+    padding: 14px 18px !important;
+    display: flex !important;
+    flex-direction: column !important;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.03) !important;
+    transition: all 0.2s ease !important;
+}
+
+.online-kpi-card:hover {
+    border-color: #cbd5e1 !important;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.05) !important;
+}
+
+.online-kpi-card.alert {
+    border-color: #fca5a5 !important;
+    background: #fffdfd !important;
+}
+
+.online-kpi-label {
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    color: #64748b;
+    letter-spacing: 0.5px;
+    margin-bottom: 6px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.online-kpi-val {
+    font-size: 26px;
+    font-weight: 700;
+    color: #0f172a;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+    line-height: 1.1;
+}
+
+.online-kpi-val.green { color: #16a34a; }
+.online-kpi-val.red { color: #dc2626; }
+.online-kpi-val.blue { color: #2563eb; }
+
+.online-kpi-hint {
+    font-size: 11px;
+    color: #94a3b8;
+    margin-top: 6px;
+}
+
+/* 2. KHỐI LINK DỰ THI */
+.exam-url-container {
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
+    border-radius: 10px;
+    padding: 14px 18px;
+    margin-bottom: 20px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.03);
+}
+
+.exam-url-info {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    flex: 1;
+    min-width: 0;
+}
+
+.exam-url-label {
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    color: #64748b;
+    letter-spacing: 0.4px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.exam-url-link {
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, monospace;
+    font-size: 13.5px;
+    color: #2563eb;
+    background: #eff6ff;
+    padding: 6px 12px;
+    border-radius: 6px;
+    border: 1px solid #bfdbfe;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    text-decoration: none;
+    display: inline-block;
+}
+
+.exam-url-link:hover {
+    text-decoration: underline;
+    background: #dbeafe;
+}
+
+/* 3. CARD THÍ SINH TRÊN LƯỚI GIÁM THỊ */
+.cand-card {
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
+    border-radius: 10px;
+    padding: 12px 14px;
+    margin-bottom: 14px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.03);
+    transition: all 0.2s ease;
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+}
+
+.cand-card:hover {
+    border-color: #cbd5e1;
+    box-shadow: 0 3px 8px rgba(0, 0, 0, 0.06);
+}
+
+.cand-card.has-violation {
+    border: 1.5px solid #ef4444 !important;
+    background: #fffcfc !important;
+    box-shadow: 0 2px 6px rgba(239, 68, 68, 0.12) !important;
+}
+
+.cand-card-header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    margin-bottom: 10px;
+    gap: 8px;
+}
+
+.cand-meta {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+    flex: 1;
+}
+
+.cand-sbd {
+    font-size: 13.5px;
+    font-weight: 700;
+    color: #0f172a;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, monospace;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.cand-name {
+    font-size: 13px;
+    font-weight: 600;
+    color: #1e293b;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.cand-class {
+    font-size: 11.5px;
+    color: #64748b;
+}
+
+.cand-status-chip {
+    padding: 3px 8px;
+    border-radius: 12px;
+    font-size: 11px;
+    font-weight: 600;
+    white-space: nowrap;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.cand-status-chip.active {
+    background: #f0fdf4;
+    color: #16a34a;
+    border: 1px solid #bbf7d0;
+}
+
+.cand-status-chip.stopped {
+    background: #f8fafc;
+    color: #64748b;
+    border: 1px solid #e2e8f0;
+}
+
+.cand-status-chip.unjoined {
+    background: #fffbeb;
+    color: #d97706;
+    border: 1px solid #fed7aa;
+}
+
+/* Khung ảnh Snapshot */
+.cand-snap-wrap {
+    width: 100%;
+    aspect-ratio: 4 / 3;
+    border-radius: 8px;
+    background: #0f172a;
+    overflow: hidden;
+    position: relative;
+    border: 1px solid #cbd5e1;
+    margin-bottom: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.cand-snap-wrap img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+}
+
+.cand-snap-empty {
+    color: #94a3b8;
+    font-size: 12px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    text-align: center;
+    padding: 12px;
+    background: #f8fafc;
+    width: 100%;
+    height: 100%;
+}
+
+.cand-snap-waiting {
+    color: #38bdf8;
+    background: #0f172a;
+    font-size: 12px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    width: 100%;
+    height: 100%;
+}
+
+/* Footer card */
+.cand-card-footer {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    font-size: 11.5px;
+    color: #64748b;
+    margin-top: auto;
+    padding-top: 6px;
+    border-top: 1px solid #f1f5f9;
+}
+
+.cand-alert-tag {
+    font-weight: 600;
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-size: 11px;
+}
+
+.cand-alert-tag.danger {
+    background: #fef2f2;
+    color: #dc2626;
+    border: 1px solid #fecaca;
+}
+
+.cand-alert-tag.neutral {
+    background: #f8fafc;
+    color: #64748b;
+}

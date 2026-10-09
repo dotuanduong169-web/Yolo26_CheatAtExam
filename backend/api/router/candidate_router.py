@@ -179,14 +179,14 @@ def exam_overview(
 
 @router.post("/finish")
 def finish_exam(data: CandidateFinish):
-    """Thí sinh tự nộp bài thi từ trình duyệt. Xác thực qua token, không cần JWT giám thị."""
+    """Thí sinh tự kết thúc bài thi từ trình duyệt. Xác thực qua token, không cần JWT giám thị."""
     from database.database import SessionLocal
 
     expected_sid = ingest_service.resolve_token(data.token)
     if expected_sid != data.session_id:
         raise HTTPException(
             status_code=400,
-            detail="Token nộp bài không hợp lệ hoặc ca thi đã kết thúc.",
+            detail="Token kết thúc bài thi không hợp lệ hoặc ca thi đã kết thúc.",
         )
     db = SessionLocal()
     try:
@@ -195,7 +195,7 @@ def finish_exam(data: CandidateFinish):
             raise HTTPException(status_code=404, detail="Không tìm thấy phiên con của thí sinh.")
         end_session(db, data.session_id)
         ingest_service.stop_session_workers(data.session_id)
-        return {"message": "Đã nộp bài thi thành công", "session_id": data.session_id}
+        return {"message": "Đã kết thúc bài thi thành công", "session_id": data.session_id}
     finally:
         db.close()
 

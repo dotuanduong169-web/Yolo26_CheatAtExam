@@ -3,75 +3,158 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Hệ Thống Thi Trực Tuyến - Giám Sát AI</title>
+<title>ExamCheat AI - Hệ Thống Giám Sát Thi Trực Tuyến</title>
 <style>
   :root {
-    --primary: #0284c7;
-    --primary-hover: #0369a1;
+    --primary: #1677ff;
+    --primary-hover: #0958d9;
+    --primary-light: #eff6ff;
     --danger: #dc2626;
     --danger-hover: #b91c1c;
+    --danger-light: #fef2f2;
     --success: #16a34a;
+    --success-light: #f0fdf4;
     --warning: #d97706;
-    --bg: #0f172a;
-    --card: #1e293b;
-    --text: #f8fafc;
-    --text-muted: #94a3b8;
-    --border: #334155;
+    --warning-light: #fffbeb;
+    --bg: #f8fafc;
+    --card: #ffffff;
+    --text: #0f172a;
+    --text-muted: #64748b;
+    --text-subtle: #94a3b8;
+    --border: #e2e8f0;
+    --border-strong: #cbd5e1;
+    --radius: 10px;
   }
   * { box-sizing: border-box; margin: 0; padding: 0; }
   body {
-    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-    max-width: 680px;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    max-width: 660px;
     margin: 0 auto;
-    padding: 20px 16px;
+    padding: 36px 16px 60px 16px;
     background: var(--bg);
     color: var(--text);
     min-height: 100vh;
+    -webkit-font-smoothing: antialiased;
   }
+  
+  /* Thẻ Card trung tâm */
   .card {
     background: var(--card);
     border: 1px solid var(--border);
-    border-radius: 12px;
-    padding: 20px;
+    border-radius: var(--radius);
+    padding: 26px 28px;
     margin-bottom: 16px;
-    box-shadow: 0 4px 12px rgba(0,0,0,0.25);
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
   }
-  .header {
-    text-align: center;
-    margin-bottom: 16px;
-  }
-  .header h2 { font-size: 20px; color: #38bdf8; margin-bottom: 6px; }
-  .header p { font-size: 13px; color: var(--text-muted); }
   
-  .input-group { margin-bottom: 16px; }
-  label { display: block; font-size: 14px; margin-bottom: 6px; color: var(--text-muted); }
+  /* Header nhận diện ExamCheat AI */
+  .brand-header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 22px;
+    padding-bottom: 18px;
+    border-bottom: 1px solid var(--border);
+  }
+  .brand-logo {
+    width: 42px;
+    height: 42px;
+    background: linear-gradient(135deg, #1677ff, #0958d9);
+    border-radius: 9px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #ffffff;
+    flex-shrink: 0;
+    box-shadow: 0 2px 6px rgba(22, 119, 255, 0.25);
+  }
+  .brand-text {
+    flex: 1;
+    min-width: 0;
+  }
+  .brand-title {
+    font-size: 17px;
+    font-weight: 700;
+    color: var(--text);
+    letter-spacing: -0.2px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .brand-tag {
+    font-size: 11px;
+    font-weight: 600;
+    padding: 2px 7px;
+    border-radius: 10px;
+    background: var(--primary-light);
+    color: var(--primary);
+    border: 1px solid #bfdbfe;
+  }
+  .brand-sub {
+    font-size: 12.5px;
+    color: var(--text-muted);
+    margin-top: 2px;
+  }
+  
+  /* Input & Label */
+  .input-group { margin-bottom: 18px; }
+  label {
+    display: block;
+    font-size: 13.5px;
+    font-weight: 600;
+    margin-bottom: 7px;
+    color: #334155;
+  }
   input {
     width: 100%;
-    padding: 12px 14px;
-    font-size: 16px;
-    background: #0f172a;
-    border: 1px solid var(--border);
+    padding: 11px 14px;
+    font-size: 15px;
+    background: #f8fafc;
+    border: 1px solid var(--border-strong);
     border-radius: 8px;
     color: var(--text);
     outline: none;
-    transition: border-color .2s;
+    transition: all .2s;
   }
-  input:focus { border-color: var(--primary); }
+  input:focus {
+    background: #ffffff;
+    border-color: var(--primary);
+    box-shadow: 0 0 0 3px rgba(22, 119, 255, 0.12);
+  }
   
+  /* Nút bấm chuẩn hệ thống */
   button {
     width: 100%;
-    padding: 12px;
-    font-size: 15px;
+    padding: 11px 16px;
+    font-size: 14.5px;
     font-weight: 600;
-    border: none;
+    border: 1px solid transparent;
     border-radius: 8px;
     cursor: pointer;
-    transition: background-color .2s, opacity .2s;
+    transition: all .18s ease;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
   }
-  .btn-primary { background: var(--primary); color: #fff; }
-  .btn-primary:hover { background: var(--primary-hover); }
-  .btn-danger { background: var(--danger); color: #fff; margin-top: 12px; }
-  .btn-danger:hover { background: var(--danger-hover); }
+  .btn-primary {
+    background: var(--primary);
+    color: #ffffff;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+  }
+  .btn-primary:hover:not(:disabled) {
+    background: var(--primary-hover);
+    box-shadow: 0 3px 8px rgba(22, 119, 255, 0.3);
+  }
+  .btn-danger {
+    background: var(--danger);
+    color: #ffffff;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+  }
+  .btn-danger:hover:not(:disabled) {
+    background: var(--danger-hover);
+    box-shadow: 0 3px 8px rgba(220, 38, 38, 0.3);
+  }
   button:disabled { opacity: 0.6; cursor: not-allowed; }
   
   /* Khung thi & camera */
@@ -79,23 +162,36 @@
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding: 8px 12px;
-    background: #0f172a;
+    padding: 10px 14px;
+    background: #f8fafc;
+    border: 1px solid var(--border);
     border-radius: 8px;
-    margin-bottom: 12px;
-    font-size: 14px;
+    margin-bottom: 14px;
+    font-size: 13.5px;
   }
-  #clock { font-size: 20px; font-weight: bold; color: #38bdf8; font-variant-numeric: tabular-nums; }
-  .candidate-badge { font-weight: 600; color: #e2e8f0; }
+  #clock {
+    font-size: 20px;
+    font-weight: 700;
+    color: var(--primary);
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, monospace;
+    font-variant-numeric: tabular-nums;
+  }
+  .candidate-badge { font-weight: 700; color: var(--text); }
+  .candidate-sbd {
+    font-family: ui-monospace, SFMono-Regular, monospace;
+    color: #475569;
+    font-weight: 600;
+  }
 
   .video-container {
     position: relative;
     width: 100%;
-    background: #000;
+    background: #0f172a;
     border-radius: 8px;
     overflow: hidden;
     margin-bottom: 12px;
     aspect-ratio: 4 / 3;
+    border: 1px solid var(--border-strong);
   }
   video {
     width: 100%;
@@ -104,38 +200,46 @@
   }
   .status-pill {
     position: absolute;
-    top: 10px;
-    left: 10px;
+    top: 12px;
+    left: 12px;
     background: rgba(15, 23, 42, 0.85);
-    padding: 4px 10px;
+    padding: 5px 12px;
     border-radius: 20px;
     font-size: 12px;
     font-weight: 600;
+    color: #ffffff;
     display: flex;
     align-items: center;
-    gap: 6px;
-    backdrop-filter: blur(4px);
+    gap: 7px;
+    backdrop-filter: blur(6px);
+    box-shadow: 0 2px 6px rgba(0,0,0,0.3);
   }
   .dot { width: 8px; height: 8px; border-radius: 50%; }
-  .dot-ok { background: var(--success); }
-  .dot-warn { background: var(--warning); }
-  .dot-bad { background: var(--danger); }
+  .dot-ok { background: #4ade80; box-shadow: 0 0 8px rgba(74, 222, 128, 0.8); }
+  .dot-warn { background: #fbbf24; }
+  .dot-bad { background: #f87171; }
   
   .status-footer {
     display: flex;
     justify-content: space-between;
-    font-size: 13px;
+    font-size: 12.5px;
     color: var(--text-muted);
+    padding: 8px 12px;
+    background: #f8fafc;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    margin-bottom: 16px;
   }
-  .ok { color: #4ade80; }
-  .bad { color: #f87171; }
-  .warn { color: #fbbf24; }
+  .ok { color: #16a34a; font-weight: 600; }
+  .bad { color: #dc2626; font-weight: 600; }
+  .warn { color: #d97706; font-weight: 600; }
   
-  /* Modal xác nhận nộp bài */
+  /* Modal xác nhận kết thúc thi */
   .modal-overlay {
     position: fixed;
     top: 0; left: 0; right: 0; bottom: 0;
-    background: rgba(0,0,0,0.7);
+    background: rgba(15, 23, 42, 0.55);
+    backdrop-filter: blur(4px);
     display: flex;
     align-items: center;
     justify-content: center;
@@ -143,43 +247,139 @@
     z-index: 1000;
   }
   .modal-box {
-    background: var(--card);
+    background: #ffffff;
     border: 1px solid var(--border);
     border-radius: 12px;
-    padding: 24px;
-    max-width: 400px;
+    padding: 26px 24px;
+    max-width: 420px;
     width: 100%;
     text-align: center;
+    box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.05);
   }
-  .modal-box h4 { margin-bottom: 8px; font-size: 18px; color: #f8fafc; }
-  .modal-box p { font-size: 14px; color: var(--text-muted); margin-bottom: 20px; line-height: 1.4; }
+  .modal-icon {
+    width: 48px;
+    height: 48px;
+    border-radius: 50%;
+    background: var(--danger-light);
+    color: var(--danger);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 auto 14px auto;
+  }
+  .modal-box h4 {
+    margin-bottom: 8px;
+    font-size: 17.5px;
+    font-weight: 700;
+    color: var(--text);
+  }
+  .modal-box p {
+    font-size: 13.5px;
+    color: var(--text-muted);
+    margin-bottom: 22px;
+    line-height: 1.5;
+  }
   .modal-actions { display: flex; gap: 10px; }
-  .btn-outline { background: transparent; border: 1px solid var(--border); color: var(--text); }
-  .btn-outline:hover { background: #334155; }
+  .btn-outline {
+    background: #ffffff;
+    border: 1px solid var(--border-strong);
+    color: #334155;
+  }
+  .btn-outline:hover { background: #f8fafc; border-color: #94a3b8; }
+
+  /* Hộp hoàn thành ca thi */
+  .finished-container {
+    text-align: center;
+    padding: 32px 16px;
+  }
+  .finished-icon-box {
+    width: 60px;
+    height: 60px;
+    background: var(--success-light);
+    color: var(--success);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 auto 16px auto;
+    border: 1px solid #bbf7d0;
+  }
+  .finished-title {
+    font-size: 20px;
+    font-weight: 700;
+    color: #166534;
+    margin-bottom: 8px;
+  }
+  .finished-desc {
+    color: var(--text-muted);
+    font-size: 14px;
+    margin-bottom: 20px;
+    line-height: 1.5;
+  }
+  .finished-time-box {
+    display: inline-block;
+    background: #f8fafc;
+    border: 1px solid var(--border);
+    padding: 8px 16px;
+    border-radius: 6px;
+    font-size: 13px;
+    color: #475569;
+  }
+  .finished-time-box strong {
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    color: var(--primary);
+    font-size: 15px;
+    margin-left: 4px;
+  }
 </style>
 </head>
 <body>
 
 <div class="card">
-  <div class="header">
-    <h2>Hệ Thống Giám Sát Thi Trực Tuyến</h2>
-    <p>Giám sát tự động AI (YOLO & Pose) trong suốt ca thi</p>
+  <!-- Brand Header đồng bộ ExamCheat AI -->
+  <div class="brand-header">
+    <div class="brand-logo">
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/>
+        <circle cx="12" cy="13" r="4"/>
+      </svg>
+    </div>
+    <div class="brand-text">
+      <div class="brand-title">
+        <span>ExamCheat AI</span>
+        <span class="brand-tag">YOLO26 & Pose</span>
+      </div>
+      <div class="brand-sub">Hệ Thống Giám Sát Thi Trực Tuyến Tự Động</div>
+    </div>
   </div>
 
   <!-- Hộp tham gia thi -->
   <div id="joinBox">
-    <div id="sessionBadge" style="margin-bottom: 12px; font-size: 13px; color: #38bdf8; background: #0f172a; padding: 6px 12px; border-radius: 6px; display: inline-block;"></div>
+    <div id="sessionBadge" style="margin-bottom: 16px; font-size: 13px; font-weight: 600; color: #1677ff; background: #eff6ff; padding: 7px 14px; border-radius: 6px; border: 1px solid #bfdbfe; display: inline-flex; align-items: center; gap: 6px;"></div>
+    
     <div class="input-group">
-      <label for="sbd">Số báo danh (SBD)</label>
+      <label for="sbd">Số báo danh thí sinh (SBD) <span style="color: #dc2626;">(*)</span></label>
       <input id="sbd" placeholder="VD: TS001, 202601..." autocomplete="off">
     </div>
-    <button class="btn-primary" id="btnJoin" onclick="joinExam()">Vào Phòng Thi</button>
+
+    <button class="btn-primary" id="btnJoin" onclick="joinExam()">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/>
+        <polyline points="10 17 15 12 10 7"/>
+        <line x1="15" y1="12" x2="3" y2="12"/>
+      </svg>
+      <span>Vào Phòng Thi</span>
+    </button>
+    
+    <div style="margin-top: 18px; padding-top: 14px; border-top: 1px solid #f1f5f9; font-size: 12px; color: #94a3b8; line-height: 1.5;">
+      <strong>Lưu ý thí sinh:</strong> Vui lòng cho phép quyền truy cập Camera khi trình duyệt yêu cầu. Giữ tư thế ngồi thẳng trước màn hình trong suốt thời gian làm bài.
+    </div>
   </div>
 
   <!-- Giao diện làm bài thi & camera -->
   <div id="examBox" style="display:none">
     <div class="info-bar">
-      <div>Thí sinh: <span class="candidate-badge" id="candName">--</span> (<span id="candSBD">--</span>)</div>
+      <div>Thí sinh: <span class="candidate-badge" id="candName">--</span> (<span class="candidate-sbd" id="candSBD">--</span>)</div>
       <div id="clock">00:00:00</div>
     </div>
 
@@ -187,37 +387,58 @@
       <video id="cam" autoplay playsinline muted></video>
       <div class="status-pill">
         <span class="dot dot-ok" id="statusDot"></span>
-        <span id="statusText">Giám sát AI hoạt động</span>
+        <span id="statusText">Đang giám sát AI</span>
       </div>
     </div>
 
     <div class="status-footer">
       <div>Đường truyền: <span id="netState" class="ok">Ổn định</span></div>
-      <div id="roomSubject">Phòng thi</div>
+      <div id="roomSubject">Phòng thi trực tuyến</div>
     </div>
 
-    <button class="btn-danger" id="btnFinish" onclick="confirmFinish()">Nộp Bài Thi</button>
+    <!-- Nút hành động: Kết thúc thi mới hợp lệ -->
+    <button class="btn-danger" id="btnFinish" onclick="confirmFinish()">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
+        <line x1="9" y1="9" x2="15" y2="15"/>
+        <line x1="15" y1="9" x2="9" y2="15"/>
+      </svg>
+      <span>Kết thúc thi</span>
+    </button>
   </div>
 
   <!-- Màn hình kết thúc ca thi -->
-  <div id="finishedBox" style="display:none; text-align: center; padding: 24px 0;">
-    <div style="font-size: 48px; margin-bottom: 12px;">✅</div>
-    <h3 style="color: #4ade80; margin-bottom: 8px;">Đã Nộp Bài Thi Thành Công</h3>
-    <p style="color: var(--text-muted); font-size: 14px; margin-bottom: 16px;" id="finishedDesc">
-      Phiên giám sát ca thi của bạn đã kết thúc. Bạn có thể đóng trình duyệt.
+  <div id="finishedBox" style="display:none" class="finished-container">
+    <div class="finished-icon-box">
+      <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+        <polyline points="20 6 9 17 4 12"/>
+      </svg>
+    </div>
+    <h3 class="finished-title">Đã Kết Thúc Bài Thi Thành Công</h3>
+    <p class="finished-desc" id="finishedDesc">
+      Phiên giám sát ca thi của bạn đã kết thúc. Bạn có thể đóng trình duyệt an toàn.
     </p>
-    <div style="font-size: 13px; color: #64748b;">Thời gian làm bài: <strong id="totalExamTime">00:00:00</strong></div>
+    <div class="finished-time-box">
+      Thời gian làm bài: <strong id="totalExamTime">00:00:00</strong>
+    </div>
   </div>
 </div>
 
-<!-- Modal xác nhận nộp bài -->
+<!-- Modal xác nhận kết thúc thi -->
 <div id="confirmModal" class="modal-overlay" style="display: none;">
   <div class="modal-box">
-    <h4>Xác nhận nộp bài thi?</h4>
-    <p>Bạn có chắc chắn muốn nộp bài thi? Camera và phiên giám sát AI sẽ dừng lại ngay lập tức.</p>
+    <div class="modal-icon">
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="12" cy="12" r="10"/>
+        <line x1="12" y1="8" x2="12" y2="12"/>
+        <line x1="12" y1="16" x2="12.01" y2="16"/>
+      </svg>
+    </div>
+    <h4>Xác nhận kết thúc thi?</h4>
+    <p>Bạn có chắc chắn muốn kết thúc bài thi? Camera và phiên giám sát AI sẽ dừng lại ngay lập tức.</p>
     <div class="modal-actions">
       <button class="btn-outline" onclick="closeConfirmModal()">Hủy bỏ</button>
-      <button class="btn-danger" id="btnModalConfirm" style="margin-top: 0;" onclick="submitFinishExam()">Xác Nhận Nộp</button>
+      <button class="btn-danger" id="btnModalConfirm" style="margin-top: 0;" onclick="submitFinishExam()">Xác nhận kết thúc</button>
     </div>
   </div>
 </div>
@@ -249,7 +470,7 @@ async function joinExam() {
 
   const btnJoin = document.getElementById("btnJoin");
   btnJoin.disabled = true;
-  btnJoin.textContent = "Đang kiểm tra...";
+  btnJoin.innerHTML = "<span>Đang kiểm tra thông tin...</span>";
 
   const payload = { SBD: sbd };
   if (querySessionId) {
@@ -274,7 +495,7 @@ async function joinExam() {
       } catch (_) {}
       alert(errMsg);
       btnJoin.disabled = false;
-      btnJoin.textContent = "Vào Phòng Thi";
+      btnJoin.innerHTML = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/><polyline points="10 17 15 12 10 7"/><line x1="15" y1="12" x2="3" y2="12"/></svg><span>Vào Phòng Thi</span>';
       return;
     }
 
@@ -296,9 +517,9 @@ async function joinExam() {
       });
       document.getElementById("cam").srcObject = localStream;
     } catch (e) {
-      alert("Không thể mở camera! Vui lòng cấp quyền truy cập camera trong trình duyệt.");
+      alert("Không thể mở camera! Vui lòng cấp quyền truy cập camera trong trình duyệt để bắt đầu giám sát.");
       btnJoin.disabled = false;
-      btnJoin.textContent = "Vào Phòng Thi";
+      btnJoin.innerHTML = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/><polyline points="10 17 15 12 10 7"/><line x1="15" y1="12" x2="3" y2="12"/></svg><span>Vào Phòng Thi</span>';
       return;
     }
 
@@ -314,7 +535,7 @@ async function joinExam() {
   } catch (err) {
     alert("Lỗi kết nối máy chủ: " + err.message);
     btnJoin.disabled = false;
-    btnJoin.textContent = "Vào Phòng Thi";
+    btnJoin.innerHTML = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/><polyline points="10 17 15 12 10 7"/><line x1="15" y1="12" x2="3" y2="12"/></svg><span>Vào Phòng Thi</span>';
   }
 }
 
@@ -397,7 +618,7 @@ function handleExamClosedBySupervisor() {
   stopAllMedia();
   document.getElementById("examBox").style.display = "none";
   document.getElementById("finishedBox").style.display = "block";
-  document.getElementById("finishedDesc").textContent = "Ca thi đã được kết thúc bởi giám thị phòng thi. Cảm ơn bạn đã tham gia!";
+  document.getElementById("finishedDesc").textContent = "Ca thi đã được kết thúc bởi giám thị phòng thi. Cảm ơn bạn đã hoàn thành phiên giám sát!";
 }
 
 function confirmFinish() {
@@ -411,7 +632,7 @@ function closeConfirmModal() {
 async function submitFinishExam() {
   const btn = document.getElementById("btnModalConfirm");
   btn.disabled = true;
-  btn.textContent = "Đang nộp...";
+  btn.textContent = "Đang kết thúc...";
 
   try {
     const r = await fetch(API + "/candidates/finish", {
@@ -428,9 +649,9 @@ async function submitFinishExam() {
     document.getElementById("examBox").style.display = "none";
     document.getElementById("finishedBox").style.display = "block";
   } catch (err) {
-    alert("Không thể kết nối để nộp bài: " + err.message);
+    alert("Không thể kết nối để kết thúc bài thi: " + err.message);
     btn.disabled = false;
-    btn.textContent = "Xác Nhận Nộp";
+    btn.textContent = "Xác nhận kết thúc";
   }
 }
 

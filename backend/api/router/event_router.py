@@ -129,11 +129,12 @@ def verify_event_endpoint(
     db: Session = Depends(get_db),
 ):
     """Xác minh sự kiện đúng/sai kèm nhãn sửa. Ghi người kiểm tra và thời điểm."""
+    new_label = payload.LoaiHanhVi or payload.NhanNguoiDung
     event = verify_event(
         db,
         event_id,
         payload.TrangThaiKiemTra,
-        payload.NhanNguoiDung,
+        new_label,
         user.PK_MaNguoiDung,
     )
     if not event:

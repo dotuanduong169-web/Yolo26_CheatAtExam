@@ -3,15 +3,16 @@ Logic chính: chỉ lưu hành vi gian lận; người dùng xác minh đúng/sa
 """
 
 from datetime import datetime
-from typing import Optional
+from typing import Any, Optional
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 
 
 class EventVerify(BaseModel):
     """Dữ liệu xác minh một sự kiện."""
 
     TrangThaiKiemTra: str = Field(..., pattern="^(dung|sai)$")
+    LoaiHanhVi: Optional[str] = Field(default=None, max_length=100)
     NhanNguoiDung: Optional[str] = Field(default=None, max_length=100)
 
 
@@ -31,9 +32,9 @@ class EventResponse(BaseModel):
 
     PK_MaSuKien: int
     LoaiHanhVi: str
-    NhanAI: str
+    NhanAI: Optional[str] = None
     NhanNguoiDung: Optional[str] = None
-    ToaDo: list
+    ToaDo: Any
     DoTinCay: float
     ThoiGianPhatHien: datetime
     TrangThaiKiemTra: Optional[str] = None
@@ -41,3 +42,13 @@ class EventResponse(BaseModel):
     evidences: list[EvidenceResponse] = []
 
     model_config = {"from_attributes": True}
+
+    @model_validator(mode="after")
+    def populate_legacy_labels(self):
+        """Gán nhãn tương thích ngược từ trường LoaiHanhVi duy nhất."""
+        if self.NhanAI is None:
+            self.NhanAI = self.LoaiHanhVi
+        if self.NhanNguoiDung is None:
+            self.NhanNguoiDung = self.LoaiHanhVi
+        return self
+

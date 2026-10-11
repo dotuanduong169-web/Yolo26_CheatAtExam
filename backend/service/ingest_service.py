@@ -24,7 +24,6 @@ from service.pipeline_service import (
     CHEAT_WINDOW,
     SAVE_INTERVAL_SECONDS,
     _save_snapshot,
-    calculate_stats,
 )
 
 logger = get_logger(__name__)

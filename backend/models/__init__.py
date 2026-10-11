@@ -8,7 +8,6 @@ from models.candidate import Candidate
 from models.monitoring_session import MonitoringSession
 from models.detected_event import DetectedEvent
 from models.evidence import Evidence
-from models.statistic import Statistic
 
 __all__ = [
     "Base",
@@ -18,5 +17,4 @@ __all__ = [
     "MonitoringSession",
     "DetectedEvent",
     "Evidence",
-    "Statistic",
 ]

@@ -16,15 +16,14 @@ def create_event(
     db: DBSession,
     session_id: int,
     loai_hanh_vi: str,
-    nhan_ai: str,
     toa_do: list,
     do_tin_cay: float,
     thoi_gian_phat_hien: Optional[datetime] = None,
+    nhan_ai: Optional[str] = None,
 ) -> DetectedEvent:
     """Tạo sự kiện gian lận. Flush để có ID trước khi gắn bằng chứng cùng transaction."""
     event = DetectedEvent(
         LoaiHanhVi=loai_hanh_vi,
-        NhanAI=nhan_ai,
         ToaDo=toa_do,
         DoTinCay=do_tin_cay,
         ThoiGianPhatHien=thoi_gian_phat_hien or datetime.now(timezone.utc),
@@ -146,9 +145,9 @@ def verify_event(
         return None
 
     event.TrangThaiKiemTra = trang_thai
-    event.NhanNguoiDung = nhan_nguoi_dung
+    if nhan_nguoi_dung:
+        event.LoaiHanhVi = nhan_nguoi_dung
     event.FK_MaNguoiKiemTra = nguoi_kiem_tra
-    event.ThoiGianKiemTra = datetime.now(timezone.utc)
     db.commit()
     db.refresh(event)
     return event

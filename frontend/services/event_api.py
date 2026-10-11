@@ -99,7 +99,7 @@ def verify_event(
     try:
         res = session.patch(
             f"{API_BASE_URL}/events/{event_id}",
-            json={"TrangThaiKiemTra": trang_thai, "NhanNguoiDung": nhan_nguoi_dung or None},
+            json={"TrangThaiKiemTra": trang_thai, "LoaiHanhVi": nhan_nguoi_dung or None, "NhanNguoiDung": nhan_nguoi_dung or None},
             headers=get_auth_headers(),
         )
         if res is not None and res.status_code == 200:

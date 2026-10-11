@@ -13,7 +13,6 @@ from ai_model.ai_pipeline import process_frame
 from core.config import settings
 from core.logger import get_logger
 from crud.event_crud import create_event, create_evidence
-from crud.statistics_crud import create_statistics
 from database.database import SessionLocal
 from service.camera_state import CameraState
 
@@ -209,15 +208,11 @@ def _save_event_snapshot(
                 db,
                 session_id=session_id,
                 loai_hanh_vi=r.get("label", ""),
-                nhan_ai=r.get("label", ""),
                 toa_do=r.get("bbox", []),
                 do_tin_cay=float(r.get("confidence", 0.0)),
             )
             create_evidence(db, event.PK_MaSuKien, "anh", str(image_path))
             saved_events += 1
-
-        stats_data = calculate_stats(results)
-        create_statistics(db, stats_data, session_id)
 
         db.commit()
         logger.info(
@@ -271,4 +266,3 @@ def calculate_stats(results: list[dict]) -> dict:
     cheat_count = sum(1 for r in results if r.get("is_cheat"))
     clean_rate = 1.0 if cheat_count == 0 else 0.0
 
-    return {"total": total, "sleeping": cheat_count, "focus_rate": clean_rate}

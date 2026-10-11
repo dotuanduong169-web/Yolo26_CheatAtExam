@@ -58,7 +58,19 @@ def ensure_online_exam_migrations():
             conn.execute(text("ALTER TABLE tbl_detected_events DROP CONSTRAINT IF EXISTS ck_event_loai"))
             conn.execute(text("""
                 ALTER TABLE tbl_detected_events ADD CONSTRAINT ck_event_loai
-                CHECK ("LoaiHanhVi" IN ('Cheat_Paper', 'cellphone', 'quay_dau', 'quay_sau', 'cui_xuong', 'vang_mat', 'nhieu_nguoi'))
+                CHECK ("LoaiHanhVi" IN ('Cheat_Paper', 'cellphone', 'quay_dau', 'quay_sau', 'cui_xuong', 'vang_mat', 'nhieu_nguoi', 'Answer_paper'))
+            """))
+            # 4. Cho phép NhanAI nullable nếu bảng cũ còn tồn tại cột
+            conn.execute(text("""
+                DO $$
+                BEGIN
+                    IF EXISTS (
+                        SELECT 1 FROM information_schema.columns
+                        WHERE table_name = 'tbl_detected_events' AND column_name = 'NhanAI' AND is_nullable = 'NO'
+                    ) THEN
+                        ALTER TABLE tbl_detected_events ALTER COLUMN "NhanAI" DROP NOT NULL;
+                    END IF;
+                END $$;
             """))
     except Exception as exc:
         print(f"[WARN] Không thể tự động chạy migration online exam: {exc}")

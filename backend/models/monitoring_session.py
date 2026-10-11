@@ -40,7 +40,6 @@ class MonitoringSession(Base):
         cascade="all, delete",
     )
     events = relationship("DetectedEvent", back_populates="session", cascade="all, delete")
-    statistics = relationship("Statistic", back_populates="session", cascade="all, delete")
 
     def __repr__(self) -> str:
         return f"<MonitoringSession(id={self.PK_MaPhienGiamSat}, room={self.PhongThi!r})>"

@@ -22,7 +22,6 @@ from utils.hide_streamlit_sidebar import hide_sidebar
 from utils.http import cache_invalidate, init_session_state
 from utils.load_css import load_css
 from utils.notify import notify
-from utils.render_page_header import render_page_header if False else None
 from utils.render_header import render_page_header
 
 # ── Cấu hình trang ──────────────────────────────────────────

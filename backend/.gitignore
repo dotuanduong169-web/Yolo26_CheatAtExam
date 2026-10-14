@@ -62,6 +62,8 @@ weights/
 !ai_model/weights/
 ai_model/weights/*
 !ai_model/weights/best.pt
+!ai_model/weights/best_openvino_model/
+!ai_model/weights/yolo26n-pose_openvino_model/
 
 # Images (Project specific)
 images/

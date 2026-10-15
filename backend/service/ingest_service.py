@@ -50,25 +50,70 @@ def _window_ok(deq: deque, window: int = CHEAT_WINDOW, hits: int = CHEAT_MIN_HIT
     return len(recent) >= hits and sum(1 for v in recent if v) >= hits
 
 
+TOKEN_INVALID = "token không hợp lệ"
+
+
 def mint_token(session_id: int) -> str:
-    """Cấp token nộp frame cho phiên con."""
+    """Cấp token nộp frame cho phiên con. Lưu DB để sống qua restart/đa tiến trình,
+    dict RAM chỉ làm cache tra nhanh."""
+    from models.monitoring_session import MonitoringSession
+
     token = secrets.token_urlsafe(24)
+    db = SessionLocal()
+    try:
+        row = db.query(MonitoringSession).filter(
+            MonitoringSession.PK_MaPhienGiamSat == session_id
+        ).first()
+        if row is not None:
+            row.TokenThamGia = token
+            db.commit()
+    finally:
+        db.close()
     with _tokens_lock:
         _tokens[token] = session_id
     return token
 
 
 def resolve_token(token: str) -> int | None:
-    """Tra session_id từ token nộp bài."""
+    """Tra session_id từ token nộp bài. Miss cache thì đọc DB (restart/tiến trình khác)."""
     with _tokens_lock:
-        return _tokens.get(token)
+        sid = _tokens.get(token)
+    if sid is not None:
+        return sid
+    from models.monitoring_session import MonitoringSession
+
+    db = SessionLocal()
+    try:
+        row = db.query(MonitoringSession).filter(
+            MonitoringSession.TokenThamGia == token
+        ).first()
+        if row is None:
+            return None
+        sid = row.PK_MaPhienGiamSat
+        with _tokens_lock:
+            _tokens[token] = sid
+        return sid
+    finally:
+        db.close()
 
 
 def revoke_session_tokens(session_id: int) -> None:
-    """Thu hồi mọi token của phiên (khi kết thúc ca)."""
+    """Thu hồi mọi token của phiên (khi kết thúc ca): xóa cả cache RAM lẫn DB."""
+    from models.monitoring_session import MonitoringSession
+
     with _tokens_lock:
         for tok in [t for t, sid in _tokens.items() if sid == session_id]:
             _tokens.pop(tok, None)
+    db = SessionLocal()
+    try:
+        rows = db.query(MonitoringSession).filter(
+            MonitoringSession.PK_MaPhienGiamSat == session_id
+        ).all()
+        for row in rows:
+            row.TokenThamGia = None
+        db.commit()
+    finally:
+        db.close()
 
 
 class _SessionWorker:
@@ -100,12 +145,12 @@ class _SessionWorker:
                 self.queue.get_nowait()
             except Exception:
                 break
-            try:
-                self.queue.put_nowait((jpg, time.time()))
-                self.last_activity = time.time()
-                return True
-            except Exception:
-                return False
+        try:
+            self.queue.put_nowait((jpg, time.time()))
+            self.last_activity = time.time()
+            return True
+        except Exception:
+            return False
 
     def _loop(self) -> None:
         db = SessionLocal()

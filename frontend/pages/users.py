@@ -109,7 +109,28 @@ def edit_user_name_dialog(u_id: int, cur_name: str, cur_role: str, cur_status: s
                         notify.inline_error("Lỗi khi cập nhật thông tin")
 
 
-tab_users, tab_profile = st.tabs(["Danh sách người dùng", "Hồ sơ cá nhân"])
+# Thanh tab con phẳng chuẩn Govita (giống trang Lịch sử): Hồ sơ cá nhân trước
+if "users_active_tab" not in st.session_state:
+    st.session_state["users_active_tab"] = "profile"
+current_utab = st.session_state.get("users_active_tab", "profile")
+if current_utab not in ("users", "profile"):
+    current_utab = "profile"
+
+tab_col1, tab_col2, _tab_spacer_u = st.columns([1, 1, 6], gap="small")
+with tab_col1:
+    _u_prof_active = (current_utab == "profile")
+    _u_prof_key = "subtab_btn_active_profile" if _u_prof_active else "subtab_btn_profile"
+    if st.button("Hồ sơ cá nhân", key=_u_prof_key):
+        if not _u_prof_active:
+            st.session_state["users_active_tab"] = "profile"
+            st.rerun()
+with tab_col2:
+    _u_users_active = (current_utab == "users")
+    _u_users_key = "subtab_btn_active_users" if _u_users_active else "subtab_btn_users"
+    if st.button("Danh sách người dùng", key=_u_users_key):
+        if not _u_users_active:
+            st.session_state["users_active_tab"] = "users"
+            st.rerun()
 
 # ── Xử lý query params thao tác người dùng (từ link icon SVG) ──
 if "toggle_role" in st.query_params:
@@ -155,7 +176,7 @@ if "toggle_status" in st.query_params:
 # =========================================================================
 # TAB 1: DANH SÁCH NGƯỜI DÙNG & PHÂN QUYỀN (CHỈ ADMIN HOẶC XEM QUYỀN)
 # =========================================================================
-with tab_users:
+if current_utab == "users":
     if not is_admin:
         notify.inline(
             "Tính năng phân quyền và quản trị danh sách người dùng dành riêng cho Quản trị viên (Admin). Bạn đang đăng nhập với vai trò Cán bộ coi thi, vui lòng chuyển sang tab 'Hồ sơ cá nhân & Đổi mật khẩu' để xem và cập nhật thông tin của bạn.",
@@ -318,7 +339,7 @@ with tab_users:
 # =========================================================================
 # TAB 2: HỒ SƠ CÁ NHÂN & BẢO MẬT
 # =========================================================================
-with tab_profile:
+if current_utab == "profile":
     user = get_user(client)
     if not user:
         notify.warning("Không thể tải thông tin tài khoản hiện tại.")

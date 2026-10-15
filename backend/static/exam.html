@@ -444,7 +444,7 @@
 </div>
 
 <script>
-let sessionId = null, token = null;
+let sessionId = null, token = null, savedSbd = "", rejoining = false;
 let tickTimer = null, frameTimer = null;
 let startTime = null, localStream = null;
 let failStreak = 0;
@@ -464,9 +464,35 @@ document.getElementById("sbd").addEventListener("keydown", (e) => {
   if (e.key === "Enter") joinExam();
 });
 
+async function rejoinQuietly() {
+  // Token chết nhưng ca thi có thể vẫn mở: join lại im lặng, không hiện màn hình kết thúc
+  if (rejoining || !savedSbd) return;
+  rejoining = true;
+  try {
+    const payload = { SBD: savedSbd };
+    if (querySessionId) {
+      const parsedId = parseInt(querySessionId, 10);
+      if (!isNaN(parsedId)) payload.FK_MaPhienGiamSat = parsedId;
+    }
+    const r = await fetch(API + "/candidates/join", {
+      method: "POST",
+      headers: {"Content-Type": "application/json"},
+      body: JSON.stringify(payload),
+    });
+    if (r.ok) {
+      const d = await r.json();
+      sessionId = d.PK_MaPhienGiamSat;
+      token = d.token;
+      failStreak = 0;
+    }
+  } catch (_) {}
+  rejoining = false;
+}
+
 async function joinExam() {
   const sbd = document.getElementById("sbd").value.trim();
   if (!sbd) { alert("Vui lòng nhập số báo danh (SBD)"); return; }
+  savedSbd = sbd;
 
   const btnJoin = document.getElementById("btnJoin");
   btnJoin.disabled = true;
@@ -588,9 +614,15 @@ async function sendFrame() {
     });
     clearTimeout(t);
 
-    if (r.status === 400 || r.status === 403) {
-      // Giám thị đã kết thúc ca thi hoặc token hết hạn
+    if (r.status === 403) {
+      // Chỉ 403 mới là giám thị kết thúc ca thi
       handleExamClosedBySupervisor();
+      return;
+    }
+
+    if (r.status === 401) {
+      // Token chết (server restart/thu hồi): join lại im lặng bằng SBD đã lưu
+      rejoinQuietly();
       return;
     }
 

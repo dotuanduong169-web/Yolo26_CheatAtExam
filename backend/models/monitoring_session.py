@@ -28,6 +28,7 @@ class MonitoringSession(Base):
     FK_MaNguoiDung = Column(BigInteger, ForeignKey("tbl_user.PK_MaNguoiDung", ondelete="SET NULL"), nullable=False)
     FK_MaThietBi = Column(BigInteger, ForeignKey("tbl_edgedevice.PK_MaThietBi", ondelete="RESTRICT"), nullable=True)
     FK_MaThiSinh = Column(BigInteger, ForeignKey("tbl_thi_sinh.PK_MaThiSinh", ondelete="SET NULL"), nullable=True)
+    TokenThamGia = Column(String(255), nullable=True, index=True)
 
     # Quan hệ
     user = relationship("User", back_populates="sessions")

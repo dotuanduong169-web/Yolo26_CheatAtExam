@@ -29,5 +29,8 @@ async def ingest_frame(
 
     ok, reason = ingest_service.ingest_frame(session_id, token, ts_client, jpg)
     if not ok:
+        # 401 = token chết (restart/revoke) -> client tự join lại; còn lại là lỗi dữ liệu
+        if reason == ingest_service.TOKEN_INVALID:
+            raise HTTPException(status_code=401, detail=reason)
         raise HTTPException(status_code=400, detail=reason)
     return IngestAccepted(PK_MaPhienGiamSat=session_id, queued=True)

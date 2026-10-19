@@ -1,0 +1,5 @@
+# Thư viện riêng cho giao diện Streamlit
+# (requests, pandas, Pillow đã có trong backend/requirements.txt)
+streamlit>=1.40
+streamlit-autorefresh>=1.0.1
+plotly>=5.24

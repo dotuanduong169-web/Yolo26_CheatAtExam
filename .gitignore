@@ -35,7 +35,6 @@ env/
 .env.*.local
 *.key
 *.pem
-.env.example
 
 # ── IDE & Editor ────────────────────────────────────────────
 .vscode/

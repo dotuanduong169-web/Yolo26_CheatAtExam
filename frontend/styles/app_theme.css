@@ -406,8 +406,8 @@ div[class*="st-key-subtab_btn_"] button {
   border-radius: 0 !important;
   font-size: 15px !important;
   font-weight: 500 !important;
-  color: #475569 !important;
-  padding: 10px 4px 14px 4px !important;
+  color: #64748b !important;
+  padding: 10px 12px 14px 12px !important;
   margin-bottom: 0 !important;
   transition: all 0.2s ease !important;
   box-shadow: none !important;
@@ -426,8 +426,8 @@ div[class*="st-key-subtab_btn_"] button p {
 }
 
 div[class*="st-key-subtab_btn_"]:not([class*="st-key-subtab_btn_active_"]) button:hover {
-  background: transparent !important;
-  background-color: transparent !important;
+  background: #f8fafc !important;
+  background-color: #f8fafc !important;
   color: #0f172a !important;
   border-bottom: 3px solid #cbd5e1 !important;
   transform: none !important;
@@ -435,27 +435,28 @@ div[class*="st-key-subtab_btn_"]:not([class*="st-key-subtab_btn_active_"]) butto
 }
 
 div[class*="st-key-subtab_btn_active_"] button {
-  background: #1e3a8a !important;
-  background-color: #1e3a8a !important;
-  color: #ffffff !important;
+  background: #eff6ff !important;
+  background-color: #eff6ff !important;
+  color: #2563eb !important;
   font-weight: 700 !important;
-  border: 1px solid #1e3a8a !important;
-  border-radius: 8px !important;
-  box-shadow: 0 2px 6px rgba(30, 58, 138, 0.35) !important;
+  border: none !important;
+  border-bottom: 3px solid #2563eb !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
   transform: none !important;
 }
 
 div[class*="st-key-subtab_btn_active_"] button p {
-  color: #ffffff !important;
+  color: #2563eb !important;
 }
 
 div[class*="st-key-subtab_btn_active_"] button:hover {
-  background: #1e40af !important;
-  background-color: #1e40af !important;
-  color: #ffffff !important;
-  border-color: #1e40af !important;
+  background: #dbeafe !important;
+  background-color: #dbeafe !important;
+  color: #2563eb !important;
+  border-color: #2563eb !important;
   transform: none !important;
-  box-shadow: 0 2px 6px rgba(30, 58, 138, 0.35) !important;
+  box-shadow: none !important;
 }
 
 /* ==========================================================================

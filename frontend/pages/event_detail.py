@@ -109,6 +109,10 @@ conf = round(float(data.get("DoTinCay", 0)) * 100, 1)
 trang_thai = data.get("TrangThaiKiemTra", "cho_kiem_tra")
 bbox = data.get("ToaDo") or []
 evidences = data.get("evidences", [])
+cam_role = data.get("VaiTroCamera") or (
+    evidences[0].get("VaiTroCamera") if evidences else None
+) or "front"
+cam_label = "Camera phụ (điện thoại)" if cam_role == "side" else "Camera trước (webcam)"
 
 friendly_label = get_friendly_behavior_label(raw_label)
 stt_text, stt_cls = get_event_status_info(trang_thai)
@@ -145,7 +149,7 @@ with left_col:
     <div class="img-card">
         <div class="img-card-header">
             <span class="cam-label">
-                Bằng chứng vi phạm #EV-{event_id:02d} — {friendly_label}
+                Bằng chứng vi phạm #EV-{event_id:02d} — {friendly_label} · {cam_label}
             </span>
             <span class="live-badge"><span class="dot"></span> {conf}%</span>
         </div>
@@ -188,6 +192,15 @@ with right_col:
         <div class="kpi-left">
             <div class="kpi-label">ĐỘ TIN CẬY AI</div>
             <div class="kpi-val blue">{conf}%</div>
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
+
+    st.markdown(f"""
+    <div class="kpi-mini">
+        <div class="kpi-left">
+            <div class="kpi-label">NGUỒN CAMERA</div>
+            <div class="kpi-val">{cam_label}</div>
         </div>
     </div>
     """, unsafe_allow_html=True)

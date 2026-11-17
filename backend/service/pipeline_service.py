@@ -185,12 +185,18 @@ def _save_event_snapshot(
     image_dir: Path,
     frame_count: int,
     reason: str = "",
+    vai_tro_camera: str = "front",
 ) -> None:
     """Lưu snapshot sự kiện vi phạm NGAY LẬP TỨC: 1 ảnh bằng chứng + 1 event/vật + cập nhật stats."""
     if not session_id or not results:
         return
 
-    filename = datetime.now().strftime("%Y%m%d_%H%M%S_%f") + ".jpg"
+    # Tên file kèm phiên + vai trò để 2 luồng camera không ghi đè nhau và dễ truy vết.
+    filename = (
+        f"{session_id}_{vai_tro_camera}_"
+        + datetime.now().strftime("%Y%m%d_%H%M%S_%f")
+        + ".jpg"
+    )
     image_path = image_dir / filename
 
     try:
@@ -210,8 +216,15 @@ def _save_event_snapshot(
                 loai_hanh_vi=r.get("label", ""),
                 toa_do=r.get("bbox", []),
                 do_tin_cay=float(r.get("confidence", 0.0)),
+                vai_tro_camera=vai_tro_camera,
             )
-            create_evidence(db, event.PK_MaSuKien, "anh", str(image_path))
+            create_evidence(
+                db,
+                event.PK_MaSuKien,
+                "anh",
+                str(image_path),
+                vai_tro_camera=vai_tro_camera,
+            )
             saved_events += 1
 
         db.commit()
@@ -247,13 +260,26 @@ def _save_snapshot(
     results: list[dict],
     image_dir: Path,
     frame_count: int,
+    vai_tro_camera: str = "front",
 ) -> None:
     """Lưu snapshot định kỳ tương thích ngược (dùng cho ingest online)."""
     cheats = [r for r in results if r.get("is_cheat")]
     if cheats:
-        _save_event_snapshot(db, session_id, frame, cheats, image_dir, frame_count, reason="snapshot")
+        _save_event_snapshot(
+            db,
+            session_id,
+            frame,
+            cheats,
+            image_dir,
+            frame_count,
+            reason="snapshot",
+            vai_tro_camera=vai_tro_camera,
+        )
     else:
-        _save_periodic_stats(db, session_id, results)
+        # Chỉ camera trước ghi thống kê định kỳ: camera phụ chạy song song sẽ
+        # nhân đôi số liệu trong bảng statistics của cùng một phiên.
+        if vai_tro_camera == "front":
+            _save_periodic_stats(db, session_id, results)
 
 
 def calculate_stats(results: list[dict]) -> dict:

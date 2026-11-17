@@ -24,6 +24,9 @@ class CandidateStatusItem(BaseModel):
     Lop: Optional[str] = None
     PK_MaPhienGiamSat: Optional[int] = None
     dang_giam_sat: bool = False
+    camera_front_active: bool = False
+    camera_side_active: bool = False
+    camera_side_joined: bool = False
     cho_kiem_tra: int = 0
     tong_su_kien: int = 0
     anh_moi_nhat: Optional[datetime] = None

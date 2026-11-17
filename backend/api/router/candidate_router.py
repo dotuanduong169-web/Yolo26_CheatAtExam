@@ -3,6 +3,7 @@ Logic chính: giám thị cần đăng nhập; thí sinh join chỉ cần SBD đ
 """
 
 import time
+from datetime import datetime, timezone
 
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
@@ -13,6 +14,7 @@ from crud.candidate_crud import (
     count_unverified_by_candidate,
     create_sub_session,
     find_candidate_for_join,
+    get_camera_streams,
     get_latest_evidence_image,
     get_latest_sub_session,
     get_open_sub_session,
@@ -26,10 +28,12 @@ from models.user import User
 from pydantic import BaseModel, Field
 
 from schemas.candidate import (
+    CameraStreamResponse,
     CandidateImport,
     CandidateJoin,
     CandidateJoinResponse,
     CandidateResponse,
+    StreamTokenResponse,
 )
 from schemas.ingest import CandidateStatusItem
 from service import ingest_service
@@ -46,6 +50,19 @@ class CandidateFinish(BaseModel):
 class CreateOnlineSession(BaseModel):
     PhongThi: str = Field(..., min_length=1, max_length=50)
     MonThi: str = Field(..., min_length=1, max_length=255)
+
+
+def _utc_timestamp(value: datetime | None) -> float:
+    """Đổi datetime lưu trong DB sang epoch giây.
+
+    PostgreSQL TIMESTAMP (không kèm múi giờ) trả về datetime naive theo UTC,
+    nên phải gắn tzinfo=UTC trước khi .timestamp() để không lệch múi giờ máy chủ.
+    """
+    if value is None:
+        return 0.0
+    if value.tzinfo is None:
+        value = value.replace(tzinfo=timezone.utc)
+    return value.timestamp()
 
 
 @router.post("/import", response_model=list[CandidateResponse])
@@ -90,9 +107,14 @@ def list_all(
 
 @router.post("/join", response_model=CandidateJoinResponse)
 def join_exam(data: CandidateJoin):
-    """Thí sinh vào thi chỉ cần SBD. Idempotent: vào lại trả phiên đang mở + token mới."""
+    """Thí sinh vào thi chỉ cần SBD. Idempotent: vào lại trả phiên đang mở + token mới.
+
+    VaiTro=front cho webcam máy tính; VaiTro=side cho điện thoại phụ. Cả hai dùng
+    chung phiên con của thí sinh nhưng có token/worker riêng.
+    """
     from database.database import SessionLocal
 
+    role = (data.VaiTro or "front").lower()
     db = SessionLocal()
     try:
         candidate = find_candidate_for_join(
@@ -112,13 +134,115 @@ def join_exam(data: CandidateJoin):
                     detail="Ca thi chưa mở hoặc đã kết thúc. Vui lòng liên hệ giám thị để mở ca thi.",
                 )
             sub = create_sub_session(db, exam.FK_MaNguoiDung, candidate)
-        token = ingest_service.mint_token(sub.PK_MaPhienGiamSat)
-        ingest_service.ensure_worker(sub.PK_MaPhienGiamSat)
+        token = ingest_service.mint_token(sub.PK_MaPhienGiamSat, role)
+        ingest_service.ensure_worker(sub.PK_MaPhienGiamSat, role)
         return CandidateJoinResponse(
             PK_MaPhienGiamSat=sub.PK_MaPhienGiamSat,
+            VaiTro=role,
             token=token,
             candidate=candidate,
         )
+    finally:
+        db.close()
+
+
+@router.get("/session/{session_id}/attach")
+def attach_stream(session_id: int, token: str):
+    """Dùng token có sẵn trong link camera (front/side) để lấy lại thông tin phiên.
+
+    Không mint token mới nên link điện thoại gửi thí sinh giữ nguyên hiệu lực
+    cho tới khi giám thị kết thúc ca hoặc thu hồi luồng.
+    """
+    from database.database import SessionLocal
+
+    resolved = ingest_service.resolve_token(token)
+    if not resolved or resolved[0] != session_id:
+        raise HTTPException(status_code=401, detail="Token camera không hợp lệ hoặc đã hết hiệu lực.")
+
+    db = SessionLocal()
+    try:
+        sub = get_session_by_id(db, session_id)
+        if not sub or sub.TrangThai != "dang_giam_sat":
+            raise HTTPException(status_code=403, detail="Ca thi chưa mở hoặc đã kết thúc.")
+        candidate = None
+        if sub.FK_MaThiSinh is not None:
+            candidate = sub.candidate
+        ingest_service.ensure_worker(session_id, resolved[1])
+        return {
+            "PK_MaPhienGiamSat": session_id,
+            "VaiTro": resolved[1],
+            "token": token,
+            "candidate": CandidateResponse.model_validate(candidate) if candidate else None,
+            "PhongThi": sub.PhongThi,
+            "MonThi": sub.MonThi,
+        }
+    finally:
+        db.close()
+
+
+@router.post("/session/{session_id}/stream/{vai_tro}/token", response_model=StreamTokenResponse)
+def create_stream_link(
+    session_id: int,
+    vai_tro: str,
+    refresh: bool = False,
+    user: User = Depends(get_current_user),
+):
+    """Giám thị cấp link camera phụ (điện thoại) cho một phiên con đang mở.
+
+    Mặc định tái sử dụng token đang có để link đã gửi thí sinh không bị vô hiệu
+    mỗi lần dashboard tự làm mới. refresh=true mới cấp token mới.
+    """
+    from database.database import SessionLocal
+    from models.camera_stream import CameraStream
+
+    if vai_tro not in ingest_service.VALID_ROLES:
+        raise HTTPException(status_code=400, detail="Vai trò camera phải là 'front' hoặc 'side'.")
+
+    db = SessionLocal()
+    try:
+        sub = get_session_by_id(db, session_id)
+        if not sub or sub.FK_MaThiSinh is None:
+            raise HTTPException(status_code=404, detail="Không tìm thấy phiên con của thí sinh.")
+        if sub.TrangThai != "dang_giam_sat":
+            raise HTTPException(status_code=400, detail="Phiên thi đã kết thúc.")
+
+        stream = (
+            db.query(CameraStream)
+            .filter(
+                CameraStream.FK_MaPhienGiamSat == session_id,
+                CameraStream.VaiTro == vai_tro,
+            )
+            .first()
+        )
+        if not refresh and stream is not None and stream.Token and stream.TrangThai != "ket_thuc":
+            token = stream.Token
+        else:
+            token = ingest_service.mint_token(session_id, vai_tro)
+
+        # Không tạo worker ở đây: chỉ khi điện thoại thật sự attach/gửi frame mới
+        # mở luồng, tránh dashboard báo "camera phụ đang hoạt động" sai.
+        exam_url = f"/exam?session_id={session_id}&role={vai_tro}&token={token}"
+        return StreamTokenResponse(
+            PK_MaPhienGiamSat=session_id,
+            VaiTro=vai_tro,
+            token=token,
+            exam_url=exam_url,
+        )
+    finally:
+        db.close()
+
+
+@router.get("/session/{session_id}/streams", response_model=list[CameraStreamResponse])
+def list_streams(
+    session_id: int,
+    user: User = Depends(get_current_user),
+):
+    """Trạng thái các luồng camera của phiên con (front/side)."""
+    from database.database import SessionLocal
+
+    db = SessionLocal()
+    try:
+        return get_camera_streams(db, session_id)
     finally:
         db.close()
 
@@ -142,18 +266,25 @@ def exam_overview(
             total, pending = (0, 0)
             latest = None
             is_active = False
+            front_active = False
+            side_active = False
+            side_joined = False
 
             if open_sub:
-                # Kiểm tra worker có đang chạy và gửi frame trong thời gian gần không
-                w = ingest_service._workers.get(open_sub.PK_MaPhienGiamSat)
-                if w and w.running and (now - w.last_activity <= 25.0):
-                    is_active = True
-                elif w and w.running and (now - w.last_activity <= 60.0):
-                    # Thí sinh mới join hoặc mạng hơi chậm
-                    is_active = True
-                elif not w and (now - open_sub.ThoiGianBatDau.timestamp() <= 30.0):
-                    # Vừa tạo phiên trong 30s
-                    is_active = True
+                activity = ingest_service.get_stream_activity(open_sub.PK_MaPhienGiamSat)
+                front_active = activity.get(ingest_service.ROLE_FRONT, False)
+                side_active = activity.get(ingest_service.ROLE_SIDE, False)
+                is_active = front_active or side_active
+                streams = get_camera_streams(db, open_sub.PK_MaPhienGiamSat)
+                side_joined = any(
+                    s.VaiTro == ingest_service.ROLE_SIDE
+                    and s.Token
+                    and s.TrangThai != "ket_thuc"
+                    for s in streams
+                )
+                # Thí sinh vừa join, worker chưa kịp nhận frame đầu tiên.
+                if not is_active and (now - _utc_timestamp(open_sub.ThoiGianBatDau) <= 30.0):
+                    is_active = front_active = True
 
             if sid:
                 total, pending = count_unverified_by_candidate(db, sid)
@@ -167,6 +298,9 @@ def exam_overview(
                     Lop=c.Lop,
                     PK_MaPhienGiamSat=sid,
                     dang_giam_sat=is_active,
+                    camera_front_active=front_active,
+                    camera_side_active=side_active,
+                    camera_side_joined=side_joined,
                     cho_kiem_tra=pending,
                     tong_su_kien=total,
                     anh_moi_nhat=latest,
@@ -182,11 +316,17 @@ def finish_exam(data: CandidateFinish):
     """Thí sinh tự kết thúc bài thi từ trình duyệt. Xác thực qua token, không cần JWT giám thị."""
     from database.database import SessionLocal
 
-    expected_sid = ingest_service.resolve_token(data.token)
-    if expected_sid != data.session_id:
+    resolved = ingest_service.resolve_token(data.token)
+    if not resolved or resolved[0] != data.session_id:
         raise HTTPException(
             status_code=400,
             detail="Token kết thúc bài thi không hợp lệ hoặc ca thi đã kết thúc.",
+        )
+    if resolved[1] != ingest_service.ROLE_FRONT:
+        # Camera phụ (điện thoại) không được kết thúc bài thi của thí sinh.
+        raise HTTPException(
+            status_code=403,
+            detail="Chỉ camera trước (máy tính) mới được kết thúc bài thi.",
         )
     db = SessionLocal()
     try:
@@ -355,24 +495,45 @@ def create_online_session(
 @router.get("/session/{session_id}/snapshot")
 def get_candidate_snapshot_endpoint(
     session_id: int,
+    role: str | None = None,
+    variant: str = "auto",
     user: User = Depends(get_current_user),
 ):
-    """Trả ảnh snapshot mới nhất của thí sinh (frame live AI hoặc ảnh vi phạm gần nhất)."""
+    """Trả ảnh snapshot mới nhất của thí sinh.
+
+    role: front/side (rỗng = ưu tiên camera trước rồi camera phụ).
+    variant: auto (live frame -> ảnh dẫn xuất -> bằng chứng), normalized,
+             thumbnail hoặc annotated.
+    """
     from pathlib import Path
     from fastapi import Response
     from fastapi.responses import FileResponse
     from database.database import SessionLocal
-    from crud.candidate_crud import get_latest_evidence_image
+    from service import snapshot_service
 
-    # 1. Thử lấy live frame từ worker đang chạy
-    live_jpg = ingest_service.get_latest_frame(session_id)
-    if live_jpg:
-        return Response(content=live_jpg, media_type="image/jpeg")
+    role = role if role in ingest_service.VALID_ROLES else None
+    variant = variant if variant in {"normalized", "thumbnail", "annotated"} else "auto"
 
-    # 2. Thử lấy ảnh bằng chứng mới nhất từ DB
+    # 1. Live frame đã vẽ overlay AI (nếu worker còn chạy)
+    if variant == "auto":
+        live_jpg = ingest_service.get_latest_frame(session_id, role)
+        if live_jpg:
+            return Response(content=live_jpg, media_type="image/jpeg")
+
+    # 2. Ảnh dẫn xuất từ pipeline snapshot (raw -> normalized/thumbnail/annotated)
     db = SessionLocal()
     try:
-        img_path = get_latest_evidence_image(db, session_id)
+        loai_anh = "thumbnail" if variant == "auto" else variant
+        img_path = snapshot_service.latest_snapshot_path(
+            db, session_id, vai_tro=role, loai_anh=loai_anh
+        )
+        if img_path:
+            p = Path(img_path)
+            if p.is_file():
+                return FileResponse(p, media_type="image/jpeg")
+
+        # 3. Tương thích ngược: ảnh bằng chứng sự kiện cũ
+        img_path = get_latest_evidence_image(db, session_id, vai_tro=role)
         if img_path:
             p = Path(img_path)
             if p.is_file():

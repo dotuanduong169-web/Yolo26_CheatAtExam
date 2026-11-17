@@ -12,6 +12,7 @@ from services.candidate_api import (
     exam_overview,
     extract_error_detail,
     get_candidate_snapshot,
+    get_stream_token,
     import_candidates,
     list_candidates,
     open_session,
@@ -245,6 +246,31 @@ st.markdown(
 if not rows:
     notify.info("Ca thi này chưa có thí sinh nào. Vui lòng nhập danh sách thí sinh ở khung phía trên.")
 else:
+    def _snap_cell(sid, role, active, joined, label, empty_msg, alt_text):
+        """Một ô ảnh camera (trước/phụ) trong card thí sinh."""
+        if not sid:
+            body = '<div class="cand-snap-empty">Chưa vào phòng thi</div>'
+        else:
+            snap_bytes = get_candidate_snapshot(
+                st.session_state.client, sid, role=role, variant="thumbnail"
+            )
+            if snap_bytes:
+                b64_snap = base64.b64encode(snap_bytes).decode("ascii")
+                body = f'<img src="data:image/jpeg;base64,{b64_snap}" alt="{alt_text}"/>'
+            elif active:
+                body = '<div class="cand-snap-waiting">Đang kết nối camera...</div>'
+            elif joined:
+                body = '<div class="cand-snap-waiting">Đã cấp link, chờ kết nối</div>'
+            else:
+                body = f'<div class="cand-snap-empty">{empty_msg}</div>'
+        dot_cls = " on" if active else ""
+        return (
+            '<div class="cand-snap-cell">'
+            f'<div class="cand-snap-label"><span class="cand-cam-dot{dot_cls}"></span>{label}</div>'
+            f'<div class="cand-snap-wrap">{body}</div>'
+            '</div>'
+        )
+
     CHUNK_SIZE = 4
     for chunk_idx in range(0, len(rows), CHUNK_SIZE):
         chunk = rows[chunk_idx : chunk_idx + CHUNK_SIZE]
@@ -252,6 +278,9 @@ else:
         for col_idx, c in enumerate(chunk):
             with cols[col_idx]:
                 is_active = bool(c.get("dang_giam_sat"))
+                front_active = bool(c.get("camera_front_active"))
+                side_active = bool(c.get("camera_side_active"))
+                side_joined = bool(c.get("camera_side_joined"))
                 sid = c.get("PK_MaPhienGiamSat")
                 cho_kt = c.get("cho_kiem_tra", 0) or 0
                 tong_sk = c.get("tong_su_kien", 0) or 0
@@ -279,20 +308,29 @@ else:
                 lop_val = str(c.get("Lop") or "").strip()
                 lop_escaped = f" · {html.escape(lop_val)}" if lop_val else ""
 
-                # Xử lý ảnh snapshot camera
-                snap_html = ""
-                if sid:
-                    snap_bytes = get_candidate_snapshot(st.session_state.client, sid)
-                    if snap_bytes:
-                        b64_snap = base64.b64encode(snap_bytes).decode("ascii")
-                        snap_html = f'<div class="cand-snap-wrap"><img src="data:image/jpeg;base64,{b64_snap}" alt="Snapshot {sbd_escaped}"/></div>'
-                    else:
-                        if is_active:
-                            snap_html = '<div class="cand-snap-wrap"><div class="cand-snap-waiting">Đang kết nối camera...</div></div>'
-                        else:
-                            snap_html = '<div class="cand-snap-wrap"><div class="cand-snap-empty">Chưa có ảnh vi phạm</div></div>'
-                else:
-                    snap_html = '<div class="cand-snap-wrap"><div class="cand-snap-empty">Chưa vào phòng thi</div></div>'
+                # Hai camera: webcam máy tính (front) + điện thoại (side)
+                front_cell = _snap_cell(
+                    sid, "front", front_active, bool(sid),
+                    "Camera trước", "Chưa có ảnh",
+                    f"Camera trước {sbd_escaped}",
+                )
+                side_cell = _snap_cell(
+                    sid, "side", side_active, side_joined,
+                    "Camera phụ", "Chưa kết nối",
+                    f"Camera phụ {sbd_escaped}",
+                )
+                snap_html = f'<div class="cand-snap-pair">{front_cell}{side_cell}</div>'
+
+                cam_chip_front = (
+                    '<span class="cand-cam-chip on"><span class="cand-cam-dot on"></span>Trước</span>'
+                    if front_active else
+                    '<span class="cand-cam-chip"><span class="cand-cam-dot"></span>Trước</span>'
+                )
+                cam_chip_side = (
+                    '<span class="cand-cam-chip on"><span class="cand-cam-dot on"></span>Phụ</span>'
+                    if side_active else
+                    '<span class="cand-cam-chip"><span class="cand-cam-dot"></span>Phụ</span>'
+                )
 
                 # Render HTML card hoàn chỉnh đồng bộ phong cách
                 st.markdown(
@@ -306,6 +344,7 @@ else:
                             <span class="cand-status-chip {chip_cls}">{status_text}</span>
                         </div>
                         {snap_html}
+                        <div class="cand-cam-row">{cam_chip_front}{cam_chip_side}</div>
                         <div class="cand-card-footer">
                             <span>Sự kiện: <strong>{tong_sk}</strong></span>
                             {alert_badge_html}
@@ -314,6 +353,21 @@ else:
                     """,
                     unsafe_allow_html=True,
                 )
+
+                if sid and is_active:
+                    with st.popover("Link camera phụ", use_container_width=True):
+                        link_key = f"side_link_{sid}"
+                        st.caption("Mở link này trên điện thoại đặt sau/bên để giám sát góc rộng.")
+                        if st.button("Tạo / lấy link", key=f"gen_side_{sid}", use_container_width=True):
+                            data = get_stream_token(st.session_state.client, sid, vai_tro="side")
+                            if data and data.get("exam_url"):
+                                st.session_state[link_key] = API_BASE_URL + data["exam_url"]
+                            else:
+                                notify.error("Không tạo được link camera phụ.")
+                        side_link = st.session_state.get(link_key)
+                        if side_link:
+                            st.code(side_link, language=None)
+                            st.caption("Link giữ nguyên hiệu lực tới khi ca thi kết thúc. Không chia sẻ cho người khác.")
 
                 if st.button("Chi tiết ca thi", key=f"online_ev_{c['PK_MaThiSinh']}", use_container_width=True):
                     if sid:

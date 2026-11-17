@@ -20,6 +20,7 @@ def create_event(
     do_tin_cay: float,
     thoi_gian_phat_hien: Optional[datetime] = None,
     nhan_ai: Optional[str] = None,
+    vai_tro_camera: Optional[str] = "front",
 ) -> DetectedEvent:
     """Tạo sự kiện gian lận. Flush để có ID trước khi gắn bằng chứng cùng transaction."""
     event = DetectedEvent(
@@ -28,6 +29,7 @@ def create_event(
         DoTinCay=do_tin_cay,
         ThoiGianPhatHien=thoi_gian_phat_hien or datetime.now(timezone.utc),
         FK_MaPhienGiamSat=session_id,
+        VaiTroCamera=vai_tro_camera or "front",
     )
     db.add(event)
     db.flush()
@@ -39,12 +41,14 @@ def create_evidence(
     event_id: int,
     loai_tep: str,
     duong_dan_tep: str,
+    vai_tro_camera: Optional[str] = "front",
 ) -> Evidence:
     """Gắn bằng chứng ảnh/video cho sự kiện."""
     evidence = Evidence(
         LoaiTep=loai_tep,
         DuongDanTep=duong_dan_tep,
         FK_MaSuKien=event_id,
+        VaiTroCamera=vai_tro_camera or "front",
     )
     db.add(evidence)
     db.flush()

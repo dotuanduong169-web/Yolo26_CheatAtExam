@@ -41,6 +41,8 @@ class MonitoringSession(Base):
         cascade="all, delete",
     )
     events = relationship("DetectedEvent", back_populates="session", cascade="all, delete")
+    streams = relationship("CameraStream", back_populates="session", cascade="all, delete-orphan")
+    snapshots = relationship("Snapshot", back_populates="session", cascade="all, delete-orphan")
 
     def __repr__(self) -> str:
         return f"<MonitoringSession(id={self.PK_MaPhienGiamSat}, room={self.PhongThi!r})>"

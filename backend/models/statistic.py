@@ -1,9 +1,14 @@
-"""Thống kê tổng hợp từng thời điểm. Logic: gắn với một phiên để tính sĩ số và tỉ lệ tập trung."""
+"""Bảng Thống kê legacy (statistics).
+
+Bảng này KHÔNG còn được đăng ký trong ``models/__init__`` và không được ghi dữ
+liệu: số liệu thống kê hiện được tổng hợp trực tiếp từ ``tbl_detected_events``.
+Giữ model để tương thích với DB cũ, không dùng relationship để tránh lỗi mapper
+khi module không được import.
+"""
 
 from datetime import datetime, timezone
 
 from sqlalchemy import BigInteger, Column, Float, ForeignKey, Integer, TIMESTAMP
-from sqlalchemy.orm import relationship
 
 from database.database import Base
 
@@ -20,9 +25,6 @@ class Statistic(Base):
         BigInteger,
         ForeignKey("tbl_monitoring_sessions.PK_MaPhienGiamSat", ondelete="CASCADE"),
     )
-
-    # Quan hệ
-    session = relationship("MonitoringSession", back_populates="statistics")
 
     def __repr__(self) -> str:
         """Trả chuỗi nhận diện thống kê theo id và tỉ lệ tập trung."""

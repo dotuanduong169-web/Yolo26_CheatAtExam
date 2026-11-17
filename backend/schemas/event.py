@@ -22,6 +22,7 @@ class EvidenceResponse(BaseModel):
     PK_MaBangChung: int
     LoaiTep: str
     DuongDanTep: str
+    VaiTroCamera: Optional[str] = "front"
     ThoiGianTao: datetime
 
     model_config = {"from_attributes": True}
@@ -39,6 +40,7 @@ class EventResponse(BaseModel):
     ThoiGianPhatHien: datetime
     TrangThaiKiemTra: Optional[str] = None
     FK_MaPhienGiamSat: int
+    VaiTroCamera: Optional[str] = "front"
     evidences: list[EvidenceResponse] = []
 
     model_config = {"from_attributes": True}

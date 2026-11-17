@@ -164,38 +164,54 @@ def create_sub_session(
     return session
 
 
-def latest_evidence_time(db: DBSession, session_id: int):
+def latest_evidence_time(db: DBSession, session_id: int, vai_tro: Optional[str] = None):
     """Thời điểm ảnh mới nhất của phiên con (cho lưới giám thị)."""
     from models.evidence import Evidence
 
-    row = (
+    query = (
         db.query(Evidence.ThoiGianTao)
         .join(
             DetectedEvent,
             DetectedEvent.PK_MaSuKien == Evidence.FK_MaSuKien,
         )
         .filter(DetectedEvent.FK_MaPhienGiamSat == session_id)
-        .order_by(Evidence.ThoiGianTao.desc())
-        .first()
     )
+    if vai_tro:
+        query = query.filter(Evidence.VaiTroCamera == vai_tro)
+    row = query.order_by(Evidence.ThoiGianTao.desc()).first()
     return row[0] if row else None
 
 
-def get_latest_evidence_image(db: DBSession, session_id: int) -> Optional[str]:
-    """Đường dẫn file ảnh bằng chứng mới nhất của phiên."""
+def get_latest_evidence_image(
+    db: DBSession, session_id: int, vai_tro: Optional[str] = None
+) -> Optional[str]:
+    """Đường dẫn file ảnh bằng chứng mới nhất của phiên (lọc theo vai trò camera)."""
     from models.evidence import Evidence
 
-    row = (
+    query = (
         db.query(Evidence.DuongDanTep)
         .join(
             DetectedEvent,
             DetectedEvent.PK_MaSuKien == Evidence.FK_MaSuKien,
         )
         .filter(DetectedEvent.FK_MaPhienGiamSat == session_id, Evidence.LoaiTep == "anh")
-        .order_by(Evidence.ThoiGianTao.desc())
-        .first()
     )
+    if vai_tro:
+        query = query.filter(Evidence.VaiTroCamera == vai_tro)
+    row = query.order_by(Evidence.ThoiGianTao.desc()).first()
     return row[0] if row else None
+
+
+def get_camera_streams(db: DBSession, session_id: int) -> list:
+    """Danh sách luồng camera của phiên con (front/side), sắp xếp cố định."""
+    from models.camera_stream import CameraStream
+
+    return (
+        db.query(CameraStream)
+        .filter(CameraStream.FK_MaPhienGiamSat == session_id)
+        .order_by(CameraStream.VaiTro.asc())
+        .all()
+    )
 
 
 def count_unverified_by_candidate(db: DBSession, session_id: int) -> tuple[int, int]:

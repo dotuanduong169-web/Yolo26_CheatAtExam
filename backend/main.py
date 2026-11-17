@@ -72,6 +72,38 @@ def ensure_online_exam_migrations():
                     END IF;
                 END $$;
             """))
+            # 5. Vai trò camera trên sự kiện (front = webcam, side = điện thoại phụ)
+            conn.execute(text("""
+                DO $$
+                BEGIN
+                    IF EXISTS (
+                        SELECT 1 FROM information_schema.tables
+                        WHERE table_name = 'tbl_detected_events'
+                    ) AND NOT EXISTS (
+                        SELECT 1 FROM information_schema.columns
+                        WHERE table_name = 'tbl_detected_events' AND column_name = 'VaiTroCamera'
+                    ) THEN
+                        ALTER TABLE tbl_detected_events
+                            ADD COLUMN "VaiTroCamera" VARCHAR(20) DEFAULT 'front';
+                    END IF;
+                END $$;
+            """))
+            # 6. Vai trò camera trên bằng chứng
+            conn.execute(text("""
+                DO $$
+                BEGIN
+                    IF EXISTS (
+                        SELECT 1 FROM information_schema.tables
+                        WHERE table_name = 'tbl_evidences'
+                    ) AND NOT EXISTS (
+                        SELECT 1 FROM information_schema.columns
+                        WHERE table_name = 'tbl_evidences' AND column_name = 'VaiTroCamera'
+                    ) THEN
+                        ALTER TABLE tbl_evidences
+                            ADD COLUMN "VaiTroCamera" VARCHAR(20) DEFAULT 'front';
+                    END IF;
+                END $$;
+            """))
     except Exception as exc:
         print(f"[WARN] Không thể tự động chạy migration online exam: {exc}")
 

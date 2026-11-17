@@ -6,6 +6,8 @@ from models.user import User
 from models.edgedevice import EdgeDevice
 from models.candidate import Candidate
 from models.monitoring_session import MonitoringSession
+from models.camera_stream import CameraStream
+from models.snapshot import Snapshot, SnapshotProcessed
 from models.detected_event import DetectedEvent
 from models.evidence import Evidence
 
@@ -15,6 +17,9 @@ __all__ = [
     "EdgeDevice",
     "Candidate",
     "MonitoringSession",
+    "CameraStream",
+    "Snapshot",
+    "SnapshotProcessed",
     "DetectedEvent",
     "Evidence",
 ]

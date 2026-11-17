@@ -94,11 +94,24 @@ def create_online_session(session: requests.Session, phong_thi: str, mon_thi: st
         return None
 
 
-def get_candidate_snapshot(session: requests.Session, session_id: int) -> bytes | None:
-    """Tải ảnh snapshot mới nhất của thí sinh. Trả bytes nếu có, None nếu chưa có ảnh."""
+def get_candidate_snapshot(
+    session: requests.Session,
+    session_id: int,
+    role: str | None = None,
+    variant: str = "auto",
+) -> bytes | None:
+    """Tải ảnh snapshot mới nhất của thí sinh theo vai trò camera.
+
+    role: front/side (None = ưu tiên camera trước).
+    variant: auto (live -> ảnh dẫn xuất), normalized, thumbnail, annotated.
+    """
     try:
+        params = {"variant": variant}
+        if role:
+            params["role"] = role
         res = session.get(
             f"{API_BASE_URL}/candidates/session/{session_id}/snapshot",
+            params=params,
             headers=get_auth_headers(),
             timeout=3,
         )
@@ -108,6 +121,46 @@ def get_candidate_snapshot(session: requests.Session, session_id: int) -> bytes 
     except Exception as exc:
         logger.debug(f"get_candidate_snapshot error: {exc}")
         return None
+
+
+def get_stream_token(
+    session: requests.Session,
+    session_id: int,
+    vai_tro: str = "side",
+    refresh: bool = False,
+) -> dict | None:
+    """Lấy/tạo link camera (mặc định camera phụ) cho phiên con. Trả JSON hoặc None."""
+    try:
+        res = session.post(
+            f"{API_BASE_URL}/candidates/session/{session_id}/stream/{vai_tro}/token",
+            params={"refresh": "true" if refresh else "false"},
+            headers=get_auth_headers(),
+            timeout=5,
+        )
+        if res.status_code == 200:
+            return res.json()
+        logger.warning(f"get_stream_token failed: {res.status_code}")
+        return None
+    except requests.RequestException as exc:
+        logger.warning(f"get_stream_token error: {exc}")
+        return None
+
+
+def list_streams(session: requests.Session, session_id: int) -> list:
+    """Trạng thái các luồng camera front/side của phiên con. Lỗi trả []."""
+    try:
+        res = session.get(
+            f"{API_BASE_URL}/candidates/session/{session_id}/streams",
+            headers=get_auth_headers(),
+            timeout=5,
+        )
+        if res.status_code == 200:
+            return res.json()
+        logger.warning(f"list_streams failed: {res.status_code}")
+        return []
+    except requests.RequestException as exc:
+        logger.warning(f"list_streams error: {exc}")
+        return []
 
 
 def extract_error_detail(resp: requests.Response | None, default: str = "Thao tác thất bại") -> str:

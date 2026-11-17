@@ -357,7 +357,7 @@
   <div id="joinBox">
     <div id="sessionBadge" style="margin-bottom: 16px; font-size: 13px; font-weight: 600; color: #1677ff; background: #eff6ff; padding: 7px 14px; border-radius: 6px; border: 1px solid #bfdbfe; display: inline-flex; align-items: center; gap: 6px;"></div>
     
-    <div class="input-group">
+    <div class="input-group" id="sbdGroup">
       <label for="sbd">Số báo danh thí sinh (SBD) <span style="color: #dc2626;">(*)</span></label>
       <input id="sbd" placeholder="VD: TS001, 202601..." autocomplete="off">
     </div>
@@ -394,6 +394,10 @@
     <div class="status-footer">
       <div>Đường truyền: <span id="netState" class="ok">Ổn định</span></div>
       <div id="roomSubject">Phòng thi trực tuyến</div>
+    </div>
+
+    <div id="sideNotice" style="display:none; margin-bottom: 14px; padding: 10px 12px; border-radius: 8px; background: #eff6ff; border: 1px solid #bfdbfe; color: #1d4ed8; font-size: 12.5px; line-height: 1.5;">
+      Điện thoại này là <strong>camera phụ</strong> (góc sau/bên). Hãy đặt máy quay bao quát bàn học và giữ nguyên trong suốt ca thi. Không bấm kết thúc bài thi trên thiết bị này.
     </div>
 
     <!-- Nút hành động: Kết thúc thi mới hợp lệ -->
@@ -446,30 +450,93 @@
 <script>
 let sessionId = null, token = null, savedSbd = "", rejoining = false;
 let tickTimer = null, frameTimer = null;
-let startTime = null, localStream = null;
+let startTime = null, localStream = null, wakeLock = null;
 let failStreak = 0;
 let isFinished = false;
 
 const API = location.origin;
 const urlParams = new URLSearchParams(window.location.search);
 const querySessionId = urlParams.get("session_id") || urlParams.get("session");
+const queryToken = urlParams.get("token") || "";
+const urlRole = (urlParams.get("role") || "front").toLowerCase();
+// Camera trước = webcam máy tính, camera phụ = điện thoại đặt sau/bên.
+const VAI_TRO = urlRole === "side" ? "side" : "front";
+const IS_SIDE = VAI_TRO === "side";
+const ROLE_LABEL = IS_SIDE ? "Camera phụ (điện thoại)" : "Camera trước (webcam)";
 
-if (querySessionId) {
-  document.getElementById("sessionBadge").textContent = `Mã ca thi: #${querySessionId}`;
-} else {
-  document.getElementById("sessionBadge").style.display = "none";
+function updateSessionBadge() {
+  const badge = document.getElementById("sessionBadge");
+  if (!querySessionId) {
+    badge.style.display = "none";
+    return;
+  }
+  badge.innerHTML = `Mã ca thi: #${querySessionId} · <strong>${ROLE_LABEL}</strong>`;
+}
+
+function setCandidateInfo(d) {
+  if (d && d.candidate) {
+    document.getElementById("candName").textContent = d.candidate.HoTen || "Thí sinh";
+    document.getElementById("candSBD").textContent = d.candidate.SBD || savedSbd || "--";
+    savedSbd = d.candidate.SBD || savedSbd;
+  }
+  if (d && d.PhongThi) {
+    document.getElementById("roomSubject").textContent =
+      d.PhongThi + (d.MonThi ? " · " + d.MonThi : "");
+  }
+}
+
+updateSessionBadge();
+
+if (IS_SIDE) {
+  document.getElementById("sbdGroup").style.display = "none";
+  document.getElementById("btnJoin").style.display = "none";
+  document.getElementById("btnFinish").style.display = "none";
+  document.getElementById("sideNotice").style.display = "block";
+  document.querySelector(".brand-tag").textContent = "Camera phụ";
 }
 
 document.getElementById("sbd").addEventListener("keydown", (e) => {
   if (e.key === "Enter") joinExam();
 });
 
+// Link điện thoại do giám thị cấp đã kèm token: vào thẳng, không cần SBD.
+if (querySessionId && queryToken) {
+  autoAttach();
+}
+
+async function autoAttach() {
+  const parsedId = parseInt(querySessionId, 10);
+  if (isNaN(parsedId)) return;
+  sessionId = parsedId;
+  token = queryToken;
+  try {
+    const r = await fetch(
+      `${API}/candidates/session/${sessionId}/attach?token=${encodeURIComponent(token)}`
+    );
+    if (!r.ok) {
+      let msg = "Link camera không hợp lệ hoặc ca thi đã kết thúc.";
+      try {
+        const err = await r.json();
+        if (err && err.detail) msg = err.detail;
+      } catch (_) {}
+      alert(msg);
+      return;
+    }
+    const d = await r.json();
+    setCandidateInfo(d);
+    await startCameraAndUI();
+  } catch (err) {
+    alert("Không thể kết nối máy chủ: " + err.message);
+  }
+}
+
 async function rejoinQuietly() {
-  // Token chết nhưng ca thi có thể vẫn mở: join lại im lặng, không hiện màn hình kết thúc
-  if (rejoining || !savedSbd) return;
+  // Token chết nhưng ca thi có thể vẫn mở: join lại im lặng, không hiện màn hình kết thúc.
+  // Camera phụ dùng token cố định trong link nên không tự join lại bằng SBD.
+  if (rejoining || IS_SIDE || !savedSbd) return;
   rejoining = true;
   try {
-    const payload = { SBD: savedSbd };
+    const payload = { SBD: savedSbd, VaiTro: VAI_TRO };
     if (querySessionId) {
       const parsedId = parseInt(querySessionId, 10);
       if (!isNaN(parsedId)) payload.FK_MaPhienGiamSat = parsedId;
@@ -484,6 +551,11 @@ async function rejoinQuietly() {
       sessionId = d.PK_MaPhienGiamSat;
       token = d.token;
       failStreak = 0;
+    } else if (r.status === 403) {
+      // Ca thi đã bị giám thị kết thúc.
+      handleExamClosedBySupervisor();
+    } else if (r.status === 404) {
+      setStatus("Không tìm thấy SBD trong ca thi. Liên hệ giám thị.", "bad");
     }
   } catch (_) {}
   rejoining = false;
@@ -498,7 +570,7 @@ async function joinExam() {
   btnJoin.disabled = true;
   btnJoin.innerHTML = "<span>Đang kiểm tra thông tin...</span>";
 
-  const payload = { SBD: sbd };
+  const payload = { SBD: sbd, VaiTro: VAI_TRO };
   if (querySessionId) {
     const parsedId = parseInt(querySessionId, 10);
     if (!isNaN(parsedId)) {
@@ -528,41 +600,60 @@ async function joinExam() {
     const d = await r.json();
     sessionId = d.PK_MaPhienGiamSat;
     token = d.token;
+    setCandidateInfo(d);
 
-    // Cập nhật thông tin thí sinh
-    if (d.candidate) {
-      document.getElementById("candName").textContent = d.candidate.HoTen || "Thí sinh";
-      document.getElementById("candSBD").textContent = d.candidate.SBD || sbd;
-    }
-
-    // Yêu cầu quyền camera
-    try {
-      localStream = await navigator.mediaDevices.getUserMedia({
-        video: { width: { ideal: 640 }, height: { ideal: 480 } },
-        audio: false
-      });
-      document.getElementById("cam").srcObject = localStream;
-    } catch (e) {
-      alert("Không thể mở camera! Vui lòng cấp quyền truy cập camera trong trình duyệt để bắt đầu giám sát.");
+    const started = await startCameraAndUI();
+    if (!started) {
       btnJoin.disabled = false;
       btnJoin.innerHTML = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/><polyline points="10 17 15 12 10 7"/><line x1="15" y1="12" x2="3" y2="12"/></svg><span>Vào Phòng Thi</span>';
-      return;
     }
-
-    // Hiển thị giao diện thi
-    document.getElementById("joinBox").style.display = "none";
-    document.getElementById("examBox").style.display = "block";
-    startTime = Date.now();
-
-    tickTimer = setInterval(tick, 1000);
-    frameTimer = setInterval(sendFrame, 2500);
-    setStatus("Đang giám sát AI", "ok");
-
   } catch (err) {
     alert("Lỗi kết nối máy chủ: " + err.message);
     btnJoin.disabled = false;
     btnJoin.innerHTML = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/><polyline points="10 17 15 12 10 7"/><line x1="15" y1="12" x2="3" y2="12"/></svg><span>Vào Phòng Thi</span>';
   }
+}
+
+async function startCameraAndUI() {
+  // Điện thoại camera phụ ưu tiên camera sau; laptop dùng webcam mặc định.
+  const videoConstraints = IS_SIDE
+    ? { facingMode: { ideal: "environment" }, width: { ideal: 1280 }, height: { ideal: 720 } }
+    : { width: { ideal: 640 }, height: { ideal: 480 } };
+
+  try {
+    localStream = await navigator.mediaDevices.getUserMedia({
+      video: videoConstraints,
+      audio: false
+    });
+  } catch (e) {
+    alert(
+      IS_SIDE
+        ? "Không thể mở camera điện thoại. Hãy cấp quyền camera và mở link bằng HTTPS (hoặc localhost)."
+        : "Không thể mở camera! Vui lòng cấp quyền truy cập camera trong trình duyệt để bắt đầu giám sát."
+    );
+    return false;
+  }
+
+  const video = document.getElementById("cam");
+  video.srcObject = localStream;
+  try { await video.play(); } catch (_) {}
+
+  document.getElementById("joinBox").style.display = "none";
+  document.getElementById("examBox").style.display = "block";
+  document.getElementById("btnFinish").style.display = IS_SIDE ? "none" : "inline-flex";
+  startTime = Date.now();
+
+  tickTimer = setInterval(tick, 1000);
+  frameTimer = setInterval(sendFrame, 2500);
+  setStatus(IS_SIDE ? "Camera phụ đang giám sát" : "Đang giám sát AI", "ok");
+
+  // Giữ màn hình điện thoại sáng khi dùng làm camera phụ.
+  if (IS_SIDE && "wakeLock" in navigator) {
+    try {
+      wakeLock = await navigator.wakeLock.request("screen");
+    } catch (_) {}
+  }
+  return true;
 }
 
 function tick() {
@@ -590,19 +681,22 @@ async function sendFrame() {
     if (video.readyState < 2 || !video.videoWidth || !video.videoHeight) return;
 
     const c = document.createElement("canvas");
-    const scale = 640 / video.videoWidth;
-    c.width = 640;
+    // Camera phụ gửi ảnh rộng hơn để AI thấy được cả bàn học.
+    const targetWidth = IS_SIDE ? 960 : 640;
+    const scale = targetWidth / video.videoWidth;
+    c.width = targetWidth;
     c.height = Math.round(video.videoHeight * scale);
     const ctx = c.getContext("2d");
     ctx.drawImage(video, 0, 0, c.width, c.height);
 
-    const blob = await new Promise(r => c.toBlob(r, "image/jpeg", 0.75));
+    const blob = await new Promise(r => c.toBlob(r, "image/jpeg", IS_SIDE ? 0.7 : 0.75));
     if (!blob) return;
 
     const fd = new FormData();
     fd.append("session_id", sessionId);
     fd.append("token", token);
     fd.append("ts_client", Date.now() / 1000);
+    fd.append("vai_tro", VAI_TRO);
     fd.append("frame", blob, "frame.jpg");
 
     const ctl = new AbortController();
@@ -615,12 +709,18 @@ async function sendFrame() {
     clearTimeout(t);
 
     if (r.status === 403) {
-      // Chỉ 403 mới là giám thị kết thúc ca thi
+      // Giám thị kết thúc ca thi
       handleExamClosedBySupervisor();
       return;
     }
 
     if (r.status === 401) {
+      if (IS_SIDE) {
+        // Link đã bị thu hồi/đổi token: dừng gửi frame để khỏi spam lỗi.
+        if (frameTimer) { clearInterval(frameTimer); frameTimer = null; }
+        setStatus("Link camera phụ đã hết hiệu lực. Liên hệ giám thị.", "bad");
+        return;
+      }
       // Token chết (server restart/thu hồi): join lại im lặng bằng SBD đã lưu
       rejoinQuietly();
       return;
@@ -632,7 +732,7 @@ async function sendFrame() {
     const netEl = document.getElementById("netState");
     netEl.textContent = "Ổn định";
     netEl.className = "ok";
-    setStatus("Đang giám sát AI", "ok");
+    setStatus(IS_SIDE ? "Camera phụ đang giám sát" : "Đang giám sát AI", "ok");
 
   } catch (e) {
     failStreak++;
@@ -650,10 +750,13 @@ function handleExamClosedBySupervisor() {
   stopAllMedia();
   document.getElementById("examBox").style.display = "none";
   document.getElementById("finishedBox").style.display = "block";
-  document.getElementById("finishedDesc").textContent = "Ca thi đã được kết thúc bởi giám thị phòng thi. Cảm ơn bạn đã hoàn thành phiên giám sát!";
+  document.getElementById("finishedDesc").textContent = IS_SIDE
+    ? "Ca thi đã được kết thúc bởi giám thị. Bạn có thể đóng camera phụ này."
+    : "Ca thi đã được kết thúc bởi giám thị phòng thi. Cảm ơn bạn đã hoàn thành phiên giám sát!";
 }
 
 function confirmFinish() {
+  if (IS_SIDE) return;
   document.getElementById("confirmModal").style.display = "flex";
 }
 
@@ -662,6 +765,7 @@ function closeConfirmModal() {
 }
 
 async function submitFinishExam() {
+  if (IS_SIDE) return;
   const btn = document.getElementById("btnModalConfirm");
   btn.disabled = true;
   btn.textContent = "Đang kết thúc...";
@@ -675,6 +779,18 @@ async function submitFinishExam() {
         token: token
       }),
     });
+    if (!r.ok) {
+      let msg = "Không thể kết thúc bài thi.";
+      try {
+        const err = await r.json();
+        if (err && err.detail) msg = err.detail;
+      } catch (_) {}
+      closeConfirmModal();
+      alert(msg);
+      btn.disabled = false;
+      btn.textContent = "Xác nhận kết thúc";
+      return;
+    }
     closeConfirmModal();
     isFinished = true;
     stopAllMedia();
@@ -694,14 +810,22 @@ function stopAllMedia() {
     localStream.getTracks().forEach(track => track.stop());
     localStream = null;
   }
+  if (wakeLock) {
+    try { wakeLock.release(); } catch (_) {}
+    wakeLock = null;
+  }
   const video = document.getElementById("cam");
   if (video) video.srcObject = null;
 }
 
-// Cảnh báo rời tab
+// Cảnh báo rời tab (chỉ áp dụng cho camera trước / màn hình làm bài)
 document.addEventListener("visibilitychange", () => {
-  if (document.hidden && !isFinished && sessionId) {
+  if (document.hidden && !isFinished && sessionId && !IS_SIDE) {
     setStatus("CẢNH BÁO: Không được rời khỏi màn hình thi!", "bad");
+  }
+  // Điện thoại tắt/mở màn hình sẽ mất wake lock: xin lại khi quay lại tab.
+  if (!document.hidden && IS_SIDE && localStream && !isFinished && "wakeLock" in navigator) {
+    navigator.wakeLock.request("screen").then((lock) => { wakeLock = lock; }).catch(() => {});
   }
 });
 </script>

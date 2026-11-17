@@ -273,13 +273,16 @@ else:
     for row in page_events:
         c1, c2, c3, c4, c5 = st.columns([1.2, 1.8, 0.9, 1.3, 0.8])
 
+        raw_bh = row.get("LoaiHanhVi", "?")
+        friendly_bh = get_friendly_behavior_label(raw_bh)
+        cam_role = row.get("VaiTroCamera") or "front"
+        cam_label = "Camera phụ" if cam_role == "side" else "Camera trước"
         c1.markdown(
-            f"<div class='tbl-cell'><b>{str(row.get('ThoiGianPhatHien', ''))[:19].replace('T', ' ')}</b></div>",
+            f"<div class='tbl-cell'><b>{str(row.get('ThoiGianPhatHien', ''))[:19].replace('T', ' ')}</b>"
+            f"<br><span style='font-size:10.5px; color:#64748b;'>{cam_label}</span></div>",
             unsafe_allow_html=True,
         )
 
-        raw_bh = row.get("LoaiHanhVi", "?")
-        friendly_bh = get_friendly_behavior_label(raw_bh)
         c2.markdown(
             f"<div class='tbl-cell'><span style='color: var(--wf-danger); font-weight:600;'>{friendly_bh}</span></div>",
             unsafe_allow_html=True,

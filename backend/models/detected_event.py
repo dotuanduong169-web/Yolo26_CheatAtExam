@@ -33,6 +33,8 @@ class DetectedEvent(Base):
         nullable=False,
         index=True,
     )
+    # Vai trò camera phát hiện sự kiện: front (webcam) / side (điện thoại phụ)
+    VaiTroCamera = Column(String(20), nullable=True, default="front", index=True)
     ThoiGianTao = Column(TIMESTAMP, nullable=False, default=lambda: datetime.now(timezone.utc))
 
     @property

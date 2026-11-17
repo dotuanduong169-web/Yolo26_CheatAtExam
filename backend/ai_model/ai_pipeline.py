@@ -201,12 +201,15 @@ def process_frame(
     frame: np.ndarray,
     frame_count: int = 0,
     tracker_ns: str = "default",
+    enable_pose: bool = True,
 ) -> tuple[np.ndarray, list[dict]]:
     """
     Chạy YOLO26-seg trên một frame BGR.
     Điểm logic: ngưỡng tin cậy 0,5 và ảnh infer 512; thiếu model hoặc frame rỗng
     thì trả rỗng; mask nhỏ dưới 100 điểm ảnh thì bỏ để khỏi nhiễu.
     tracker_ns tách bảng track theo nguồn (mặc định giữ tương thích gọi cũ).
+    enable_pose=False dùng cho camera phụ (góc sau/bàn) để tránh luật tư thế
+    chính diện báo sai và giảm tải CPU.
 
     Returns:
         (annotated_frame, detections). Mỗi detection:
@@ -218,7 +221,7 @@ def process_frame(
         return frame, results_data
 
     if TRACK_ENABLED:
-        return _process_frame_tracked(frame, frame_count, tracker_ns)
+        return _process_frame_tracked(frame, frame_count, tracker_ns, enable_pose=enable_pose)
 
     try:
         with _INFER_LOCK:
@@ -335,7 +338,10 @@ def _run_pose(frame: np.ndarray) -> tuple[list[dict], int, float]:
 
 
 def _process_frame_tracked(
-    frame: np.ndarray, frame_count: int = 0, tracker_ns: str = "default"
+    frame: np.ndarray,
+    frame_count: int = 0,
+    tracker_ns: str = "default",
+    enable_pose: bool = True,
 ) -> tuple[np.ndarray, list[dict]]:
     """Bản tối ưu: ByteTrack + infer cách frame + giữ box khi flicker.
     Điểm logic: frame lẻ tái dùng box frame chẵn (giảm nửa infer);
@@ -392,11 +398,11 @@ def _process_frame_tracked(
             "track_id": track_id,
         })
 
-    if _pose_model is not None and frame_count % POSE_STRIDE == 0:
+    if enable_pose and _pose_model is not None and frame_count % POSE_STRIDE == 0:
         pose_dets, n_persons, max_conf = _run_pose(frame)
         _last_pose_info[tracker_ns] = (n_persons, max_conf)
         pose_dets = _smooth_behavior(tracker_ns, pose_dets)
-    elif tracker_ns in _beh_alive:
+    elif enable_pose and tracker_ns in _beh_alive:
         pose_dets = _smooth_behavior(tracker_ns, [])
     else:
         pose_dets = []

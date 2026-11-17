@@ -8,10 +8,14 @@ Hệ thống giám sát thi cử bằng AI, hỗ trợ 2 chế độ:
 * **Thi trực tuyến**: thí sinh mở link `/exam`, nhập SBD, dùng webcam trình duyệt
   gửi frame về server; mỗi phiên thí sinh có worker AI riêng, giám thị theo dõi
   trạng thái từng thí sinh trên lưới dashboard.
+* **2 camera/thí sinh (demo)**: webcam máy tính là camera trước (`front`) + điện thoại
+  là camera phụ (`side`) mở link riêng, giúp quan sát cả mặt và góc bàn học.
 
 Khi vi phạm được xác nhận (debounce nhiều frame), hệ thống lưu ảnh bằng chứng vào
-`images/` và ghi sự kiện vào PostgreSQL. Giám thị có thể xác minh đúng/sai và sửa
-nhãn thủ công; thống kê tự tính lại theo nhãn đã sửa.
+`images/` và ghi sự kiện vào PostgreSQL. Ảnh snapshot đi qua pipeline 2 bước:
+lưu **raw** trước, sau đó chuẩn hóa thành `normalized`/`thumbnail`/`annotated`;
+DB chỉ lưu đường dẫn + metadata, không lưu blob. Giám thị có thể xác minh đúng/sai
+và sửa nhãn thủ công; thống kê tự tính lại theo nhãn đã sửa.
 
 ## Tính năng
 
@@ -20,8 +24,13 @@ nhãn thủ công; thống kê tự tính lại theo nhãn đã sửa.
 * Phát hiện hành vi bằng YOLO26n-pose + luật hình học keypoints (không cần train lại).
 * Chống nhiễu: debounce theo cửa sổ frame (vật thể 3/5, hành vi 4/6) và cooldown 15s/6s.
 * Thi online: tạo ca thi, nhập danh sách thí sinh (SBD, họ tên, lớp), mở/đóng ca,
-  link dự thi, vào thi idempotent (vào lại vẫn giữ phiên), token nộp frame lưu DB
-  (sống qua restart), tự dừng worker khi phiên kết thúc hoặc idle 120 giây.
+  link dự thi, vào thi idempotent (vào lại vẫn giữ phiên), token riêng theo từng
+  luồng camera lưu DB (sống qua restart), tự dừng worker khi phiên kết thúc hoặc idle 120 giây.
+* 2 camera/thí sinh: camera trước `front` chạy object + pose + `vang_mat`/`nhieu_nguoi`;
+  camera phụ `side` (điện thoại) chỉ chạy object detection, có token/worker/queue riêng.
+* Snapshot pipeline: `images/raw/` → `images/processed/` (`normalized`, `thumbnail`,
+  `annotated`), metadata ở `tbl_snapshot` / `tbl_snapshot_processed`; lưu raw trước,
+  chuẩn hóa sau, dashboard chỉ đọc ảnh đã chuẩn hóa.
 * Quy tắc riêng cho thi online: `vang_mat` (vắng mặt > 10 giây), `nhieu_nguoi` (> 1 người).
 * Lịch sử: danh sách ca thi, chi tiết phiên, xem/xác minh sự kiện, xóa phiên (admin xóa mọi phiên).
 * Thống kê: theo ngày, theo tuần, theo khoảng ngày, tổng hợp và phân bố hành vi; biểu đồ Plotly.
@@ -33,17 +42,18 @@ nhãn thủ công; thống kê tự tính lại theo nhãn đã sửa.
 ```text
 Trình duyệt giám thị ── Streamlit :8501 ──┐
 Trình duyệt thí sinh ── /exam (webcam) ───┼── FastAPI :8000 ── PostgreSQL 16 :5432
-                                          │        │
-                                          │        ├── YOLO26n-seg  (OpenVINO, fallback .pt)
-                                          │        ├── YOLO26n-pose (OpenVINO) + luật hành vi
-                                          │        └── ảnh bằng chứng: images/ (gitignore)
-                                          └── luồng MJPEG /camera/video_feed cho trang giám sát
+Điện thoại thí sinh ── /exam?role=side ───┘        │
+                                                    ├── YOLO26n-seg  (OpenVINO, fallback .pt)
+                                                    ├── YOLO26n-pose (OpenVINO) + luật hành vi
+                                                    ├── ảnh gốc:   images/raw/ (gitignore)
+                                                    ├── ảnh d.suất: images/processed/ (gitignore)
+                                                    └── luồng MJPEG /camera/video_feed cho trang giám sát
 ```
 
 Luồng xử lý phòng thi: thread capture đọc frame liên tục → worker infer riêng vẽ
 kết quả → kiểm tra debounce/cooldown → lưu ảnh + sự kiện. Luồng thi online:
-browser gửi JPEG mỗi 2,5 giây → hàng đợi giữ frame mới nhất → worker riêng từng
-phiên → debounce → snapshot.
+browser gửi JPEG mỗi 2,5 giây kèm `vai_tro` → hàng đợi riêng từng luồng camera →
+worker riêng từng `(phiên, vai trò)` → debounce → snapshot raw → chuẩn hóa.
 
 ## Yêu cầu
 
@@ -96,12 +106,19 @@ Sao chép từ `.env.example`. Các biến chính:
 | `MODEL_TRACK` / `MODEL_STRIDE` / `MODEL_KEEP` | `1` / `2` / `5` | Bật ByteTrack, infer cách frame, số frame giữ box |
 | `POSE_MODEL_PATH` | thư mục pose OpenVINO | Weights YOLO26n-pose (imgsz cố định 320) |
 | `POSE_CONF` / `POSE_STRIDE` / `MODEL_BEH_KEEP` | `0.25` / `3` / `5` | Ngưỡng, chu kỳ và thời gian giữ box hành vi |
-| `SAVE_INTERVAL_SECONDS` | `10` | Chu kỳ ghi bản ghi thống kê |
+| `SAVE_INTERVAL_SECONDS` | `10` | Chu kỳ lưu snapshot sự kiện định kỳ |
+| `SNAPSHOT_INTERVAL_SECONDS` | `30` | Chu kỳ lưu snapshot nền cho mỗi luồng camera (giây) |
+| `SNAPSHOT_MAX_WIDTH` / `SNAPSHOT_THUMB_WIDTH` | `1280` / `480` | Cạnh rộng tối đa của ảnh normalized / thumbnail |
+| `SNAPSHOT_JPEG_QUALITY` | `85` | Chất lượng JPEG khi ghi ảnh đã chuẩn hóa |
 | `OBJECT_COOLDOWN_SECONDS` / `POSE_COOLDOWN_SECONDS` | `15` / `6` | Khoảng chờ giữa 2 lần lưu cùng loại vi phạm |
 | `BEH_FACE_VIS_MIN`, `BEH_SHO_VIS_MIN`, `BEH_TURN_RATIO`, `BEH_BEND_RATIO` | `0.25`, `0.35`, `0.32`, `0.05` | Ngưỡng luật hành vi (xem `backend/ai_model/behavior.py`) |
 
 `API_HOST`/`API_PORT` trong `core/config.py` chỉ mang tính tham khảo; lệnh chạy
 uvicorn bên dưới mới quyết định địa chỉ lắng nghe.
+
+`API_BASE_URL` là biến môi trường của Streamlit (không nằm trong `.env` backend),
+mặc định `http://127.0.0.1:8000`; khi cho điện thoại mở link camera phụ trong LAN,
+đặt `API_BASE_URL=http://<IP-LAN-của-máy-chủ>:8000` trước khi chạy Streamlit.
 
 ## Chạy
 
@@ -130,6 +147,7 @@ tài khoản **`admin` / `Admin123`** nếu chưa có — hãy đổi mật kh�
 | API docs (Swagger) | `http://localhost:8000/docs` |
 | Giao diện giám thị | `http://localhost:8501` |
 | Trang thi cho thí sinh | `http://localhost:8000/exam?session_id=<id>` |
+| Link camera phụ (điện thoại) | Giám thị bấm **Link camera phụ** ở card thí sinh để lấy link `.../exam?session_id=<id>&role=side&token=...` |
 | Trang test camera + AI | `http://localhost:8000/camera-test` |
 | Health check | `http://localhost:8000/health` |
 
@@ -163,10 +181,17 @@ mở luồng mới khi đang chạy sẽ trả về phiên hiện tại.
 4. Thí sinh mở link, nhập **SBD** (chỉ cần SBD nằm trong danh sách ca đang mở),
    cấp quyền camera. Trình duyệt gửi frame mỗi 2,5 giây; vào lại cùng SBD sẽ
    trả về đúng phiên đang mở kèm token mới.
-5. Giám thị theo dõi lưới trạng thái từng thí sinh (đang giám sát, số sự kiện,
-   số chờ kiểm tra, ảnh snapshot mới nhất). Thí sinh tự bấm "Kết thúc bài thi"
-   hoặc giám thị **Kết thúc ca thi** để chốt toàn bộ phiên con.
-6. Sự kiện và thống kê xem lại ở trang **Lịch sử** / **chi tiết phiên** / **Thống kê**.
+5. **Camera phụ (điện thoại):** trên card thí sinh đang thi, bấm **Link camera phụ**
+   → mở link trên điện thoại (cùng mạng LAN, HTTPS hoặc localhost). Điện thoại dùng
+   camera sau, gửi frame với `vai_tro=side`, không ảnh hưởng luồng webcam `front`.
+   Link giữ nguyên hiệu lực tới khi ca thi kết thúc. Khi chạy demo qua điện thoại,
+   đặt `API_BASE_URL=http://<IP-LAN-của-server>:8000` trước khi khởi động Streamlit
+   để link cấp cho điện thoại trỏ đúng địa chỉ mở được.
+6. Giám thị theo dõi lưới trạng thái từng thí sinh với **2 ô ảnh** (trước/phụ),
+   số sự kiện, số chờ kiểm tra. Thí sinh tự bấm "Kết thúc bài thi" trên máy tính
+   (không bấm trên điện thoại) hoặc giám thị **Kết thúc ca thi** để chốt toàn bộ phiên con.
+7. Sự kiện và thống kê xem lại ở trang **Lịch sử** / **chi tiết phiên** / **Thống kê**;
+   mỗi sự kiện ghi rõ nguồn **Camera trước** hay **Camera phụ**.
 
 ## API chính
 
@@ -189,13 +214,16 @@ không cần JWT — xác thực bằng SBD và token nộp frame.
 | | GET | `/camera/video_feed`, `/camera/list`, `/camera/info`, `/camera/status` | Luồng MJPEG, danh sách nguồn, trạng thái |
 | | GET | `/camera/snapshot` | Ảnh JPEG frame mới nhất đã vẽ AI |
 | Candidates | POST | `/candidates/import`, GET `/candidates?session_id=` | Nhập/liệt kê danh sách thí sinh |
-| | POST | `/candidates/join` | Thí sinh vào thi bằng SBD |
-| | GET | `/candidates/overview?session_id=` | Lưới trạng thái cho giám thị |
-| | POST | `/candidates/finish` | Thí sinh tự kết thúc (token) |
+| | POST | `/candidates/join` | Thí sinh vào thi: `SBD` + `VaiTro` (`front`/`side`) |
+| | GET | `/candidates/overview?session_id=` | Lưới trạng thái + trạng thái 2 camera |
+| | POST | `/candidates/finish` | Thí sinh tự kết thúc (token front) |
 | | POST | `/candidates/leave/{session_id}` | Giám thị chốt phiên con |
 | | POST | `/candidates/session/create`, `/candidates/session/{id}/open`, `/candidates/session/{id}/close` | Tạo/mở/đóng ca thi |
-| | GET | `/candidates/session/{id}/snapshot` | Ảnh snapshot thí sinh |
-| Ingest | POST | `/ingest/frame` | Form-data: `session_id`, `token`, `ts_client`, `frame` (JPEG ≤ 500 KB) |
+| | POST | `/candidates/session/{id}/stream/{vai_tro}/token` | Cấp/tái sử dụng link camera (`refresh=true` để đổi token) |
+| | GET | `/candidates/session/{id}/streams` | Danh sách luồng camera của phiên con |
+| | GET | `/candidates/session/{id}/attach?token=` | Mở link camera bằng token có sẵn (không mint token mới) |
+| | GET | `/candidates/session/{id}/snapshot?role=&variant=` | Ảnh snapshot: `role=front/side`, `variant=auto/normalized/thumbnail/annotated` |
+| Ingest | POST | `/ingest/frame` | Form-data: `session_id`, `token`, `ts_client`, `vai_tro` (`front/side`), `frame` (JPEG ≤ 500 KB) |
 | Events | GET | `/events/session/{id}`, `/events`, `/events/{id}` | Danh sách/chi tiết sự kiện |
 | | PATCH | `/events/{id}` | `{"TrangThaiKiemTra": "dung"/"sai", "LoaiHanhVi": "cellphone"}` |
 | | GET | `/events/system/notifications` | Thông báo cảnh báo mới nhất |
@@ -214,11 +242,14 @@ Chi tiết đầy đủ tham số xem tại `/docs` khi backend đang chạy.
 * **Model hành vi** (`backend/ai_model/weights/yolo26n-pose_openvino_model`):
   YOLO26n-pose COCO-17, suy luận imgsz 320; luật hình học từ mũi/mắt/tai/vai phân loại
   `nhin_thang`, `quay_dau`, `quay_sau`, `cui_xuong` (xem `backend/ai_model/behavior.py`).
-* **Debounce**: vật thể cần ≥ 3/5 frame, hành vi cần ≥ 4/6 frame (riêng `quay_sau` 3/4),
-  cooldown 15 giây cho vật thể và 6 giây cho hành vi.
+* **Debounce**: vật thể cần ≥ 3/5 frame, hành vi cần ≥ 4/6 frame để kích hoạt lưu
+  (riêng `quay_sau` dùng cửa sổ 3/4 và được giữ ngay khi đã có snapshot), cooldown
+  15 giây cho vật thể và 6 giây cho hành vi.
 * **Thi online bổ sung**: `vang_mat` khi không thấy người > 10 giây (chỉ ghi 1 lần mỗi đợt),
   `nhieu_nguoi` khi phát hiện > 1 người; worker tự dừng khi phiên kết thúc hoặc không
   nhận frame trong 120 giây.
+* **Camera phụ `side`**: chỉ chạy YOLO26n-seg (`enable_pose=False`), không kích hoạt
+  luật tư thế/`vang_mat`/`nhieu_nguoi` để tránh báo trùng và giảm tải CPU.
 * Thiếu weights: hệ thống không crash, chỉ log cảnh báo và trả kết quả rỗng; thiếu
   model pose thì chỉ tắt nhánh hành vi.
 
@@ -230,18 +261,25 @@ Các bảng chính (tự tạo bằng `Base.metadata.create_all` khi khởi đ�
 |---|---|
 | `tbl_user` | Tài khoản, vai trò `admin`/`teacher`, trạng thái `hoat_dong`/`khoa` |
 | `tbl_edgedevice` | Thiết bị biên: tên, `DuongDanRTSP`, vị trí, trạng thái |
-| `tbl_monitoring_sessions` | Ca thi/phiên giám sát: giờ bắt đầu/kết thúc, phòng, môn, thiết bị, thí sinh (`FK_MaThiSinh`), token tham gia |
+| `tbl_monitoring_sessions` | Ca thi/phiên giám sát: giờ bắt đầu/kết thúc, phòng, môn, thiết bị, thí sinh (`FK_MaThiSinh`), token tham gia (legacy) |
 | `tbl_thi_sinh` | Danh sách thí sinh theo ca, SBD duy nhất trong một ca |
-| `tbl_detected_events` | Sự kiện gian lận: loại hành vi, tọa độ, độ tin cậy, trạng thái kiểm tra, người kiểm tra |
-| `tbl_evidences` | Bằng chứng gắn sự kiện, đường dẫn tệp trong `images/` |
-| `statistics` | Bản ghi thống kê định kỳ (`total_students`, `sleeping_count`, `focus_rate`) |
+| `tbl_camera_stream` | Luồng camera `front`/`side` của phiên con: token riêng, trạng thái, lần nhận cuối |
+| `tbl_snapshot` | Metadata ảnh gốc (`images/raw/`): hash, kích thước, trạng thái xử lý |
+| `tbl_snapshot_processed` | Ảnh dẫn xuất (`normalized`/`thumbnail`/`annotated`) trong `images/processed/` |
+| `tbl_detected_events` | Sự kiện gian lận: loại hành vi, tọa độ, độ tin cậy, trạng thái kiểm tra, người kiểm tra, vai trò camera |
+| `tbl_evidences` | Bằng chứng gắn sự kiện, đường dẫn tệp trong `images/`, vai trò camera |
+
+Số liệu thống kê được tổng hợp trực tiếp từ `tbl_detected_events`; model `statistics`
+cũ không còn được đăng ký/ghi dữ liệu.
 
 Nhãn hợp lệ của `LoaiHanhVi`: `Cheat_Paper`, `cellphone`, `quay_dau`, `quay_sau`,
 `cui_xuong`, `vang_mat`, `nhieu_nguoi`, `Answer_paper` (tương thích weights cũ).
 
-Khi khởi động, `backend/main.py` tự bổ sung cột `FK_MaThiSinh`, `TokenThamGia`,
-nới `FK_MaThietBi` cho phép NULL và cập nhật CHECK constraint. Với DB cũ có thể
-chạy thủ công (từ gốc dự án):
+Khi khởi động, `backend/main.py` tự tạo các bảng mới (`tbl_camera_stream`,
+`tbl_snapshot`, `tbl_snapshot_processed`) và tự bổ sung `FK_MaThiSinh`,
+`VaiTroCamera` (trên sự kiện/bằng chứng), nới `FK_MaThietBi`
+cho phép NULL và cập nhật CHECK constraint. Cột `TokenThamGia` (legacy) được thêm
+bằng script riêng. Với DB cũ có thể chạy thủ công (từ gốc dự án):
 
 ```bash
 .venv/bin/python backend/scripts/migrate_online_exam.py
@@ -284,12 +322,14 @@ backend/
   core/                      # config, JWT/dependencies, security, rate-limit, blacklist, logger
   database/database.py       # Engine + SessionLocal (validate DATABASE_URL khi import)
   models/                    # ORM: tbl_user, tbl_edgedevice, tbl_monitoring_sessions,
-                             #      tbl_thi_sinh, tbl_detected_events, tbl_evidences, statistics
+                             #      tbl_thi_sinh, tbl_camera_stream, tbl_snapshot,
+                             #      tbl_snapshot_processed, tbl_detected_events, tbl_evidences
   schemas/                   # Pydantic request/response
   crud/                      # Truy vấn DB
   api/router/                # users, devices, camera, candidates, ingest, events, history, statistics
   service/                   # camera_service, camera_state, pipeline_service, stream_service,
-                             # ingest_service, session_service, statistics_service, user_service
+                             # ingest_service, snapshot_service, session_service,
+                             # statistics_service, user_service
   ai_model/                  # ai_pipeline.py (seg + track), behavior.py (luật pose), weights/
   scripts/                   # create_admin, migrate_online_exam, migrate_session_token,
                              # migrate_event_labels, migrate_dataset
@@ -298,7 +338,7 @@ backend/
   utils/                     # create_admin (bản argparse), label_utils
 frontend/
   app.py                     # Điểm vào Streamlit, khôi phục phiên từ localStorage/query params
-  config.py                  # API_BASE_URL (đổi khi chạy server khác 127.0.0.1)
+  config.py                  # API_BASE_URL (env, mặc định http://127.0.0.1:8000)
   components/                # evidence_dialog, nav_tabs
   pages/                     # login, home, online_exam, history, session_detail,
                              # event_detail, statistics, devices, users
@@ -308,7 +348,7 @@ training/
   yolo26n-pose_openvino_model/  # Model pose OpenVINO
   scripts/check_dataset.py      # Kiểm tra dataset YOLO-seg
 videos/                      # Video mẫu test_exam.mp4, test_exam_2.mp4
-images/                      # Ảnh bằng chứng sinh ra khi chạy (gitignore)
+images/                      # Ảnh sinh ra khi chạy (gitignore): raw/ + processed/ + bằng chứng
 docker-compose.yml           # PostgreSQL 16 (examcheat / examcheat123)
 setup.sh                     # Cài đặt tự động
 ```
@@ -333,7 +373,7 @@ và thu hồi token, in bảng kết quả PASS/FAIL.
 | Webcam không mở | Cấp quyền camera cho terminal/trình duyệt, đóng ứng dụng đang chiếm webcam; kiểm tra bằng nút Test ở trang Thiết bị |
 | RTSP treo/không kết nối | Sai IP/cổng hoặc camera ngoại tuyến; hệ thống đã giới hạn timeout 2,5 giây và sẽ báo lỗi rõ |
 | `/exam` báo không mở được camera | `getUserMedia` yêu cầu `localhost` hoặc HTTPS; dùng Chrome/Edge/Firefox bản mới |
-| Link thi trỏ về `127.0.0.1` | `frontend/config.py` đang hardcode `API_BASE_URL`; đổi thành IP LAN/tên miền server và thêm origin vào `ALLOWED_ORIGINS` rồi khởi động lại Streamlit |
+| Link thi trỏ về `127.0.0.1` | Đặt `API_BASE_URL=http://<IP-LAN-của-server>:8000` trước khi chạy Streamlit (mặc định `http://127.0.0.1:8000`); thêm origin frontend vào `ALLOWED_ORIGINS` nếu cần |
 | Lỗi CORS trên trình duyệt | Thêm origin của Streamlit/FE vào `ALLOWED_ORIGINS` hoặc đặt `ENVIRONMENT=production` kèm danh sách origin đúng |
 | Log `Weights not found` | Sai `MODEL_PATH`/`POSE_MODEL_PATH`; hệ thống vẫn chạy nhưng không phát hiện gì |
 | Video mẫu chạy mãi | Video file được thiết kế lặp lại (`loop_video=True`); bấm Kết thúc ca thi để dừng |
@@ -344,8 +384,12 @@ và thu hồi token, in bảng kết quả PASS/FAIL.
   sung ảnh thật trước khi dùng chính thức.
 * Model pose hiện dùng pretrained COCO, chưa fine-tune trên footage phòng thi nên
   ngưỡng hành vi là tạm thời; video test ít thấy đầu, cần tune lại `BEH_*` với dữ liệu thật.
-* `quay_sau` và luật `vang_mat`/`nhieu_nguoi` chỉ áp dụng khi bật model pose; camera
-  tĩnh chỉ phát hiện vật thể (`Cheat_Paper`, `cellphone`).
+* `quay_sau` và luật `vang_mat`/`nhieu_nguoi` chỉ áp dụng cho camera trước (`front`)
+  khi bật model pose; camera phụ (`side`) và camera tĩnh chỉ phát hiện vật thể
+  (`Cheat_Paper`, `cellphone`).
+* Camera phụ cần cùng mạng LAN với server và trình duyệt hỗ trợ `getUserMedia`;
+  trên điện thoại nên dùng HTTPS (hoặc localhost qua USB debugging) để trình duyệt
+  cấp quyền camera. Link camera phụ chứa token nên không chia sẻ ra ngoài phòng thi.
 * Chỉ chạy được một phiên camera trực tiếp đồng thời (CameraState là singleton),
   trong khi các phiên thi online chạy worker song song theo từng phiên.
 * Xóa phiên chỉ xóa dữ liệu trong DB; ảnh bằng chứng trong `images/` không tự xóa.

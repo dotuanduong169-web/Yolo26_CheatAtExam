@@ -1,6 +1,7 @@
-"""Thêm cột TokenThamGia cho phiên con thi online.
+"""Thêm cột TokenThamGia (legacy) cho phiên con thi online.
 Luồng chính: ALTER ADD COLUMN IF NOT EXISTS (create_all không tự thêm cột vào bảng có sẵn).
-Token lưu DB để sống sót qua restart và nhiều tiến trình uvicorn.
+Token chính thức hiện nằm theo từng luồng trong tbl_camera_stream; chạy thêm
+backend/scripts/migrate_online_exam.py để tạo bảng luồng camera + snapshot.
 Chạy 1 lần sau khi deploy: .venv/bin/python backend/scripts/migrate_session_token.py
 """
 import sys

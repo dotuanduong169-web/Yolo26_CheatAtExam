@@ -19,6 +19,7 @@ async def ingest_frame(
     token: str = Form(...),
     ts_client: float = Form(...),
     frame: UploadFile = File(...),
+    vai_tro: str = Form("front"),
 ):
     """Nhận 1 frame JPEG từ browser. Trả 202 ngay khi xếp hàng thành công."""
     try:
@@ -27,7 +28,7 @@ async def ingest_frame(
         logger.warning(f"Ingest read failed: {exc}")
         raise HTTPException(status_code=400, detail="không đọc được file ảnh")
 
-    ok, reason = ingest_service.ingest_frame(session_id, token, ts_client, jpg)
+    ok, reason = ingest_service.ingest_frame(session_id, token, ts_client, jpg, vai_tro=vai_tro)
     if not ok:
         # 401 = token chết (restart/revoke) -> client tự join lại; còn lại là lỗi dữ liệu
         if reason == ingest_service.TOKEN_INVALID:

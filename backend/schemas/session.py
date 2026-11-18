@@ -7,6 +7,8 @@ from typing import Optional
 
 from pydantic import BaseModel, Field
 
+from schemas.event import EventCandidateInfo
+
 
 class SessionCreate(BaseModel):
     """Dữ liệu mở phiên giám sát mới."""
@@ -60,6 +62,8 @@ class SessionDetailResponse(BaseModel):
     """Chi tiết phiên gồm danh sách sự kiện gian lận."""
 
     session: SessionResponse
+    candidate: Optional[EventCandidateInfo] = None
+    parent_session_id: Optional[int] = None
     events: list = []
     # Thống kê service trả về (giữ default để tương thích ngược)
     tong_su_kien: int = 0

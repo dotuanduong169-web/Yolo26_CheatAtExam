@@ -33,6 +33,11 @@ SNAPSHOT_MAX_WIDTH = max(320, int(os.getenv("SNAPSHOT_MAX_WIDTH", "1280")))
 SNAPSHOT_THUMB_WIDTH = max(160, int(os.getenv("SNAPSHOT_THUMB_WIDTH", "480")))
 SNAPSHOT_JPEG_QUALITY = min(95, max(50, int(os.getenv("SNAPSHOT_JPEG_QUALITY", "85"))))
 
+# Ảnh thumbnail cho nhật ký tick: nhỏ, nhẹ, đủ nhìn hành vi. Raw/annotated đầy đủ
+# chỉ lưu khi có sự kiện nghiệp vụ (tbl_evidences).
+TIMELINE_IMAGE_MAX_WIDTH = max(160, int(os.getenv("TIMELINE_IMAGE_MAX_WIDTH", "480")))
+TIMELINE_JPEG_QUALITY = min(90, max(45, int(os.getenv("TIMELINE_JPEG_QUALITY", "72"))))
+
 RAW_DIR = settings.IMAGE_DIR / "raw"
 PROCESSED_DIR = settings.IMAGE_DIR / "processed"
 
@@ -263,6 +268,88 @@ def capture_snapshot(
         return None
     normalize_snapshot(snapshot_id, annotated_frame=annotated_frame)
     return snapshot_id
+
+
+def capture_timeline_snapshot(
+    session_id: int,
+    vai_tro: str,
+    frame: np.ndarray,
+    captured_at: datetime | None = None,
+) -> int | None:
+    """Lưu một thumbnail nhẹ cho nhật ký tick (không lưu raw/normalized).
+
+    Dùng đúng ảnh annotated đã qua AI để timeline thấy khung nhận diện. Chỉ một
+    file JPEG mỗi tick, giảm mạnh dung lượng so với pipeline snapshot đầy đủ.
+    """
+    if frame is None or getattr(frame, "size", 0) == 0:
+        return None
+
+    path: Path | None = None
+    db = SessionLocal()
+    try:
+        img = frame
+        if img.shape[1] > TIMELINE_IMAGE_MAX_WIDTH:
+            ratio = TIMELINE_IMAGE_MAX_WIDTH / float(img.shape[1])
+            img = cv2.resize(
+                img,
+                (TIMELINE_IMAGE_MAX_WIDTH, max(1, int(img.shape[0] * ratio))),
+                interpolation=cv2.INTER_AREA,
+            )
+
+        ok, buf = cv2.imencode(
+            ".jpg",
+            img,
+            [cv2.IMWRITE_JPEG_QUALITY, TIMELINE_JPEG_QUALITY],
+        )
+        if not ok:
+            return None
+
+        jpg_bytes = buf.tobytes()
+        stamp_dt = captured_at or _now()
+        out_dir = PROCESSED_DIR / stamp_dt.strftime("%Y%m%d")
+        out_dir.mkdir(parents=True, exist_ok=True)
+        path = out_dir / f"{_safe_name(session_id, vai_tro)}_timeline.jpg"
+        path.write_bytes(jpg_bytes)
+
+        h, w = img.shape[:2]
+        snapshot = Snapshot(
+            FK_MaPhienGiamSat=session_id,
+            VaiTroCamera=vai_tro,
+            ThoiGianChup=stamp_dt,
+            DuongDanGoc=str(path),
+            Hash=hashlib.sha256(jpg_bytes).hexdigest(),
+            KichThuocGoc=len(jpg_bytes),
+            Width=int(w),
+            Height=int(h),
+            TrangThaiXuLy="xong",
+        )
+        db.add(snapshot)
+        db.flush()
+        db.add(
+            SnapshotProcessed(
+                FK_MaSnapshot=snapshot.PK_MaSnapshot,
+                LoaiAnh="thumbnail",
+                DuongDanTep=str(path),
+                Width=int(w),
+                Height=int(h),
+                KichThuoc=len(jpg_bytes),
+            )
+        )
+        db.commit()
+        return snapshot.PK_MaSnapshot
+    except Exception as exc:
+        db.rollback()
+        if path is not None:
+            try:
+                path.unlink(missing_ok=True)
+            except Exception:
+                pass
+        logger.warning(
+            f"capture_timeline_snapshot failed (session={session_id}, role={vai_tro}): {exc}"
+        )
+        return None
+    finally:
+        db.close()
 
 
 def latest_snapshot_path(

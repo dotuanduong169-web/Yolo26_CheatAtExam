@@ -80,9 +80,21 @@ def get_system_notifications_endpoint(
     for ev in recent_events:
         raw_b = ev.LoaiHanhVi or ""
         friendly_b = behavior_names.get(raw_b, raw_b)
+        candidate = ev.session.candidate if ev.session is not None else None
         alerts.append({
             "id": ev.PK_MaSuKien,
             "session_id": ev.FK_MaPhienGiamSat,
+            "parent_session_id": candidate.FK_MaPhienGiamSat if candidate is not None else None,
+            "candidate": (
+                {
+                    "PK_MaThiSinh": candidate.PK_MaThiSinh,
+                    "SBD": candidate.SBD,
+                    "HoTen": candidate.HoTen,
+                    "Lop": candidate.Lop,
+                }
+                if candidate is not None
+                else None
+            ),
             "behavior": raw_b,
             "behavior_label": friendly_b,
             "confidence": round(float(ev.DoTinCay or 0) * 100, 1),

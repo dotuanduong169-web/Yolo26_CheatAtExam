@@ -32,10 +32,14 @@ from schemas.event import (
 )
 
 from schemas.statistics import (
+    CandidateStatItem,
     DailyStatItem,
     DateStatItem,
     StatisticResponse,
+    StatsOverviewResponse,
     StatsSummaryResponse,
+    TimelineItem,
+    TimelinePage,
     WeeklyStatItem,
 )
 
@@ -87,10 +91,14 @@ __all__ = [
     "EventVerify",
     "EvidenceResponse",
     # Statistics
+    "CandidateStatItem",
     "DailyStatItem",
     "DateStatItem",
     "StatisticResponse",
+    "StatsOverviewResponse",
     "StatsSummaryResponse",
+    "TimelineItem",
+    "TimelinePage",
     "WeeklyStatItem",
     # Candidate
     "CandidateImport",

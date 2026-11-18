@@ -2,11 +2,15 @@
 """Trang chi tiết phiên: KPI, biểu đồ tròn và bảng sự kiện."""
 
 import math
+import io
+import html
 
 import streamlit as st
 from utils.notify import notify
 import plotly.graph_objects as go
+from PIL import Image
 
+from services.event_api import get_evidence_bytes
 from services.history_api import get_session_detail
 from utils.auth_guard import require_auth
 from utils.hide_streamlit_sidebar import hide_sidebar
@@ -98,6 +102,28 @@ st.markdown(f"""
     <div class="status-badge {status_cls}">{status_text}</div>
 </div>
 """, unsafe_allow_html=True)
+
+# ── Thông tin thí sinh (nếu là phiên con) ──────────────────
+candidate = data.get("candidate") or {}
+if candidate:
+    c_sbd = candidate.get("SBD") or "—"
+    c_name = candidate.get("HoTen") or "—"
+    c_lop = candidate.get("Lop") or "—"
+    parent_id = data.get("parent_session_id") or "—"
+    st.markdown(f"""
+    <div class="wf-box" style="margin-top: 12px; border-left: 4px solid #2563eb;">
+        <div class="wf-box-header" style="margin-bottom: 6px;">
+            <div class="wf-box-title">Thông tin thí sinh</div>
+            <span class="wf-badge accent">Phiên con #{session_id}</span>
+        </div>
+        <div style="display:grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; font-size: 13px;">
+            <div><div style="color:#64748b;font-size:11px;">SBD</div><div style="font-weight:700;color:#0f172a;">{html.escape(str(c_sbd))}</div></div>
+            <div><div style="color:#64748b;font-size:11px;">HỌ TÊN</div><div style="font-weight:700;color:#0f172a;">{html.escape(str(c_name))}</div></div>
+            <div><div style="color:#64748b;font-size:11px;">LỚP</div><div style="font-weight:600;color:#0f172a;">{html.escape(str(c_lop))}</div></div>
+            <div><div style="color:#64748b;font-size:11px;">CA THI CHA</div><div style="font-weight:600;color:#0f172a;">#{html.escape(str(parent_id))}</div></div>
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
 
 # ── Top Row: Chart + KPI ────────────────────────────────────
 col_chart, col_kpi = st.columns([1.1, 2.3], gap="medium")
@@ -261,7 +287,8 @@ if not events:
     notify.empty_state("Phiên thi này không có sự kiện vi phạm nào", "Hệ thống camera AI không phát hiện bất kỳ hành vi nghi vấn gian lận nào trong suốt ca thi này.")
 else:
     # Header hàng bảng đồng bộ st.columns đảm bảo thẳng hàng 100% với các hàng dữ liệu
-    th1, th2, th3, th4, th5 = st.columns([1.2, 1.8, 0.9, 1.3, 0.8])
+    th0, th1, th2, th3, th4, th5 = st.columns([0.7, 1.15, 1.7, 0.8, 1.2, 0.7])
+    th0.caption("ẢNH")
     th1.caption("THỜI GIAN")
     th2.caption("HÀNH VI PHÁT HIỆN")
     th3.caption("ĐỘ TIN CẬY")
@@ -271,7 +298,31 @@ else:
     st.markdown("<hr style='margin: 4px 0 8px 0; border: none; border-top: 1px solid var(--wf-border);'>", unsafe_allow_html=True)
 
     for row in page_events:
-        c1, c2, c3, c4, c5 = st.columns([1.2, 1.8, 0.9, 1.3, 0.8])
+        c0, c1, c2, c3, c4, c5 = st.columns([0.7, 1.15, 1.7, 0.8, 1.2, 0.7])
+
+        with c0:
+            evidence = next(
+                (
+                    e
+                    for e in (row.get("evidences") or [])
+                    if (e.get("LoaiTep") or "anh") == "anh"
+                ),
+                None,
+            )
+            img = None
+            if evidence:
+                raw_img = get_evidence_bytes(
+                    st.session_state.client, evidence.get("PK_MaBangChung")
+                )
+                if raw_img:
+                    try:
+                        img = Image.open(io.BytesIO(raw_img))
+                    except Exception:
+                        img = None
+            if img is not None:
+                st.image(img, width=78)
+            else:
+                st.caption("—")
 
         raw_bh = row.get("LoaiHanhVi", "?")
         friendly_bh = get_friendly_behavior_label(raw_bh)

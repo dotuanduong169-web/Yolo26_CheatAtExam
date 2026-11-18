@@ -44,5 +44,10 @@ class MonitoringSession(Base):
     streams = relationship("CameraStream", back_populates="session", cascade="all, delete-orphan")
     snapshots = relationship("Snapshot", back_populates="session", cascade="all, delete-orphan")
 
+    @property
+    def parent_session_id(self):
+        """Mã ca thi cha nếu đây là phiên con của thí sinh."""
+        return self.candidate.FK_MaPhienGiamSat if self.candidate is not None else None
+
     def __repr__(self) -> str:
         return f"<MonitoringSession(id={self.PK_MaPhienGiamSat}, room={self.PhongThi!r})>"

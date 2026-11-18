@@ -1,4 +1,5 @@
 import base64
+import html
 import io
 
 import streamlit as st
@@ -158,21 +159,49 @@ with left_col:
 
     pil_img = None
     if evidences:
-        raw = get_evidence_bytes(st.session_state.client, evidences[0].get("PK_MaBangChung"))
-        if raw:
+        for ev in evidences:
+            raw = get_evidence_bytes(st.session_state.client, ev.get("PK_MaBangChung"))
+            if not raw:
+                continue
             try:
                 pil_img = Image.open(io.BytesIO(raw))
             except Exception:
-                pass
-
-    if pil_img:
-        st.image(pil_img, use_container_width=True)
-        st.caption("Khung nhận diện vi phạm được hệ thống camera AI đánh dấu tại thời điểm phát hiện.")
-    else:
+                pil_img = None
+                continue
+            ev_role = ev.get("VaiTroCamera") or "front"
+            ev_cam = "Camera phụ (điện thoại)" if ev_role == "side" else "Camera trước (webcam)"
+            st.image(pil_img, use_container_width=True)
+            st.caption(
+                f"Ảnh minh chứng · {ev_cam} · {str(ev.get('ThoiGianTao', ''))[:19].replace('T', ' ')}"
+            )
+    if not pil_img:
         notify.warning("Không tải được ảnh bằng chứng của sự kiện này.")
 
 # ── RIGHT: Info + Verify ────────────────────────────────────
 with right_col:
+    candidate = data.get("candidate") or {}
+    session_info = data.get("session") or {}
+    if candidate:
+        st.markdown(f"""
+        <div class="kpi-mini" style="border-left: 3px solid #2563eb;">
+            <div class="kpi-left">
+                <div class="kpi-label">THÍ SINH</div>
+                <div class="kpi-val" style="font-size:15px;">
+                    {html.escape(str(candidate.get('SBD') or ''))} · {html.escape(str(candidate.get('HoTen') or ''))}
+                    <span style="font-size:12px;font-weight:normal;color:#64748b;">
+                        {('· ' + html.escape(str(candidate.get('Lop')))) if candidate.get('Lop') else ''}
+                    </span>
+                </div>
+                <div style="font-size:11px;color:#64748b;margin-top:2px;">
+                    Ca thi #{html.escape(str(session_info.get('parent_session_id') or '—'))}
+                    · {html.escape(str(session_info.get('PhongThi') or '—'))}
+                    · {html.escape(str(session_info.get('MonThi') or '—'))}
+                    · Phiên con #{html.escape(str(session_info.get('PK_MaPhienGiamSat') or '—'))}
+                </div>
+            </div>
+        </div>
+        """, unsafe_allow_html=True)
+
     st.markdown('<div class="right-section-title">Thông tin sự kiện</div>', unsafe_allow_html=True)
 
     user_label = data.get("NhanNguoiDung")

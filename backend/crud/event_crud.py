@@ -10,6 +10,15 @@ from sqlalchemy.orm import Session as DBSession, joinedload
 
 from models.detected_event import DetectedEvent
 from models.evidence import Evidence
+from models.monitoring_session import MonitoringSession
+
+
+def _with_event_relations(query):
+    """Nạp sẵn bằng chứng + phiên + thí sinh để trả EventResponse đầy đủ."""
+    return query.options(
+        joinedload(DetectedEvent.evidences),
+        joinedload(DetectedEvent.session).joinedload(MonitoringSession.candidate),
+    )
 
 
 def create_event(
@@ -58,8 +67,7 @@ def create_evidence(
 def get_event_by_id(db: DBSession, event_id: int) -> Optional[DetectedEvent]:
     """Lấy sự kiện kèm bằng chứng theo khóa chính."""
     return (
-        db.query(DetectedEvent)
-        .options(joinedload(DetectedEvent.evidences))
+        _with_event_relations(db.query(DetectedEvent))
         .filter(DetectedEvent.PK_MaSuKien == event_id)
         .first()
     )
@@ -81,8 +89,7 @@ def list_events_by_session(
 ) -> list[DetectedEvent]:
     """Liệt kê sự kiện của phiên, mới nhất trước, lọc theo trạng thái kiểm tra."""
     query = (
-        db.query(DetectedEvent)
-        .options(joinedload(DetectedEvent.evidences))
+        _with_event_relations(db.query(DetectedEvent))
         .filter(DetectedEvent.FK_MaPhienGiamSat == session_id)
     )
     if trang_thai is not None:
@@ -102,7 +109,7 @@ def list_all_events_crud(
     limit: int = 200,
 ) -> list[DetectedEvent]:
     """Liệt kê toàn bộ sự kiện của tất cả các phiên, mới nhất trước."""
-    query = db.query(DetectedEvent).options(joinedload(DetectedEvent.evidences))
+    query = _with_event_relations(db.query(DetectedEvent))
     if trang_thai is not None:
         query = query.filter(DetectedEvent.TrangThaiKiemTra == trang_thai)
     return (
@@ -170,8 +177,7 @@ def count_total_pending_events(db: DBSession) -> int:
 def list_recent_pending_events(db: DBSession, limit: int = 5) -> list[DetectedEvent]:
     """Lấy danh sách các sự kiện vi phạm chờ kiểm tra mới nhất."""
     return (
-        db.query(DetectedEvent)
-        .options(joinedload(DetectedEvent.evidences))
+        _with_event_relations(db.query(DetectedEvent))
         .filter(DetectedEvent.TrangThaiKiemTra == "cho_kiem_tra")
         .order_by(DetectedEvent.PK_MaSuKien.desc())
         .limit(limit)

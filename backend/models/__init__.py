@@ -10,6 +10,7 @@ from models.camera_stream import CameraStream
 from models.snapshot import Snapshot, SnapshotProcessed
 from models.detected_event import DetectedEvent
 from models.evidence import Evidence
+from models.timeline import CandidateTimeline
 
 __all__ = [
     "Base",
@@ -22,4 +23,5 @@ __all__ = [
     "SnapshotProcessed",
     "DetectedEvent",
     "Evidence",
+    "CandidateTimeline",
 ]

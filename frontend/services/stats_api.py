@@ -103,3 +103,108 @@ def get_behavior_distribution(session: requests.Session) -> list:
         return []
 
 
+def _clean_params(**kwargs) -> dict:
+    """Bỏ tham số None/rỗng trước khi gọi API."""
+    return {k: v for k, v in kwargs.items() if v not in (None, "", [])}
+
+
+def get_stats_overview(
+    session: requests.Session,
+    session_id: int | None = None,
+    from_date: str | None = None,
+    to_date: str | None = None,
+) -> dict:
+    """KPI thống kê gắn thí sinh. Lỗi trả {}."""
+    params = _clean_params(session_id=session_id, from_date=from_date, to_date=to_date)
+    key = f"stats:overview:{params}"
+    hit, val = cache_get(key, 10)
+    if hit:
+        return val
+    try:
+        res = session.get(
+            f"{API_BASE_URL}/stats/overview",
+            params=params,
+            headers=get_auth_headers(),
+        )
+        if res.status_code == 200:
+            data = res.json()
+            cache_set(key, data)
+            return data
+        logger.warning(f"get_stats_overview failed: {res.status_code}")
+        return {}
+    except requests.RequestException as exc:
+        logger.warning(f"get_stats_overview error: {exc}")
+        return {}
+
+
+def get_candidate_stats(
+    session: requests.Session,
+    session_id: int | None = None,
+    from_date: str | None = None,
+    to_date: str | None = None,
+) -> list:
+    """Tổng hợp cảnh báo theo từng thí sinh. Lỗi trả []."""
+    params = _clean_params(session_id=session_id, from_date=from_date, to_date=to_date)
+    key = f"stats:candidates:{params}"
+    hit, val = cache_get(key, 10)
+    if hit:
+        return val
+    try:
+        res = session.get(
+            f"{API_BASE_URL}/stats/candidates",
+            params=params,
+            headers=get_auth_headers(),
+        )
+        if res.status_code == 200:
+            data = res.json()
+            cache_set(key, data)
+            return data
+        logger.warning(f"get_candidate_stats failed: {res.status_code}")
+        return []
+    except requests.RequestException as exc:
+        logger.warning(f"get_candidate_stats error: {exc}")
+        return []
+
+
+def get_timeline(
+    session: requests.Session,
+    session_id: int | None = None,
+    candidate_id: int | None = None,
+    only_alerts: bool = True,
+    from_date: str | None = None,
+    to_date: str | None = None,
+    skip: int = 0,
+    limit: int = 30,
+) -> dict:
+    """Timeline cảnh báo của tất cả thí sinh, kèm ảnh base64. Lỗi trả {}."""
+    params = _clean_params(
+        session_id=session_id,
+        candidate_id=candidate_id,
+        only_alerts="true" if only_alerts else "false",
+        from_date=from_date,
+        to_date=to_date,
+        skip=skip,
+        limit=limit,
+    )
+    key = f"stats:timeline:{params}"
+    hit, val = cache_get(key, 6)
+    if hit:
+        return val
+    try:
+        res = session.get(
+            f"{API_BASE_URL}/stats/timeline",
+            params=params,
+            headers=get_auth_headers(),
+            timeout=15,
+        )
+        if res.status_code == 200:
+            data = res.json()
+            cache_set(key, data)
+            return data
+        logger.warning(f"get_timeline failed: {res.status_code}")
+        return {}
+    except requests.RequestException as exc:
+        logger.warning(f"get_timeline error: {exc}")
+        return {}
+
+

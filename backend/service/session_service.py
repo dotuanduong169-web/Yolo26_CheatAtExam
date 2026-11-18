@@ -15,7 +15,7 @@ from crud.session_crud import (
 )
 from models.detected_event import DetectedEvent
 from models.monitoring_session import MonitoringSession
-from schemas.event import EventResponse
+from schemas.event import EventCandidateInfo, EventResponse
 from service.camera_state import CameraState
 from utils.label_utils import get_final_label
 
@@ -89,6 +89,11 @@ def get_session_detail(db: DBSession, session_id: int) -> dict:
     confirmed = sum(1 for e in events if (get_final_label(e) or "") in ("Cheat_Paper", "cellphone"))
     pending = sum(1 for e in events if e.TrangThaiKiemTra == "cho_kiem_tra")
 
+    candidate = session.candidate
+    candidate_info = (
+        EventCandidateInfo.model_validate(candidate) if candidate is not None else None
+    )
+
     return {
         "session": {
             "PK_MaPhienGiamSat": session.PK_MaPhienGiamSat,
@@ -102,6 +107,8 @@ def get_session_detail(db: DBSession, session_id: int) -> dict:
             "FK_MaThiSinh": session.FK_MaThiSinh,
             "ThoiGianTao": session.ThoiGianTao,
         },
+        "candidate": candidate_info,
+        "parent_session_id": candidate.FK_MaPhienGiamSat if candidate is not None else None,
         "tong_su_kien": total,
         "da_xac_minh": total - pending,
         "cho_kiem_tra": pending,

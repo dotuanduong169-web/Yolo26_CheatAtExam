@@ -51,6 +51,11 @@ class DetectedEvent(Base):
     session = relationship("MonitoringSession", back_populates="events")
     evidences = relationship("Evidence", back_populates="event", cascade="all, delete")
 
+    @property
+    def candidate(self):
+        """Thí sinh gắn với sự kiện qua phiên con (None với phiên ca thi cũ)."""
+        return self.session.candidate if self.session is not None else None
+
     def __repr__(self) -> str:
         return f"<DetectedEvent(id={self.PK_MaSuKien}, behavior={self.LoaiHanhVi!r})>"
 

@@ -497,8 +497,9 @@ else:
         page_events = events[ev_start_idx:ev_end_idx]
 
         # Header hàng bảng
-        th1, th2, th3, th4, th5, th6, th7 = st.columns([0.8, 1.3, 2.7, 0.8, 1.3, 1.0, 0.9])
-        th1.caption("MÃ SỰ KIỆN")
+        th0, th1, th2, th3, th4, th5, th6, th7 = st.columns([0.7, 1.6, 0.95, 1.35, 0.65, 1.0, 0.85, 0.8])
+        th0.caption("MÃ SỰ KIỆN")
+        th1.caption("THÍ SINH")
         th2.caption("THỜI GIAN")
         th3.caption("HÀNH VI PHÁT HIỆN")
         th4.caption("ĐỘ TIN CẬY")
@@ -518,11 +519,20 @@ else:
             user_label = ev.get("NhanNguoiDung")
             friendly_user_label = get_friendly_behavior_label(user_label) if user_label else "—"
             stt_badge = get_event_status_badge(stt)
+            cand = ev.get("candidate") or {}
+            cand_text = (
+                f"{cand.get('SBD') or ''} · {cand.get('HoTen') or ''}"
+                + (f" · {cand.get('Lop')}" if cand.get("Lop") else "")
+                if cand
+                else "—"
+            )
 
             with st.container():
-                c1, c2, c3, c4, c5, c6, c7 = st.columns([0.8, 1.3, 2.7, 0.8, 1.3, 1.0, 0.9])
-                with c1:
+                c0, c1, c2, c3, c4, c5, c6, c7 = st.columns([0.7, 1.6, 0.95, 1.35, 0.65, 1.0, 0.85, 0.8])
+                with c0:
                     st.markdown(f"<strong>EV-{ev_id:02d}</strong>", unsafe_allow_html=True)
+                with c1:
+                    st.markdown(f"<span style='font-size:11.5px;'>{cand_text}</span>", unsafe_allow_html=True)
                 with c2:
                     st.caption(time_str)
                 with c3:

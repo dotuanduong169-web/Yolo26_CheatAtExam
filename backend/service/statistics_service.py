@@ -7,6 +7,7 @@ from sqlalchemy.orm import Session as DBSession
 
 from models.detected_event import DetectedEvent
 from models.monitoring_session import MonitoringSession
+from models.candidate import Candidate
 from core.logger import get_logger
 
 logger = get_logger(__name__)
@@ -132,25 +133,41 @@ def get_stats_summary(db: DBSession, user_id: Optional[int]) -> dict:
     q_ev = _filter_events_user(db.query(func.count(DetectedEvent.PK_MaSuKien)), user_id)
     total_detected_events = q_ev.scalar() or 0
 
-    # 2. Đếm tổng số ca thi thực tế
-    q_sess = db.query(func.count(MonitoringSession.PK_MaPhienGiamSat))
+    # 2. Đếm tổng số ca thi cha thực tế (không tính phiên con của thí sinh)
+    q_sess = db.query(func.count(MonitoringSession.PK_MaPhienGiamSat)).filter(
+        MonitoringSession.FK_MaThiSinh.is_(None)
+    )
     if user_id is not None:
         q_sess = q_sess.filter(MonitoringSession.FK_MaNguoiDung == user_id)
     total_sessions = q_sess.scalar() or 0
 
-    # 3. Tính tỷ lệ phòng sạch (ca thi không có vi phạm hoặc tỷ lệ sạch)
-    clean_sessions = 0
-    if total_sessions > 0:
-        q_clean = db.query(MonitoringSession.PK_MaPhienGiamSat).outerjoin(
-            DetectedEvent, DetectedEvent.FK_MaPhienGiamSat == MonitoringSession.PK_MaPhienGiamSat
+    # 3. Đếm tổng số thí sinh và số thí sinh có vi phạm
+    q_students = db.query(func.count(Candidate.PK_MaThiSinh)).join(
+        MonitoringSession,
+        MonitoringSession.PK_MaPhienGiamSat == Candidate.FK_MaPhienGiamSat,
+    )
+    if user_id is not None:
+        q_students = q_students.filter(MonitoringSession.FK_MaNguoiDung == user_id)
+    total_students = q_students.scalar() or 0
+
+    q_alert_students = (
+        db.query(func.count(func.distinct(MonitoringSession.FK_MaThiSinh)))
+        .join(
+            DetectedEvent,
+            DetectedEvent.FK_MaPhienGiamSat == MonitoringSession.PK_MaPhienGiamSat,
         )
-        if user_id is not None:
-            q_clean = q_clean.filter(MonitoringSession.FK_MaNguoiDung == user_id)
-        q_clean = q_clean.group_by(MonitoringSession.PK_MaPhienGiamSat).having(
-            func.count(DetectedEvent.PK_MaSuKien) == 0
+        .filter(MonitoringSession.FK_MaThiSinh.isnot(None))
+    )
+    if user_id is not None:
+        q_alert_students = q_alert_students.filter(
+            MonitoringSession.FK_MaNguoiDung == user_id
         )
-        clean_sessions = q_clean.count()
-        clean_rate = round((clean_sessions / total_sessions) * 100, 1)
+    students_with_alerts = q_alert_students.scalar() or 0
+
+    if total_students > 0:
+        clean_rate = round(
+            max(0.0, 1.0 - students_with_alerts / total_students) * 100, 1
+        )
     else:
         clean_rate = 100.0
 
@@ -160,7 +177,7 @@ def get_stats_summary(db: DBSession, user_id: Optional[int]) -> dict:
 
     return {
         "total_records": total_sessions,
-        "total_students": total_sessions,
+        "total_students": total_students,
         "total_sessions": total_sessions,
         "total_cheats": total_detected_events,
         "sleeping_alerts": total_detected_events,  # Tương thích ngược key cũ

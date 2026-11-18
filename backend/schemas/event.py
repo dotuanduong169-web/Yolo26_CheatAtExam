@@ -28,6 +28,28 @@ class EvidenceResponse(BaseModel):
     model_config = {"from_attributes": True}
 
 
+class EventCandidateInfo(BaseModel):
+    """Thí sinh gắn với sự kiện (qua phiên con)."""
+
+    PK_MaThiSinh: int
+    SBD: str
+    HoTen: str
+    Lop: Optional[str] = None
+
+    model_config = {"from_attributes": True}
+
+
+class EventSessionInfo(BaseModel):
+    """Phiên con + ca thi cha của sự kiện."""
+
+    PK_MaPhienGiamSat: int
+    parent_session_id: Optional[int] = None
+    PhongThi: Optional[str] = None
+    MonThi: Optional[str] = None
+
+    model_config = {"from_attributes": True}
+
+
 class EventResponse(BaseModel):
     """Một sự kiện gian lận kèm bằng chứng và tọa độ để vẽ lại."""
 
@@ -41,6 +63,8 @@ class EventResponse(BaseModel):
     TrangThaiKiemTra: Optional[str] = None
     FK_MaPhienGiamSat: int
     VaiTroCamera: Optional[str] = "front"
+    candidate: Optional[EventCandidateInfo] = None
+    session: Optional[EventSessionInfo] = None
     evidences: list[EvidenceResponse] = []
 
     model_config = {"from_attributes": True}

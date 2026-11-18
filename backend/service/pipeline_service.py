@@ -13,6 +13,7 @@ from ai_model.ai_pipeline import process_frame
 from core.config import settings
 from core.logger import get_logger
 from crud.event_crud import create_event, create_evidence
+from crud.statistics_crud import create_statistics
 from database.database import SessionLocal
 from service.camera_state import CameraState
 
@@ -186,10 +187,11 @@ def _save_event_snapshot(
     frame_count: int,
     reason: str = "",
     vai_tro_camera: str = "front",
-) -> None:
-    """Lưu snapshot sự kiện vi phạm NGAY LẬP TỨC: 1 ảnh bằng chứng + 1 event/vật + cập nhật stats."""
+) -> list[int]:
+    """Lưu snapshot sự kiện vi phạm NGAY LẬP TỨC: 1 ảnh bằng chứng + 1 event/vật.
+    Trả về danh sách PK_MaSuKien đã tạo để timeline tick liên kết."""
     if not session_id or not results:
-        return
+        return []
 
     # Tên file kèm phiên + vai trò để 2 luồng camera không ghi đè nhau và dễ truy vết.
     filename = (
@@ -203,8 +205,9 @@ def _save_event_snapshot(
         cv2.imwrite(str(image_path), frame)
     except Exception as exc:
         logger.error(f"Failed to save event image: {exc}", exc_info=True)
-        return
+        return []
 
+    event_ids: list[int] = []
     try:
         saved_events = 0
         for r in results:
@@ -225,15 +228,18 @@ def _save_event_snapshot(
                 str(image_path),
                 vai_tro_camera=vai_tro_camera,
             )
+            event_ids.append(event.PK_MaSuKien)
             saved_events += 1
 
         db.commit()
         logger.info(
             f"Event snapshot saved [{reason}] — frame #{frame_count}, events: {saved_events}, file: {filename}"
         )
+        return event_ids
     except Exception as exc:
         db.rollback()
         logger.error(f"Failed to save event snapshot transaction: {exc}", exc_info=True)
+        return []
 
 
 def _save_periodic_stats(
@@ -261,11 +267,11 @@ def _save_snapshot(
     image_dir: Path,
     frame_count: int,
     vai_tro_camera: str = "front",
-) -> None:
+) -> list[int]:
     """Lưu snapshot định kỳ tương thích ngược (dùng cho ingest online)."""
     cheats = [r for r in results if r.get("is_cheat")]
     if cheats:
-        _save_event_snapshot(
+        return _save_event_snapshot(
             db,
             session_id,
             frame,
@@ -275,11 +281,11 @@ def _save_snapshot(
             reason="snapshot",
             vai_tro_camera=vai_tro_camera,
         )
-    else:
-        # Chỉ camera trước ghi thống kê định kỳ: camera phụ chạy song song sẽ
-        # nhân đôi số liệu trong bảng statistics của cùng một phiên.
-        if vai_tro_camera == "front":
-            _save_periodic_stats(db, session_id, results)
+    # Chỉ camera trước ghi thống kê định kỳ: camera phụ chạy song song sẽ
+    # nhân đôi số liệu trong bảng statistics của cùng một phiên.
+    if vai_tro_camera == "front":
+        _save_periodic_stats(db, session_id, results)
+    return []
 
 
 def calculate_stats(results: list[dict]) -> dict:

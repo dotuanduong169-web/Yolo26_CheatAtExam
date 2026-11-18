@@ -320,6 +320,13 @@ else:
                 time_str = str(ev.get("ThoiGianPhatHien", ""))[-8:]
                 status = ev.get("TrangThaiKiemTra", "cho_kiem_tra")
                 stt_badge = get_event_status_badge(status)
+                cand = ev.get("candidate") or {}
+                cand_text = (
+                    f"{cand.get('SBD') or ''} · {cand.get('HoTen') or ''}"
+                    + (f" · {cand.get('Lop')}" if cand.get("Lop") else "")
+                    if cand
+                    else ""
+                )
 
                 with st.container():
                     st.markdown(f"""
@@ -328,6 +335,7 @@ else:
                             <span>Mã: <strong>EV-{ev_id:02d}</strong> · {time_str}</span>
                             {stt_badge}
                         </div>
+                        {'<div style="font-size:12px;font-weight:700;color:#0f172a;margin-top:3px;">' + cand_text + '</div>' if cand_text else ''}
                         <div style="margin-top: 4px;">
                             <span class="wf-alert-card-title" style="font-size: 12.5px;">{label}</span>
                             <span style="font-size: 11px; color: var(--wf-text-muted); margin-left: 4px;">({conf}%)</span>

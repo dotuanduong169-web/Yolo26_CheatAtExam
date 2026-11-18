@@ -4,6 +4,7 @@ Lưu ý: tên key sleeping/focus_rate là lịch sử, giữ nguyên để tươ
 """
 
 from datetime import datetime
+from typing import Optional
 
 from pydantic import BaseModel, Field
 
@@ -57,3 +58,77 @@ class StatsSummaryResponse(BaseModel):
     total_cheats: int = 0
     clean_rate: float = 100.0
     most_common_behavior: str = "Chưa có vi phạm"
+
+
+class TimelineCandidateInfo(BaseModel):
+    """Thông tin thí sinh gắn với một tick/cảnh báo."""
+
+    PK_MaThiSinh: int
+    SBD: str
+    HoTen: str
+    Lop: Optional[str] = None
+
+    model_config = {"from_attributes": True}
+
+
+class TimelineSessionInfo(BaseModel):
+    """Phiên con + ca thi cha của tick."""
+
+    PK_MaPhienGiamSat: int
+    parent_session_id: Optional[int] = None
+    PhongThi: Optional[str] = None
+    MonThi: Optional[str] = None
+
+
+class TimelineItem(BaseModel):
+    """Một mốc quan sát có ảnh, thời gian, thí sinh và trạng thái xác minh."""
+
+    PK_MaDong: int
+    thoi_gian: datetime
+    co_canh_bao: bool
+    camera: str = "front"
+    phat_hien: list[dict] = []
+    hanh_vi: str = ""
+    do_tin_cay: Optional[float] = None
+    trang_thai: Optional[str] = None
+    event_id: Optional[int] = None
+    do_tre_ms: Optional[int] = None
+    image_url: Optional[str] = None
+    image_b64: Optional[str] = None
+    candidate: Optional[TimelineCandidateInfo] = None
+    session: Optional[TimelineSessionInfo] = None
+
+
+class TimelinePage(BaseModel):
+    """Trang timeline cảnh báo của tất cả thí sinh."""
+
+    total: int
+    skip: int = 0
+    limit: int = 30
+    items: list[TimelineItem] = []
+
+
+class CandidateStatItem(BaseModel):
+    """Tổng hợp cảnh báo của một thí sinh."""
+
+    candidate: TimelineCandidateInfo
+    session_id: Optional[int] = None
+    total_events: int = 0
+    pending_events: int = 0
+    timeline_alerts: int = 0
+    last_alert_at: Optional[datetime] = None
+    last_event_id: Optional[int] = None
+    last_evidence_id: Optional[int] = None
+
+
+class StatsOverviewResponse(BaseModel):
+    """KPI thống kê đúng nghĩa thí sinh + cảnh báo + độ trễ."""
+
+    total_students: int = 0
+    students_with_alerts: int = 0
+    total_timeline_alerts: int = 0
+    total_events: int = 0
+    pending_events: int = 0
+    clean_rate: float = 1.0
+    avg_latency_ms: Optional[float] = None
+    max_latency_ms: Optional[int] = None

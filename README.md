@@ -110,6 +110,9 @@ Sao chép từ `.env.example`. Các biến chính:
 | `SNAPSHOT_INTERVAL_SECONDS` | `30` | Chu kỳ lưu snapshot nền cho mỗi luồng camera (giây) |
 | `SNAPSHOT_MAX_WIDTH` / `SNAPSHOT_THUMB_WIDTH` | `1280` / `480` | Cạnh rộng tối đa của ảnh normalized / thumbnail |
 | `SNAPSHOT_JPEG_QUALITY` | `85` | Chất lượng JPEG khi ghi ảnh đã chuẩn hóa |
+| `TIMELINE_ENABLED` | `1` | Bật nhật ký tick (`tbl_candidate_timeline`); `0` để tắt |
+| `TIMELINE_HEARTBEAT_SECONDS` | `30` | Chu kỳ ghi heartbeat khi không có cảnh báo (giây, tối thiểu 5) |
+| `TIMELINE_IMAGE_MAX_WIDTH` / `TIMELINE_JPEG_QUALITY` | `480` / `72` | Kích thước và chất lượng thumbnail nhẹ cho mỗi tick |
 | `OBJECT_COOLDOWN_SECONDS` / `POSE_COOLDOWN_SECONDS` | `15` / `6` | Khoảng chờ giữa 2 lần lưu cùng loại vi phạm |
 | `BEH_FACE_VIS_MIN`, `BEH_SHO_VIS_MIN`, `BEH_TURN_RATIO`, `BEH_BEND_RATIO` | `0.25`, `0.35`, `0.32`, `0.05` | Ngưỡng luật hành vi (xem `backend/ai_model/behavior.py`) |
 
@@ -268,15 +271,17 @@ Các bảng chính (tự tạo bằng `Base.metadata.create_all` khi khởi đ�
 | `tbl_snapshot_processed` | Ảnh dẫn xuất (`normalized`/`thumbnail`/`annotated`) trong `images/processed/` |
 | `tbl_detected_events` | Sự kiện gian lận: loại hành vi, tọa độ, độ tin cậy, trạng thái kiểm tra, người kiểm tra, vai trò camera |
 | `tbl_evidences` | Bằng chứng gắn sự kiện, đường dẫn tệp trong `images/`, vai trò camera |
+| `tbl_candidate_timeline` | Nhật ký quan sát theo tick: mọi tick có cảnh báo, tick đổi trạng thái, heartbeat 30 giây; kèm thumbnail, thí sinh, độ trễ `DoTreMs` và liên kết sự kiện |
 
-Số liệu thống kê được tổng hợp trực tiếp từ `tbl_detected_events`; model `statistics`
+Số liệu thống kê được tổng hợp trực tiếp từ `tbl_detected_events` (sự kiện đã
+debounce) và `tbl_candidate_timeline` (mốc quan sát đầy đủ); model `statistics`
 cũ không còn được đăng ký/ghi dữ liệu.
 
 Nhãn hợp lệ của `LoaiHanhVi`: `Cheat_Paper`, `cellphone`, `quay_dau`, `quay_sau`,
 `cui_xuong`, `vang_mat`, `nhieu_nguoi`, `Answer_paper` (tương thích weights cũ).
 
 Khi khởi động, `backend/main.py` tự tạo các bảng mới (`tbl_camera_stream`,
-`tbl_snapshot`, `tbl_snapshot_processed`) và tự bổ sung `FK_MaThiSinh`,
+`tbl_snapshot`, `tbl_snapshot_processed`, `tbl_candidate_timeline`) và tự bổ sung `FK_MaThiSinh`,
 `VaiTroCamera` (trên sự kiện/bằng chứng), nới `FK_MaThietBi`
 cho phép NULL và cập nhật CHECK constraint. Cột `TokenThamGia` (legacy) được thêm
 bằng script riêng. Với DB cũ có thể chạy thủ công (từ gốc dự án):

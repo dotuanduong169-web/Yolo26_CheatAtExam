@@ -9,6 +9,7 @@ queue giữ frame mới nhất -> worker infer -> debounce -> snapshot bằng ch
 snapshot nền (raw -> normalized -> tbl_snapshot/tbl_snapshot_processed).
 """
 
+import os
 import secrets
 import threading
 import time
@@ -38,6 +39,7 @@ from service.pipeline_service import (
     SAVE_INTERVAL_SECONDS,
     _save_snapshot,
 )
+from service.timeline_service import record_tick
 
 logger = get_logger(__name__)
 
@@ -52,6 +54,12 @@ ROLE_FRONT = "front"
 ROLE_SIDE = "side"
 VALID_ROLES = {ROLE_FRONT, ROLE_SIDE}
 ROLE_LABELS = {ROLE_FRONT: "Camera trước", ROLE_SIDE: "Camera phụ"}
+
+# Nhật ký tick: mặc định bật. Ghi mọi tick có cảnh báo, tick đổi trạng thái và
+# heartbeat khi sạch. 2,5 giây chỉ là nhịp tham khảo từ trình duyệt; hệ thống ghi
+# theo tick thực tế nhận được, không phụ thuộc cứng vào 2,5 giây.
+TIMELINE_ENABLED = os.getenv("TIMELINE_ENABLED", "1") != "0"
+TIMELINE_HEARTBEAT_SECONDS = max(5.0, float(os.getenv("TIMELINE_HEARTBEAT_SECONDS", "30")))
 
 # token nộp frame -> (session_id, vai_tro). Cache RAM, DB là nguồn bền vững.
 _tokens: dict[str, tuple[int, str]] = {}
@@ -219,6 +227,10 @@ class _SessionWorker:
         self.vang_fired = False
         self.last_activity = time.time()
         self.latest_jpeg: bytes | None = None
+        self.tick_index = 0
+        self.last_timeline_signature = None
+        self.last_timeline_alert = False
+        self.last_timeline_write = 0.0
         self.running = True
         self.thread = threading.Thread(target=self._loop, daemon=True)
         self.thread.start()
@@ -244,7 +256,7 @@ class _SessionWorker:
             image_dir.mkdir(parents=True, exist_ok=True)
             while self.running:
                 try:
-                    jpg, _ = self.queue.get(timeout=1.0)
+                    jpg, recv_ts = self.queue.get(timeout=1.0)
                 except Exception:
                     if self._should_stop(db):
                         break
@@ -255,6 +267,8 @@ class _SessionWorker:
                     if frame is None:
                         continue
                     self.frame_count += 1
+                    self.tick_index += 1
+                    captured_at = datetime.fromtimestamp(recv_ts, tz=timezone.utc)
                     annotated, results = process_frame(
                         frame,
                         self.frame_count,
@@ -286,18 +300,65 @@ class _SessionWorker:
                         and (now - self.last_pose_save >= POSE_COOLDOWN_SECONDS)
                     )
 
+                    saved_event_ids: list[int] = []
                     if trigger_obj or trigger_beh:
                         if trigger_obj:
                             self.last_object_save = now
                         if trigger_beh:
                             self.last_pose_save = now
-                        self._snapshot(db, annotated, results, image_dir)
+                        saved_event_ids = self._snapshot(db, annotated, results, image_dir) or []
                         self.last_save = now
                     elif now - self.last_save > SAVE_INTERVAL_SECONDS:
-                        self._snapshot(db, annotated, results, image_dir)
+                        saved_event_ids = self._snapshot(db, annotated, results, image_dir) or []
                         self.last_save = now
 
-                    if (
+                    # Nhật ký tick 2,5 giây (tham khảo): ghi mọi tick có cảnh báo,
+                    # tick đổi trạng thái và heartbeat. Không ghi tick sạch lặp lại.
+                    if TIMELINE_ENABLED:
+                        cheat_results = [r for r in results if r.get("is_cheat")]
+                        signature = tuple(
+                            sorted(
+                                (
+                                    str(r.get("label") or ""),
+                                    round(float(r.get("confidence") or 0.0), 1),
+                                    tuple(
+                                        round(float(v), 0)
+                                        for v in (r.get("bbox") or [])[:4]
+                                    ),
+                                )
+                                for r in cheat_results
+                            )
+                        )
+                        has_alert = bool(cheat_results)
+                        state_changed = signature != self.last_timeline_signature
+                        heartbeat_due = (
+                            now - self.last_timeline_write
+                        ) >= TIMELINE_HEARTBEAT_SECONDS
+                        if has_alert or state_changed or heartbeat_due:
+                            snapshot_id = snapshot_service.capture_timeline_snapshot(
+                                self.session_id,
+                                self.vai_tro,
+                                annotated,
+                                captured_at=captured_at,
+                            )
+                            record_tick(
+                                session_id=self.session_id,
+                                vai_tro=self.vai_tro,
+                                tick_index=self.tick_index,
+                                captured_at=captured_at,
+                                results=results,
+                                has_alert=has_alert,
+                                snapshot_id=snapshot_id,
+                                event_ids=saved_event_ids,
+                                recv_ts=recv_ts,
+                            )
+                            self.last_timeline_signature = signature
+                            self.last_timeline_alert = has_alert
+                            self.last_timeline_write = now
+
+                    # Khi timeline bật, thumbnail heartbeat đã phục vụ dashboard;
+                    # không cần pipeline snapshot đầy đủ (raw/normalized) mỗi 30 giây.
+                    if not TIMELINE_ENABLED and (
                         trigger_obj
                         or trigger_beh
                         or now - self.last_snapshot_save >= snapshot_service.SNAPSHOT_INTERVAL_SECONDS
@@ -366,7 +427,7 @@ class _SessionWorker:
                 "kind": "behavior",
             })
 
-    def _snapshot(self, db, annotated, results, image_dir) -> None:
+    def _snapshot(self, db, annotated, results, image_dir) -> list[int]:
         """Chọn frame gần nhất có cheat rồi lưu snapshot (logic như pipeline)."""
         for frm, res in reversed(list(self.recent)):
             if any(r.get("is_cheat") for r in res):
@@ -408,7 +469,7 @@ class _SessionWorker:
                 })
                 self.vang_fired = True
 
-        _save_snapshot(
+        return _save_snapshot(
             db,
             self.session_id,
             annotated,

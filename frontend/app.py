@@ -25,12 +25,26 @@ if token:
             timeout=5,
         )
         is_login = res.status_code == 200
+        if is_login:
+            # Lấy vai trò thật từ server thay vì tin query param ?role=
+            try:
+                _profile = res.json()
+                st.session_state["user_role"] = _profile.get("VaiTro") or st.session_state.get("user_role")
+                st.session_state["user_fullname"] = (
+                    _profile.get("HoVaTen") or st.session_state.get("user_fullname")
+                )
+            except ValueError:
+                pass
     except requests.RequestException:
         is_login = False
 
 # ── Route ───────────────────────────────────────────────────
 if is_login:
-    st.switch_page("pages/home.py")
+    # Admin vào Giám sát; Cán bộ coi thi vào thẳng Thi online
+    if st.session_state.get("user_role") == "admin":
+        st.switch_page("pages/home.py")
+    else:
+        st.switch_page("pages/online_exam.py")
 else:
     # Thử khôi phục từ localStorage của trình duyệt trước khi chuyển sang login
     st.components.v1.html(
@@ -42,7 +56,8 @@ else:
                 if (raw) {
                     const data = JSON.parse(raw);
                     if (data && data.token) {
-                        const target = "/home?auth=" + encodeURIComponent(data.token) +
+                        const landing = (data.role === "admin") ? "/home" : "/online_exam";
+                        const target = landing + "?auth=" + encodeURIComponent(data.token) +
                             "&role=" + encodeURIComponent(data.role || "") +
                             "&u=" + encodeURIComponent(data.username || "");
                         window.parent.eval("window.location.replace('" + target + "')");

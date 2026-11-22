@@ -7,7 +7,12 @@ from utils.notify import notify
 from PIL import Image
 
 from config import API_BASE_URL
-from services.event_api import get_event_detail, get_evidence_bytes, verify_event
+from services.event_api import (
+    get_event_detail,
+    get_evidence_bytes,
+    list_session_events,
+    verify_event,
+)
 from utils.auth_guard import require_auth
 from utils.hide_streamlit_sidebar import hide_sidebar
 from utils.http import auth_query_params, init_session_state
@@ -139,6 +144,78 @@ else:
     if st.button("← Quay lại danh mục ca thi", key="btn_back_events"):
         st.session_state["history_active_tab"] = "sessions"
         st.switch_page("pages/history.py")
+
+
+# ── Điều hướng sự kiện trước/sau ────────────────────────────
+# Mục đích: giáo viên xác minh liên tiếp mà không phải quay lại danh sách.
+nav_ids = st.session_state.get("event_nav_ids") or []
+nav_session = st.session_state.get("event_nav_session")
+rebuild_nav = not isinstance(nav_ids, list) or event_id not in nav_ids
+if (
+    not rebuild_nav
+    and nav_session is not None
+    and from_sess_id is not None
+    and nav_session != from_sess_id
+):
+    rebuild_nav = True
+if rebuild_nav:
+    st.session_state.pop("event_nav_scope", None)
+    if from_sess_id:
+        _nav_events = list_session_events(st.session_state.client, from_sess_id, limit=200)
+        nav_ids = [e.get("PK_MaSuKien") for e in _nav_events if e.get("PK_MaSuKien")]
+    else:
+        nav_ids = [event_id] if event_id else []
+    st.session_state["event_nav_ids"] = nav_ids
+    st.session_state["event_nav_session"] = from_sess_id
+
+nav_pos = nav_ids.index(event_id) if event_id in nav_ids else -1
+nav_total = len(nav_ids)
+nav_scope = st.session_state.get("event_nav_scope") or (
+    f"Ca thi #{from_sess_id}" if from_sess_id else ""
+)
+
+
+def _go_to_event(target_id: int) -> None:
+    """Chuyển sang sự kiện kế bên, giữ nguyên ca thi đang xem."""
+    st.session_state["event_id"] = target_id
+    st.query_params["id"] = str(target_id)
+    if from_sess_id:
+        st.query_params["from_session"] = str(from_sess_id)
+    st.rerun()
+
+
+if nav_total > 1 and nav_pos >= 0:
+    nav_prev, nav_mid, nav_next = st.columns([0.2, 0.6, 0.2], gap="small")
+    with nav_prev:
+        if st.button("← Sự kiện trước", key="btn_nav_event_prev", disabled=(nav_pos <= 0)):
+            _go_to_event(nav_ids[nav_pos - 1])
+    with nav_mid:
+        st.markdown(
+            f"<div style='text-align:center; font-size:12.5px; color:#475569; line-height:38px;'>"
+            f"Sự kiện <strong>{nav_pos + 1}</strong>/<strong>{nav_total}</strong>"
+            + (f" · {html.escape(str(nav_scope))}" if nav_scope else "")
+            + "</div>",
+            unsafe_allow_html=True,
+        )
+    with nav_next:
+        if st.button("Sự kiện tiếp →", key="btn_nav_event_next", disabled=(nav_pos >= nav_total - 1)):
+            _go_to_event(nav_ids[nav_pos + 1])
+
+# Thông tin thí sinh gắn với sự kiện (nếu có)
+_ev_cand = data.get("candidate") or {}
+_ev_sess = data.get("session") or {}
+if _ev_cand:
+    _cand_bits = [f"SBD {_ev_cand.get('SBD') or '—'}", str(_ev_cand.get("HoTen") or "—")]
+    if _ev_cand.get("Lop"):
+        _cand_bits.append(f"Lớp {_ev_cand['Lop']}")
+    if _ev_sess.get("parent_session_id"):
+        _cand_bits.append(f"Ca thi #{_ev_sess['parent_session_id']}")
+    st.markdown(
+        "<div style='font-size:12.5px; color:#334155; background:#f1f5f9; border:1px solid #e2e8f0;"
+        " border-radius:8px; padding:7px 11px; margin:2px 0 10px 0;'>"
+        "<strong>Thí sinh:</strong> " + html.escape(" · ".join(_cand_bits)) + "</div>",
+        unsafe_allow_html=True,
+    )
 
 
 # ── Main Layout ─────────────────────────────────────────────

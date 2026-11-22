@@ -111,6 +111,16 @@ def require_auth() -> None:
         if res.status_code == 200:
             st.session_state["_auth_ok_token"] = token_now
             st.session_state["_auth_ok_ts"] = time.time()
+            # Đồng bộ vai trò từ server: không tin ?role= trên URL
+            # (nếu tin, cán bộ coi thi chỉ cần thêm ?role=admin là mở lại tab bị ẩn)
+            try:
+                _profile = res.json()
+                if _profile.get("VaiTro"):
+                    st.session_state["user_role"] = _profile["VaiTro"]
+                if _profile.get("HoVaTen"):
+                    st.session_state["user_fullname"] = _profile["HoVaTen"]
+            except ValueError:
+                pass
             return
 
         # Khi access token hết hạn (401), tự động gọi refresh_token thay vì đá ra login ngay

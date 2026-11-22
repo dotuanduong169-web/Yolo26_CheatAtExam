@@ -264,6 +264,70 @@ with col_kpi:
         </div>
         """, unsafe_allow_html=True)
 
+# ── Lọc/gom theo thí sinh ───────────────────────────────────
+# Sự kiện của ca thi online nằm ở phiên con của từng thí sinh (FK_MaThiSinh),
+# nên trang ca thi cha gom lại và cho phép lọc riêng từng sinh viên.
+is_parent_session = not sess.get("FK_MaThiSinh")
+cand_groups: dict[int, dict] = {}
+for _ev in events:
+    _cand = _ev.get("candidate") or {}
+    _cid = _cand.get("PK_MaThiSinh") or 0
+    _grp = cand_groups.setdefault(
+        _cid,
+        {
+            "SBD": _cand.get("SBD") or "—",
+            "HoTen": _cand.get("HoTen") or "Không rõ thí sinh",
+            "count": 0,
+            "pending": 0,
+        },
+    )
+    _grp["count"] += 1
+    if (_ev.get("TrangThaiKiemTra") or "cho_kiem_tra") == "cho_kiem_tra":
+        _grp["pending"] += 1
+
+selected_cand = 0
+nav_scope_label = f"Phiên #{session_id}"
+if candidate:
+    nav_scope_label = f"{candidate.get('SBD') or '—'} · {candidate.get('HoTen') or ''}".strip(" ·")
+
+if is_parent_session and cand_groups:
+    _cand_opts = [0] + sorted(
+        cand_groups.keys(), key=lambda k: (cand_groups[k]["SBD"], cand_groups[k]["HoTen"])
+    )
+    _flt_col, _sum_col = st.columns([1.35, 2.15], gap="medium")
+    with _flt_col:
+        selected_cand = st.selectbox(
+            "Lọc sự kiện theo thí sinh",
+            options=_cand_opts,
+            format_func=lambda k: (
+                f"Tất cả thí sinh ({len(events)} sự kiện)"
+                if k == 0
+                else f"{cand_groups[k]['SBD']} · {cand_groups[k]['HoTen']} ({cand_groups[k]['count']})"
+            ),
+            key=f"detail_cand_filter_{session_id}",
+        )
+    with _sum_col:
+        _pend_total = sum(g["pending"] for g in cand_groups.values())
+        st.markdown(
+            f"<div style='font-size:13px; color:#475569; line-height:38px;'>"
+            f"Ca thi có <strong>{len(cand_groups)}</strong> thí sinh có sự kiện · "
+            f"<strong>{sum(g['count'] for g in cand_groups.values())}</strong> sự kiện · "
+            f"<strong style='color:#d97706;'>{_pend_total}</strong> chờ kiểm tra"
+            f"</div>",
+            unsafe_allow_html=True,
+        )
+
+    if selected_cand:
+        events = [
+            e
+            for e in events
+            if ((e.get("candidate") or {}).get("PK_MaThiSinh") or 0) == selected_cand
+        ]
+        _sel = cand_groups[selected_cand]
+        nav_scope_label = f"{_sel['SBD']} · {_sel['HoTen']}"
+    else:
+        nav_scope_label = f"Ca thi #{session_id}"
+
 # ── Events Table ────────────────────────────────────────────
 
 PAGE_SIZE = 5
@@ -287,18 +351,36 @@ if not events:
     notify.empty_state("Phiên thi này không có sự kiện vi phạm nào", "Hệ thống camera AI không phát hiện bất kỳ hành vi nghi vấn gian lận nào trong suốt ca thi này.")
 else:
     # Header hàng bảng đồng bộ st.columns đảm bảo thẳng hàng 100% với các hàng dữ liệu
-    th0, th1, th2, th3, th4, th5 = st.columns([0.7, 1.15, 1.7, 0.8, 1.2, 0.7])
-    th0.caption("ẢNH")
-    th1.caption("THỜI GIAN")
-    th2.caption("HÀNH VI PHÁT HIỆN")
-    th3.caption("ĐỘ TIN CẬY")
-    th4.caption("TRẠNG THÁI")
-    th5.markdown('<div style="text-align:right; font-size:11.5px; font-weight:700; color:#64748b; letter-spacing:0.5px; padding-right:8px;">THAO TÁC</div>', unsafe_allow_html=True)
+    if is_parent_session:
+        th0, th1, th2, th3, th4, th5, th6 = st.columns([0.7, 1.05, 1.2, 1.35, 0.7, 1.05, 0.7])
+        th0.caption("ẢNH")
+        th1.caption("THỜI GIAN")
+        th2.caption("THÍ SINH")
+        th3.caption("HÀNH VI PHÁT HIỆN")
+        th4.caption("ĐỘ TIN CẬY")
+        th5.caption("TRẠNG THÁI")
+        th6.markdown('<div style="text-align:right; font-size:11.5px; font-weight:700; color:#64748b; letter-spacing:0.5px; padding-right:8px;">THAO TÁC</div>', unsafe_allow_html=True)
+    else:
+        th0, th1, th2, th3, th4, th5 = st.columns([0.7, 1.15, 1.7, 0.8, 1.2, 0.7])
+        th0.caption("ẢNH")
+        th1.caption("THỜI GIAN")
+        th2.caption("HÀNH VI PHÁT HIỆN")
+        th3.caption("ĐỘ TIN CẬY")
+        th4.caption("TRẠNG THÁI")
+        th5.markdown('<div style="text-align:right; font-size:11.5px; font-weight:700; color:#64748b; letter-spacing:0.5px; padding-right:8px;">THAO TÁC</div>', unsafe_allow_html=True)
 
     st.markdown("<hr style='margin: 4px 0 8px 0; border: none; border-top: 1px solid var(--wf-border);'>", unsafe_allow_html=True)
 
     for row in page_events:
-        c0, c1, c2, c3, c4, c5 = st.columns([0.7, 1.15, 1.7, 0.8, 1.2, 0.7])
+        if is_parent_session:
+            cols = st.columns([0.7, 1.05, 1.2, 1.35, 0.7, 1.05, 0.7])
+            c0, c1, c_cand = cols[0], cols[1], cols[2]
+            c2, c3, c4, c5 = cols[3], cols[4], cols[5], cols[6]
+        else:
+            cols = st.columns([0.7, 1.15, 1.7, 0.8, 1.2, 0.7])
+            c0, c1 = cols[0], cols[1]
+            c_cand = None
+            c2, c3, c4, c5 = cols[2], cols[3], cols[4], cols[5]
 
         with c0:
             evidence = next(
@@ -334,6 +416,17 @@ else:
             unsafe_allow_html=True,
         )
 
+        if c_cand is not None:
+            _row_cand = row.get("candidate") or {}
+            if _row_cand:
+                c_cand.markdown(
+                    f"<div class='tbl-cell'><b>{html.escape(str(_row_cand.get('SBD') or '—'))}</b>"
+                    f"<br><span style='font-size:10.5px; color:#64748b;'>{html.escape(str(_row_cand.get('HoTen') or ''))}</span></div>",
+                    unsafe_allow_html=True,
+                )
+            else:
+                c_cand.caption("—")
+
         c2.markdown(
             f"<div class='tbl-cell'><span style='color: var(--wf-danger); font-weight:600;'>{friendly_bh}</span></div>",
             unsafe_allow_html=True,
@@ -354,6 +447,11 @@ else:
         with c5:
             ev_pk = row["PK_MaSuKien"]
             if st.button("Xem", key=f"btn_act_view_devt_{ev_pk}", help=f"Xem chi tiết vi phạm #{ev_pk}"):
+                # Lưu danh sách sự kiện của đúng ngữ cảnh đang xem (ca thi/thí sinh)
+                # để trang chi tiết sự kiện chuyển trước/sau mà không cần quay lại.
+                st.session_state["event_nav_ids"] = [r["PK_MaSuKien"] for r in events]
+                st.session_state["event_nav_scope"] = nav_scope_label
+                st.session_state["event_nav_session"] = session_id
                 st.session_state["event_id"] = ev_pk
                 st.session_state["from_session_id"] = session_id
                 st.session_state["selected_session"] = session_id

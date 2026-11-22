@@ -9,7 +9,13 @@ from sqlalchemy.orm import Session
 from core.dependencies import get_current_user
 from core.exceptions import NotFoundError
 from core.logger import get_logger
-from crud.event_crud import get_event_by_id, get_evidence_by_id, list_events_by_session, verify_event
+from crud.event_crud import (
+    get_event_by_id,
+    get_evidence_by_id,
+    list_events_by_sessions,
+    verify_event,
+)
+from crud.session_crud import get_session_scope_ids
 from database.database import get_db
 from models.user import User
 from schemas.event import EventResponse, EventVerify
@@ -27,9 +33,11 @@ def get_session_events(
     user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    """Liệt kê sự kiện gian lận của phiên, mới nhất trước, lọc theo trạng thái kiểm tra."""
+    """Liệt kê sự kiện gian lận của phiên, mới nhất trước, lọc theo trạng thái kiểm tra.
+    Với ca thi online (phiên cha), gộp cả sự kiện của các phiên con thí sinh."""
     try:
-        return list_events_by_session(db, session_id, trang_thai, skip, limit)
+        scope_ids = get_session_scope_ids(db, session_id)
+        return list_events_by_sessions(db, scope_ids, trang_thai, skip, limit)
     except Exception as exc:
         logger.error(f"Error fetching events: {exc}", exc_info=True)
         raise HTTPException(status_code=500, detail="Failed to fetch events")

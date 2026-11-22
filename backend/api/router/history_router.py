@@ -1,5 +1,5 @@
 """Endpoint lịch sử cho danh sách ca thi, chi tiết và xóa session.
-Logic chính: admin xem toàn hệ thống còn user thường chỉ thấy session của mình, chặn xóa session đang chạy.
+Logic chính: mọi user đã đăng nhập đều xem và thao tác trên lịch sử chung, chặn xóa session đang chạy.
 """
 
 from fastapi import APIRouter, Depends, HTTPException, Query
@@ -30,9 +30,9 @@ def get_sessions(
     user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    """Liệt kê ca thi. Có phân trang và tìm theo mã phòng, admin xem hết còn user lọc theo mình."""
+    """Liệt kê ca thi. Có phân trang và tìm theo mã phòng. Mọi user đã đăng nhập đều xem toàn bộ."""
     try:
-        user_id_filter = None if user.VaiTro == "admin" else user.PK_MaNguoiDung
+        user_id_filter = None
         return get_session_list(db, user_id_filter, skip, limit, search or None)
     except Exception as exc:
         logger.error(f"Error fetching sessions: {exc}", exc_info=True)
@@ -45,9 +45,9 @@ def get_summary(
     user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    """Lấy tổng số ca thi và số ca trong tháng. Phạm vi lọc theo quyền admin hay user thường."""
+    """Lấy tổng số ca thi và số ca trong tháng. Mọi user đã đăng nhập đều xem toàn bộ."""
     try:
-        user_id_filter = None if user.VaiTro == "admin" else user.PK_MaNguoiDung
+        user_id_filter = None
         return get_session_summary(db, user_id_filter, search or None)
     except Exception as exc:
         logger.error(f"Error fetching summary: {exc}", exc_info=True)
@@ -78,8 +78,8 @@ def delete_session_endpoint(
 ):
     """Xóa session và toàn bộ dữ liệu liên quan. Chặn xóa ca đang chạy, lỗi thì rollback."""
     try:
-        # Xóa theo quyền: admin xóa mọi session, user thường chỉ xóa session của mình
-        user_id_check = None if user.VaiTro == "admin" else user.PK_MaNguoiDung
+        # Xóa theo quyền: mọi user đã đăng nhập đều thao tác trên lịch sử chung
+        user_id_check = None
         return delete_session(db, session_id, user_id_check)
     except HTTPException:
         raise

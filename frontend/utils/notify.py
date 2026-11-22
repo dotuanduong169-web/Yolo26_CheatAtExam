@@ -5,11 +5,11 @@ import streamlit as st
 _CSS = """
 <style>
 /* ==========================================================================
-   TOAST NOTIFICATION (NỔI GÓC TRÊN-PHẢI DÓNG THẲNG HÀNG CONTAINER 1280px)
+   TOAST NOTIFICATION (NỔI GÓC TRÊN-PHẢI, SÁT MÉP PHẢI MÀN HÌNH)
    ========================================================================== */
 .sys-toast-wrap {
     position: fixed !important;
-    right: max(24px, calc((100vw - 1280px) / 2 + 24px)) !important;
+    right: 16px !important;
     z-index: 1000005 !important;
     pointer-events: auto !important;
     display: flex !important;

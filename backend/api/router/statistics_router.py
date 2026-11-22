@@ -1,5 +1,5 @@
 """Endpoint thống kê cho tổng hợp ngày, tuần và toàn hệ thống.
-Logic chính: sleeping là số vật gian lận (Cheat_Paper và cellphone), admin xem hết còn user lọc theo mình.
+Logic chính: sleeping là số vật gian lận (Cheat_Paper và cellphone), mọi user đã đăng nhập xem chung toàn bộ số liệu.
 Lưu ý: tên key sleeping là lịch sử, giữ nguyên để tương thích DB và API.
 """
 
@@ -47,7 +47,7 @@ def stats_daily(
 ):
     """Lấy thống kê gom theo ngày. Phạm vi N ngày gần nhất, lọc theo quyền admin hay user."""
     try:
-        user_id_filter = None if user.VaiTro == "admin" else user.PK_MaNguoiDung
+        user_id_filter = None
         return get_daily_stats(db, user_id_filter, days)
     except Exception as exc:
         logger.error(f"Error fetching daily stats: {exc}", exc_info=True)
@@ -62,7 +62,7 @@ def stats_by_date(
 ):
     """Lấy số vật gian lận theo từng ngày. Dùng vẽ biểu đồ cảnh báo N ngày gần nhất."""
     try:
-        user_id_filter = None if user.VaiTro == "admin" else user.PK_MaNguoiDung
+        user_id_filter = None
         return get_stats_by_date(db, user_id_filter, days)
     except Exception as exc:
         logger.error(f"Error fetching by-date stats: {exc}", exc_info=True)
@@ -77,7 +77,7 @@ def stats_weekly(
 ):
     """Lấy thống kê gom theo tuần. Dùng cho biểu đồ xu hướng N tuần gần nhất."""
     try:
-        user_id_filter = None if user.VaiTro == "admin" else user.PK_MaNguoiDung
+        user_id_filter = None
         return get_weekly_stats(db, user_id_filter, weeks)
     except Exception as exc:
         logger.error(f"Error fetching weekly stats: {exc}", exc_info=True)
@@ -91,7 +91,7 @@ def stats_summary(
 ):
     """Lấy tổng hợp toàn hệ thống. Gồm tổng lượt phát hiện và tỉ lệ bài sạch trung bình."""
     try:
-        user_id_filter = None if user.VaiTro == "admin" else user.PK_MaNguoiDung
+        user_id_filter = None
         return get_stats_summary(db, user_id_filter)
     except Exception as exc:
         logger.error(f"Error fetching summary: {exc}", exc_info=True)
@@ -187,7 +187,7 @@ def stats_distribution(
     """Lấy phân bố hành vi gian lận thực tế từ cơ sở dữ liệu."""
     try:
         from service.statistics_service import get_behavior_distribution
-        user_id_filter = None if user.VaiTro == "admin" else user.PK_MaNguoiDung
+        user_id_filter = None
         return get_behavior_distribution(db, user_id_filter)
     except Exception as exc:
         logger.error(f"Error fetching distribution: {exc}", exc_info=True)

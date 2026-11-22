@@ -50,7 +50,8 @@ elif not st.session_state.get("access_token_value") and not st.query_params.get(
                 if (raw) {
                     const data = JSON.parse(raw);
                     if (data && data.token) {
-                        const target = "/home?auth=" + encodeURIComponent(data.token) +
+                        const landing = (data.role === "admin") ? "/home" : "/online_exam";
+                        const target = landing + "?auth=" + encodeURIComponent(data.token) +
                             "&role=" + encodeURIComponent(data.role || "") +
                             "&u=" + encodeURIComponent(data.username || "");
                         window.parent.eval("window.location.replace('" + target + "')");
@@ -123,6 +124,9 @@ if login_clicked:
             # Lưu vào localStorage của trình duyệt và điều hướng vào trang chủ
             import json
 
+            # Admin vào Giám sát; Cán bộ coi thi vào thẳng Thi online (hệ thống chỉ còn thi online)
+            landing_path = "/home" if role == "admin" else "/online_exam"
+
             auth_json = json.dumps({
                 "token": tok,
                 "refresh_token": data.get("refresh_token") or "",
@@ -137,7 +141,7 @@ if login_clicked:
                 try {{
                     window.parent.localStorage.setItem("examcheat_auth", JSON.stringify({auth_json}));
                 }} catch (e) {{}}
-                window.parent.eval("window.location.replace('/home?auth={tok}&role={role}&u={username}')");
+                window.parent.eval("window.location.replace('{landing_path}?auth={tok}&role={role}&u={username}')");
                 </script>
                 """,
                 height=0,
@@ -156,9 +160,35 @@ if login_clicked:
             else:
                 err_txt = "Tên đăng nhập hoặc mật khẩu không chính xác. Vui lòng kiểm tra lại."
             notify.error(err_txt)
+        elif res.status_code == 429:
+            # Nhập sai quá số lần: backend trả 429 kèm detail tiếng Anh,
+            # hiển thị lại bằng thông báo thân thiện thay vì JSON thô.
+            import re
+
+            detail_msg = ""
+            try:
+                detail_msg = str(res.json().get("detail", ""))
+            except Exception:
+                pass
+            match = re.search(r"(\d+)\s*minute", detail_msg, re.IGNORECASE)
+            minutes = int(match.group(1)) if match else 0
+            if minutes > 0:
+                err_txt = f"Bạn đã nhập sai quá nhiều lần. Vui lòng thử lại sau {minutes} phút."
+            else:
+                err_txt = "Bạn đã nhập sai quá nhiều lần. Vui lòng thử lại sau ít phút."
+            notify.warning(err_txt, title="Tạm khóa đăng nhập")
         else:
-            err_txt = f"Lỗi đăng nhập: {res.text}"
-            notify.error(err_txt)
+            # Không hiển thị JSON thô: bóc riêng trường detail/message nếu có.
+            detail_msg = ""
+            try:
+                payload = res.json()
+                if isinstance(payload, dict):
+                    detail_msg = str(payload.get("detail") or payload.get("message") or "")
+            except Exception:
+                pass
+            if not detail_msg:
+                detail_msg = f"Máy chủ trả về mã lỗi HTTP {res.status_code}."
+            notify.error(f"Lỗi đăng nhập: {detail_msg}")
 
 # Flush hàng đợi (trang login không có header chung)
 flush_toasts()

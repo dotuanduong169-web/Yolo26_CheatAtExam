@@ -6,11 +6,12 @@ from sqlalchemy.orm import Session as DBSession
 
 from core.exceptions import AuthorizationError, NotFoundError, ValidationError
 from core.logger import get_logger
-from crud.event_crud import list_events_by_session
+from crud.event_crud import list_events_by_sessions
 from crud.session_crud import (
     delete_session_cascade,
     get_session_by_id,
     get_session_count_by_user,
+    get_session_scope_ids,
     get_sessions_with_event_count,
 )
 from models.detected_event import DetectedEvent
@@ -84,7 +85,7 @@ def get_session_detail(db: DBSession, session_id: int) -> dict:
     if not session:
         raise NotFoundError(detail="Session not found")
 
-    events = list_events_by_session(db, session_id, limit=200)
+    events = list_events_by_sessions(db, get_session_scope_ids(db, session_id), limit=500)
     total = len(events)
     confirmed = sum(1 for e in events if (get_final_label(e) or "") in ("Cheat_Paper", "cellphone"))
     pending = sum(1 for e in events if e.TrangThaiKiemTra == "cho_kiem_tra")

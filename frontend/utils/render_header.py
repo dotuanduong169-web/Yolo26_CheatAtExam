@@ -17,6 +17,7 @@ def render_page_header(title: str, active: str | None = None):
     role_raw = str(st.session_state.get("user_role", "teacher")).lower()
     role_label = "Quản trị viên" if role_raw == "admin" else "Cán bộ coi thi"
     avatar_letter = user_name.strip()[:1].upper() if user_name.strip() else "U"
+    is_admin = role_raw == "admin"
 
     # Xác định class active cho đúng 5 tab điều hướng chính
     active_key = (active or "").lower()
@@ -30,26 +31,36 @@ def render_page_header(title: str, active: str | None = None):
     from utils.http import auth_query_params
     aqs = auth_query_params()
 
+    # ── Menu điều hướng: "Thi online" lên đầu, "Giám sát" xuống cuối.
+    # Cán bộ coi thi (teacher) không thấy "Giám sát" và "Thiết bị". ──
+    _NAV_ITEMS = (
+        ("online_exam", "pages/online_exam.py", "Thi online", cls_online, True),
+        ("history", "pages/history.py", "Lịch sử", cls_hist, True),
+        ("devices", "pages/devices.py", "Thiết bị", cls_dev, is_admin),
+        ("statistics", "pages/statistics.py", "Thống kê", cls_stats, True),
+        ("users", "pages/users.py", "Cài đặt", cls_set, True),
+        ("home", "pages/home.py", "Giám sát", cls_home, is_admin),
+    )
+    nav_items = [item for item in _NAV_ITEMS if item[4]]
+
     # ── Trigger điều hướng native (ẩn): visual giữ nguyên HTML,
     # click trên thanh nav sẽ bấm nút ẩn này → st.switch_page (rerun nhẹ,
     # không reload toàn trình duyệt nên không chớp màn hình) ──
-    _NAV_TARGETS = (
-        ("home", "pages/home.py"),
-        ("history", "pages/history.py"),
-        ("devices", "pages/devices.py"),
-        ("statistics", "pages/statistics.py"),
-        ("users", "pages/users.py"),
-        ("online_exam", "pages/online_exam.py"),
-    )
     st.markdown(
         "<style>div[class*='st-key-hidden_nav_'],div[data-testid^='st-key-hidden_nav_']"
         "{display:none!important;height:0!important;min-height:0!important;margin:0!important;"
         "padding:0!important;visibility:hidden!important;overflow:hidden!important}</style>",
         unsafe_allow_html=True,
     )
-    for _nav_key, _nav_target in _NAV_TARGETS:
+    for _nav_key, _nav_target, _nav_label, _nav_cls, _nav_visible in nav_items:
         if st.button("", key=f"hidden_nav_{_nav_key}"):
             st.switch_page(_nav_target)
+
+    nav_links_html = "".join(
+        f'    <a href="/{_nav_key}?{aqs}" target="_self" data-page="{_nav_key}" '
+        f'class="nav-tab-btn {_nav_cls}">{_nav_label}</a>'
+        for _nav_key, _nav_target, _nav_label, _nav_cls, _nav_visible in nav_items
+    )
 
     header_html = (
         '<div class="global-top-bar">'
@@ -90,12 +101,7 @@ def render_page_header(title: str, active: str | None = None):
         '</div>'
         '<div class="global-nav-bar">'
         '  <div class="nav-container">'
-        f'    <a href="/home?{aqs}" target="_self" data-page="home" class="nav-tab-btn {cls_home}">Giám sát</a>'
-        f'    <a href="/history?{aqs}" target="_self" data-page="history" class="nav-tab-btn {cls_hist}">Lịch sử</a>'
-        f'    <a href="/devices?{aqs}" target="_self" data-page="devices" class="nav-tab-btn {cls_dev}">Thiết bị</a>'
-        f'    <a href="/statistics?{aqs}" target="_self" data-page="statistics" class="nav-tab-btn {cls_stats}">Thống kê</a>'
-        f'    <a href="/users?{aqs}" target="_self" data-page="users" class="nav-tab-btn {cls_set}">Cài đặt</a>'
-        f'    <a href="/online_exam?{aqs}" target="_self" data-page="online_exam" class="nav-tab-btn {cls_online}">Thi online</a>'
+        + nav_links_html +
         '  </div>'
         '</div>'
         '<script>'

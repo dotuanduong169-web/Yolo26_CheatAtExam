@@ -80,17 +80,25 @@ def get_evidence_by_id(db: DBSession, evidence_id: int) -> Optional[Evidence]:
         .filter(Evidence.PK_MaBangChung == evidence_id)
         .first()
     )
-def list_events_by_session(
+
+
+def list_events_by_sessions(
     db: DBSession,
-    session_id: int,
+    session_ids: list[int],
     trang_thai: Optional[str] = None,
     skip: int = 0,
     limit: int = 50,
 ) -> list[DetectedEvent]:
-    """Liệt kê sự kiện của phiên, mới nhất trước, lọc theo trạng thái kiểm tra."""
+    """Liệt kê sự kiện của nhiều phiên (ca thi cha + phiên con), mới nhất trước.
+
+    Điểm logic: ca thi online lưu sự kiện ở phiên con của từng thí sinh, nên khi
+    xem theo ca thi cha phải gom nhiều phiên trong cùng một truy vấn.
+    """
+    if not session_ids:
+        return []
     query = (
         _with_event_relations(db.query(DetectedEvent))
-        .filter(DetectedEvent.FK_MaPhienGiamSat == session_id)
+        .filter(DetectedEvent.FK_MaPhienGiamSat.in_(session_ids))
     )
     if trang_thai is not None:
         query = query.filter(DetectedEvent.TrangThaiKiemTra == trang_thai)
@@ -100,6 +108,17 @@ def list_events_by_session(
         .limit(limit)
         .all()
     )
+
+
+def list_events_by_session(
+    db: DBSession,
+    session_id: int,
+    trang_thai: Optional[str] = None,
+    skip: int = 0,
+    limit: int = 50,
+) -> list[DetectedEvent]:
+    """Liệt kê sự kiện của một phiên, mới nhất trước, lọc theo trạng thái kiểm tra."""
+    return list_events_by_sessions(db, [session_id], trang_thai, skip, limit)
 
 
 def list_all_events_crud(

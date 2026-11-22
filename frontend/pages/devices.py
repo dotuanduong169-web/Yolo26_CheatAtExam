@@ -31,6 +31,19 @@ st.markdown(load_css("styles/sidebar.css"), unsafe_allow_html=True)
 st.markdown(load_css("styles/app_theme.css"), unsafe_allow_html=True)
 render_page_header("Thiết bị biên", active="devices")
 
+# ── Phân quyền: danh mục thiết bị biên chỉ dành cho Admin ────
+is_admin = st.session_state.get("user_role") == "admin"
+
+if not is_admin:
+    notify.inline(
+        "Tính năng quản lý danh mục thiết bị biên và camera dành riêng cho Quản trị viên (Admin). "
+        "Bạn đang đăng nhập với vai trò Cán bộ coi thi. Khi mở phiên giám sát, bạn vẫn chọn được "
+        "camera/nguồn video đã được Admin cấu hình sẵn ở trang Giám sát.",
+        kind="warning",
+        title="Quyền truy cập bị giới hạn",
+    )
+    st.stop()
+
 # ── 3 Khung tổng quan thực tế từ API ───────────────────────
 from config import API_BASE_URL
 from utils.http import safe_get
@@ -75,7 +88,6 @@ st.markdown(f"""
 """, unsafe_allow_html=True)
 
 client = st.session_state.client
-is_admin = st.session_state.get("user_role") == "admin"
 
 # ── Dialogs cho thao tác Thiết bị biên ───────────────────────
 @st.dialog("Đăng ký thiết bị camera IP / RTSP mới")

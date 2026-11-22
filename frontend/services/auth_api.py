@@ -16,7 +16,7 @@ def login(session: requests.Session, username: str, password: str):
         return session.post(
             f"{API_BASE_URL}/users/login",
             json={"TenDangNhap": username, "MatKhau": password},
-            timeout=8,
+            timeout=15,
         )
     except requests.RequestException as exc:
         logger.warning(f"Login request error: {exc}")
@@ -45,11 +45,16 @@ def logout(session: requests.Session):
 
 
 def refresh_token(session: requests.Session):
-    """Làm mới access token bằng refresh token cookie."""
+    """Làm mới access token bằng refresh token (từ cookie, session_state hoặc header)."""
     try:
+        ref_tok = st.session_state.get("refresh_token_value")
+        headers = get_auth_headers()
+        if ref_tok:
+            headers["X-Refresh-Token"] = ref_tok
         return session.post(
             f"{API_BASE_URL}/users/refresh",
-            headers=get_auth_headers(),
+            json={"refresh_token": ref_tok} if ref_tok else None,
+            headers=headers,
         )
     except requests.RequestException as exc:
         logger.warning(f"Refresh token error: {exc}")

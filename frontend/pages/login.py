@@ -50,7 +50,7 @@ elif not st.session_state.get("access_token_value") and not st.query_params.get(
                 if (raw) {
                     const data = JSON.parse(raw);
                     if (data && data.token) {
-                        const landing = (data.role === "admin") ? "/home" : "/online_exam";
+                        const landing = "/online_exam";
                         const target = landing + "?auth=" + encodeURIComponent(data.token) +
                             "&role=" + encodeURIComponent(data.role || "") +
                             "&u=" + encodeURIComponent(data.username || "");
@@ -124,12 +124,14 @@ if login_clicked:
             # Lưu vào localStorage của trình duyệt và điều hướng vào trang chủ
             import json
 
-            # Admin vào Giám sát; Cán bộ coi thi vào thẳng Thi online (hệ thống chỉ còn thi online)
-            landing_path = "/home" if role == "admin" else "/online_exam"
+            # Điều hướng toàn bộ người dùng vào Thi online (hệ thống tập trung cho thi online)
+            landing_path = "/online_exam"
 
+            ref_tok = data.get("refresh_token") or ""
+            st.session_state["refresh_token_value"] = ref_tok
             auth_json = json.dumps({
                 "token": tok,
-                "refresh_token": data.get("refresh_token") or "",
+                "refresh_token": ref_tok,
                 "role": role,
                 "username": username,
                 "full_name": fullname,
@@ -141,7 +143,7 @@ if login_clicked:
                 try {{
                     window.parent.localStorage.setItem("examcheat_auth", JSON.stringify({auth_json}));
                 }} catch (e) {{}}
-                window.parent.eval("window.location.replace('{landing_path}?auth={tok}&role={role}&u={username}')");
+                window.parent.eval("window.location.replace('{landing_path}?auth={tok}&role={role}&u={username}&refresh={ref_tok}')");
                 </script>
                 """,
                 height=0,

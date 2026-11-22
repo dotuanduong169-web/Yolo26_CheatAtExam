@@ -62,52 +62,69 @@ def render_evidence_content(event_id: int):
         st.markdown("<hr style='margin: 10px 0;'>", unsafe_allow_html=True)
 
         # Trường xác minh lại nhãn đúng (NhanNguoiDung)
-        available_labels = ["Cheat_Paper", "cellphone", "quay_dau", "quay_sau", "cui_xuong", "vang_mat", "nhieu_nguoi", "Answer_paper"]
-        label_names = {
-            "Cheat_Paper": "Tài liệu giấy (Cheat_Paper)",
-            "cellphone": "Điện thoại di động (cellphone)",
-            "quay_dau": "Quay đầu (>45°)",
-            "quay_sau": "Quay người về sau",
-            "cui_xuong": "Cúi đầu nhìn xuống gầm bàn",
-            "vang_mat": "Vắng mặt khỏi khung hình (vang_mat)",
-            "nhieu_nguoi": "Nhiều người trong khung hình (nhieu_nguoi)",
-            "Answer_paper": "Giấy thi hợp lệ (Answer_paper - Không vi phạm)",
-        }
-        current_choice = user_label if user_label in available_labels else (data.get("NhanAI") if data.get("NhanAI") in available_labels else "Cheat_Paper")
-        def_idx = available_labels.index(current_choice) if current_choice in available_labels else 0
+        is_pending = (stt_code == "cho_kiem_tra")
+        if not is_pending:
+            if stt_code in ("dung", "da_kiem_tra", "da_xac_minh"):
+                confirmed_label = get_friendly_behavior_label(user_label or data.get("NhanAI"))
+                st.markdown(
+                    f"<div style='background:#f0fdf4; border:1px solid #bbf7d0; border-radius:8px; padding:10px 12px; color:#16a34a; font-size:13px; font-weight:600; text-align:center; margin:10px 0;'>"
+                    f"Đã xác nhận vi phạm: {confirmed_label}"
+                    f"</div>",
+                    unsafe_allow_html=True,
+                )
+            else:
+                st.markdown(
+                    "<div style='background:#fef2f2; border:1px solid #fecaca; border-radius:8px; padding:10px 12px; color:#dc2626; font-size:13px; font-weight:600; text-align:center; margin:10px 0;'>"
+                    "Đã bác bỏ sự kiện (Báo sai)"
+                    "</div>",
+                    unsafe_allow_html=True,
+                )
+        else:
+            available_labels = ["Cheat_Paper", "cellphone", "quay_dau", "quay_sau", "cui_xuong", "vang_mat", "nhieu_nguoi"]
+            label_names = {
+                "Cheat_Paper": "Tài liệu không hợp lệ (Cheat_Paper)",
+                "cellphone": "Điện thoại di động (cellphone)",
+                "quay_dau": "Quay đầu (>45°)",
+                "quay_sau": "Quay người về sau",
+                "cui_xuong": "Cúi đầu nhìn xuống gầm bàn",
+                "vang_mat": "Vắng mặt khỏi khung hình (vang_mat)",
+                "nhieu_nguoi": "Nhiều người trong khung hình (nhieu_nguoi)",
+            }
+            current_choice = user_label if user_label in available_labels else (data.get("NhanAI") if data.get("NhanAI") in available_labels else "Cheat_Paper")
+            def_idx = available_labels.index(current_choice) if current_choice in available_labels else 0
 
-        selected_label = st.selectbox(
-            "Xác minh lại nhãn đúng (NhanNguoiDung):",
-            options=available_labels,
-            index=def_idx,
-            format_func=lambda x: label_names.get(x, x),
-            key=f"sel_label_{event_id}",
-        )
+            selected_label = st.selectbox(
+                "Xác minh lại nhãn đúng (NhanNguoiDung):",
+                options=available_labels,
+                index=def_idx,
+                format_func=lambda x: label_names.get(x, x),
+                key=f"sel_label_{event_id}",
+            )
 
-        st.markdown("<div style='height: 10px;'></div>", unsafe_allow_html=True)
-        btn_c1, btn_c2 = st.columns(2)
+            st.markdown("<div style='height: 10px;'></div>", unsafe_allow_html=True)
+            btn_c1, btn_c2 = st.columns(2)
 
-        with btn_c1:
-            if st.button("Bác bỏ (Báo sai)", key=f"reject_{event_id}", use_container_width=True):
-                st.session_state["history_active_tab"] = "events"
-                st.query_params["tab"] = "events"
-                res = verify_event(client, event_id, "sai", "Answer_paper")
-                if res is not None and res.status_code == 200:
-                    notify.success(f"Đã bác bỏ sự kiện EV-{event_id:02d} (Giấy thi hợp lệ)")
-                    st.rerun()
-                else:
-                    notify.error("Không thể cập nhật trạng thái sự kiện")
+            with btn_c1:
+                if st.button("Bác bỏ (Báo sai)", key=f"reject_{event_id}", use_container_width=True):
+                    st.session_state["history_active_tab"] = "events"
+                    st.query_params["tab"] = "events"
+                    res = verify_event(client, event_id, "sai", "")
+                    if res is not None and res.status_code == 200:
+                        notify.success(f"Đã bác bỏ sự kiện EV-{event_id:02d} (Báo sai)")
+                        st.rerun()
+                    else:
+                        notify.error("Không thể cập nhật trạng thái sự kiện")
 
-        with btn_c2:
-            if st.button("Xác nhận Vi phạm", key=f"confirm_{event_id}", type="primary", use_container_width=True):
-                st.session_state["history_active_tab"] = "events"
-                st.query_params["tab"] = "events"
-                res = verify_event(client, event_id, "dung", selected_label)
-                if res is not None and res.status_code == 200:
-                    notify.success(f"Đã xác nhận sự kiện EV-{event_id:02d} với nhãn: {selected_label}")
-                    st.rerun()
-                else:
-                    notify.error("Không thể cập nhật trạng thái sự kiện")
+            with btn_c2:
+                if st.button("Xác nhận Vi phạm", key=f"confirm_{event_id}", type="primary", use_container_width=True):
+                    st.session_state["history_active_tab"] = "events"
+                    st.query_params["tab"] = "events"
+                    res = verify_event(client, event_id, "dung", selected_label)
+                    if res is not None and res.status_code == 200:
+                        notify.success(f"Đã xác nhận sự kiện EV-{event_id:02d} với nhãn: {label_names.get(selected_label, selected_label)}")
+                        st.rerun()
+                    else:
+                        notify.error("Không thể cập nhật trạng thái sự kiện")
 
 
 # Dùng Streamlit dialog nếu hỗ trợ, ngược lại dùng fallback

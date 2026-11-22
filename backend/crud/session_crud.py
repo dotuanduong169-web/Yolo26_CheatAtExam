@@ -173,10 +173,12 @@ def get_session_count_by_user(db: DBSession, user_id: Optional[int] = None, sear
 
 
 def get_monthly_session_count_by_user(db: DBSession, user_id: Optional[int] = None) -> int:
-    """Đếm phiên trong 30 ngày gần nhất, lọc theo user khi cần."""
+    """Đếm phiên trong 30 ngày gần nhất, lọc theo user khi cần (chỉ đếm ca thi cha, bỏ qua phiên con thí sinh)."""
     since = datetime.now(timezone.utc).timestamp() - 30 * 24 * 3600
-    query = db.query(func.count(MonitoringSession.PK_MaPhienGiamSat)).filter(
-        func.extract("epoch", MonitoringSession.ThoiGianBatDau) >= since
+    query = (
+        db.query(func.count(MonitoringSession.PK_MaPhienGiamSat))
+        .filter(func.extract("epoch", MonitoringSession.ThoiGianBatDau) >= since)
+        .filter(MonitoringSession.FK_MaThiSinh.is_(None))
     )
     if user_id is not None:
         query = query.filter(MonitoringSession.FK_MaNguoiDung == user_id)
@@ -195,10 +197,14 @@ def delete_session_cascade(db: DBSession, session_id: int) -> bool:
 
 
 def get_active_session(db: DBSession) -> Optional[MonitoringSession]:
-    """Lấy phiên thi đang diễn ra gần nhất."""
+    """Lấy ca thi cha đang diễn ra gần nhất (bỏ qua phiên con của thí sinh)."""
     return (
         db.query(MonitoringSession)
-        .filter(MonitoringSession.TrangThai == "dang_giam_sat", MonitoringSession.ThoiGianKetThuc.is_(None))
+        .filter(
+            MonitoringSession.TrangThai == "dang_giam_sat",
+            MonitoringSession.ThoiGianKetThuc.is_(None),
+            MonitoringSession.FK_MaThiSinh.is_(None),
+        )
         .order_by(MonitoringSession.PK_MaPhienGiamSat.desc())
         .first()
     )

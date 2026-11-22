@@ -40,10 +40,10 @@ def get_current_user(
 
     Logic: ưu tiên cookie trước header, chặn blacklist khi logout, thiếu user_id thì từ chối.
     """
-    # Ưu tiên cookie trước header
-    token = request.cookies.get("access_token")
-    if not token and credentials:
-        token = credentials.credentials
+    # Ưu tiên Authorization header trước cookie để tránh cookie cũ/hết hạn ghi đè token mới
+    token = credentials.credentials if credentials else None
+    if not token:
+        token = request.cookies.get("access_token")
 
     if not token:
         logger.warning("Unauthorized: no token provided")

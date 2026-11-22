@@ -19,12 +19,11 @@ from service.camera_state import CameraState
 
 logger = get_logger(__name__)
 
-# Chu kỳ lưu snapshot: 10 giây một ảnh kèm sự kiện và thống kê (chỉnh qua SAVE_INTERVAL_SECONDS).
-# 10 giây đủ nhanh để sự kiện lên list kịp lúc, vẫn tránh spam ảnh/sự kiện khi vật đứng yên.
+# Chu kỳ lưu snapshot định kỳ khi không có vi phạm (heartbeat): 10 giây
 SAVE_INTERVAL_SECONDS = int(os.getenv("SAVE_INTERVAL_SECONDS", "10"))
-# Debounce gian lận: cheat chỉ ghi sự kiện khi có >=3 frame gian lận trong 5 frame gần nhất
-CHEAT_WINDOW = 5
-CHEAT_MIN_HITS = 3
+# Kiến trúc Snapshot: Kích hoạt tức thì theo từng snapshot (1/1)
+CHEAT_WINDOW = 1
+CHEAT_MIN_HITS = 1
 
 
 def capture_loop() -> None:
@@ -167,15 +166,8 @@ def _infer_worker(state: CameraState) -> None:
 
 def _keep_result(state: CameraState, r: dict) -> bool:
     """Quyết định giữ detection vào snapshot.
-    Điểm logic: vật sạch luôn giữ; vật gian lận cần debounce 3/5;
-    hành vi quay/cúi cần debounce riêng; quay_sau ghi ngay."""
-    if not r.get("is_cheat"):
-        return True
-    if r.get("kind") == "behavior":
-        if r.get("label") == "quay_sau":
-            return True
-        return state.is_behavior_confirmed(CHEAT_WINDOW, CHEAT_MIN_HITS)
-    return state.is_cheat_confirmed(CHEAT_WINDOW, CHEAT_MIN_HITS)
+    Với kiến trúc snapshot 2.5s, các phát hiện vi phạm được kích hoạt tức thì (1/1)."""
+    return True
 
 
 def _save_event_snapshot(

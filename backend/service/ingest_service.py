@@ -77,8 +77,8 @@ def _normalize_role(vai_tro: str | None) -> str:
     return role if role in VALID_ROLES else ROLE_FRONT
 
 
-def _window_ok(deq: deque, window: int = CHEAT_WINDOW, hits: int = CHEAT_MIN_HITS) -> bool:
-    """Debounce 3/5 như CameraState nhưng cho worker độc lập."""
+def _window_ok(deq: deque, window: int = 1, hits: int = 1) -> bool:
+    """Kích hoạt tức thì theo từng snapshot: chỉ cần frame gần nhất có phát hiện vi phạm."""
     recent = list(deq)[-window:]
     return len(recent) >= hits and sum(1 for v in recent if v) >= hits
 
@@ -291,12 +291,10 @@ class _SessionWorker:
                     )
                     trigger_obj = (
                         has_obj
-                        and _window_ok(self.cheat_window, CHEAT_WINDOW, CHEAT_MIN_HITS)
                         and (now - self.last_object_save >= OBJECT_COOLDOWN_SECONDS)
                     )
                     trigger_beh = (
                         has_beh
-                        and _window_ok(self.behavior_window, POSE_WINDOW, POSE_MIN_HITS)
                         and (now - self.last_pose_save >= POSE_COOLDOWN_SECONDS)
                     )
 
@@ -441,23 +439,18 @@ class _SessionWorker:
             if r.get("kind") == "behavior":
                 if self.vai_tro != ROLE_FRONT:
                     continue
-                if r.get("label") == "quay_sau":
-                    kept.append(r)
-                elif _window_ok(self.behavior_window):
-                    kept.append(r)
-                continue
-            if _window_ok(self.cheat_window):
                 kept.append(r)
+                continue
+            kept.append(r)
 
         if self.vai_tro == ROLE_FRONT:
-            # vang_mat: chỉ ghi 1 lần cho mỗi đợt vắng, khi đã debounce đủ
+            # vang_mat: chỉ ghi 1 lần cho mỗi đợt vắng khi liên tục quá ABSENT_SECONDS (10s)
             now = time.time()
             n_persons, _ = _last_pose_info.get(self.ns, (0, 0.0))
             if (
                 n_persons == 0
                 and (now - self.last_seen_person) > ABSENT_SECONDS
                 and not self.vang_fired
-                and _window_ok(self.behavior_window)
             ):
                 kept.append({
                     "bbox": [],

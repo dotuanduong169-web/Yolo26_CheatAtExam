@@ -8,22 +8,20 @@ from typing import Optional
 
 import numpy as np
 
-# Cửa sổ debounce gian lận: giữ tối đa 12 frame gần nhất
-CHEAT_WINDOW_MAXLEN = 12
+# Kiến trúc Snapshot định kỳ (2.5s / snapshot):
+# Kích hoạt tức thì theo từng snapshot (1/1 frame) thay vì đệm trượt như video stream 30 FPS cũ.
+CHEAT_WINDOW_MAXLEN = 5
 
-# Ngưỡng debounce:
-# Object (điện thoại, tài liệu): cần 3/5 frame (~0.8 - 1.2s)
-OBJECT_WINDOW = 5
-OBJECT_MIN_HITS = 3
-# Pose (quay đầu, cúi xuống): cần 4/6 frame (~1.2 - 1.8s) để loại trừ cử động vô thức
-POSE_WINDOW = 6
-POSE_MIN_HITS = 4
+OBJECT_WINDOW = 1
+OBJECT_MIN_HITS = 1
+POSE_WINDOW = 1
+POSE_MIN_HITS = 1
 
 # Cooldown chống spam giữa các lần lưu cùng vi phạm:
-# Object: 15s (vật thể nằm yên, nhắc lại sau 15s nếu vẫn còn)
-# Pose: 6s (hành vi diễn ra theo đợt ngắn 2-4s)
-OBJECT_COOLDOWN_SECONDS = float(os.getenv("OBJECT_COOLDOWN_SECONDS", "15"))
-POSE_COOLDOWN_SECONDS = float(os.getenv("POSE_COOLDOWN_SECONDS", "6"))
+# Object: 15s (tương đương 6 chu kỳ snapshot 2.5s)
+# Pose: 5.0s (tương đương đúng 2 chu kỳ snapshot 2.5s)
+OBJECT_COOLDOWN_SECONDS = float(os.getenv("OBJECT_COOLDOWN_SECONDS", "15.0"))
+POSE_COOLDOWN_SECONDS = float(os.getenv("POSE_COOLDOWN_SECONDS", "5.0"))
 
 
 class CameraState:
@@ -157,7 +155,7 @@ class CameraState:
 
         if has_beh:
             is_quay_sau = any(r.get("label") == "quay_sau" for r in results)
-            beh_ok = self.is_behavior_confirmed(4, 3) if is_quay_sau else self.is_behavior_confirmed(POSE_WINDOW, POSE_MIN_HITS)
+            beh_ok = True if is_quay_sau else self.is_behavior_confirmed(POSE_WINDOW, POSE_MIN_HITS)
             if beh_ok and (now - self.last_pose_save_time >= POSE_COOLDOWN_SECONDS):
                 trigger_beh = True
                 self.last_pose_save_time = now

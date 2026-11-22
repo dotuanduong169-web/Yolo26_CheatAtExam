@@ -96,31 +96,50 @@ if st.button(back_label, key="btn_back_to_history"):
 status_text = get_session_status_label(sess.get("TrangThai"), sess.get("ThoiGianKetThuc")).upper()
 status_cls = "status-running" if is_active else "status-done"
 
-st.markdown(f"""
-<div class="page-header" style="margin-top: 10px;">
-    <div class="title">Chi tiết ca thi: {room} (Phiên #{session_id})</div>
-    <div class="status-badge {status_cls}">{status_text}</div>
-</div>
-""", unsafe_allow_html=True)
-
-# ── Thông tin thí sinh (nếu là phiên con) ──────────────────
+# ── Thông tin thí sinh (nếu là phiên thí sinh trực tuyến) ───
 candidate = data.get("candidate") or {}
 if candidate:
     c_sbd = candidate.get("SBD") or "—"
     c_name = candidate.get("HoTen") or "—"
     c_lop = candidate.get("Lop") or "—"
-    parent_id = data.get("parent_session_id") or "—"
+    parent_id = data.get("parent_session_id") or sess.get("parent_session_id") or "—"
+    page_title_text = f"Chi tiết thí sinh: {c_name} (SBD {c_sbd})"
+else:
+    page_title_text = f"Chi tiết ca thi: {room} (Ca #{session_id})"
+
+st.markdown(f"""
+<div class="page-header" style="margin-top: 10px;">
+    <div class="title">{page_title_text}</div>
+    <div class="status-badge {status_cls}">{status_text}</div>
+</div>
+""", unsafe_allow_html=True)
+
+if candidate:
     st.markdown(f"""
-    <div class="wf-box" style="margin-top: 12px; border-left: 4px solid #2563eb;">
-        <div class="wf-box-header" style="margin-bottom: 6px;">
-            <div class="wf-box-title">Thông tin thí sinh</div>
-            <span class="wf-badge accent">Phiên con #{session_id}</span>
+    <div class="wf-box" style="margin-top: 14px; border-left: 4px solid #2563eb;">
+        <div class="wf-box-header">
+            <div class="wf-box-title">Thông tin thí sinh dự thi</div>
+            <span class="wf-badge accent">Thí sinh trực tuyến</span>
         </div>
-        <div style="display:grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; font-size: 13px;">
-            <div><div style="color:#64748b;font-size:11px;">SBD</div><div style="font-weight:700;color:#0f172a;">{html.escape(str(c_sbd))}</div></div>
-            <div><div style="color:#64748b;font-size:11px;">HỌ TÊN</div><div style="font-weight:700;color:#0f172a;">{html.escape(str(c_name))}</div></div>
-            <div><div style="color:#64748b;font-size:11px;">LỚP</div><div style="font-weight:600;color:#0f172a;">{html.escape(str(c_lop))}</div></div>
-            <div><div style="color:#64748b;font-size:11px;">CA THI CHA</div><div style="font-weight:600;color:#0f172a;">#{html.escape(str(parent_id))}</div></div>
+        <div class="wf-box-body">
+            <div style="display:grid; grid-template-columns: repeat(4, 1fr); gap: 16px; align-items:center;">
+                <div>
+                    <div style="color:#64748b; font-size:11.5px; font-weight:600; text-transform:uppercase; letter-spacing:0.3px;">Số báo danh</div>
+                    <div style="font-weight:700; color:#0f172a; font-size:14.5px; margin-top:3px; font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,monospace;">{html.escape(str(c_sbd))}</div>
+                </div>
+                <div>
+                    <div style="color:#64748b; font-size:11.5px; font-weight:600; text-transform:uppercase; letter-spacing:0.3px;">Họ và tên</div>
+                    <div style="font-weight:700; color:#0f172a; font-size:14.5px; margin-top:3px;">{html.escape(str(c_name))}</div>
+                </div>
+                <div>
+                    <div style="color:#64748b; font-size:11.5px; font-weight:600; text-transform:uppercase; letter-spacing:0.3px;">Lớp sinh viên</div>
+                    <div style="font-weight:600; color:#334155; font-size:14.5px; margin-top:3px;">{html.escape(str(c_lop))}</div>
+                </div>
+                <div>
+                    <div style="color:#64748b; font-size:11.5px; font-weight:600; text-transform:uppercase; letter-spacing:0.3px;">Thuộc ca thi</div>
+                    <div style="font-weight:600; color:#2563eb; font-size:14.5px; margin-top:3px;">Ca #{html.escape(str(parent_id))}</div>
+                </div>
+            </div>
         </div>
     </div>
     """, unsafe_allow_html=True)
@@ -149,11 +168,26 @@ with col_chart:
         height=180,
         margin=dict(l=0, r=0, t=0, b=0),
         showlegend=False,
-        annotations=[dict(
-            text=f"Sạch<br><b style='font-size:24px; color:#1e293b;'>{int(clean_pct)}%</b>",
-            showarrow=False,
-            font=dict(size=12, color="#64748b"),
-        )],
+        annotations=[
+            dict(
+                text="Sạch",
+                x=0.5,
+                y=0.58,
+                showarrow=False,
+                xanchor="center",
+                yanchor="middle",
+                font=dict(size=13, color="#64748b"),
+            ),
+            dict(
+                text=f"<b>{int(clean_pct)}%</b>",
+                x=0.5,
+                y=0.41,
+                showarrow=False,
+                xanchor="center",
+                yanchor="middle",
+                font=dict(size=22, color="#1e293b"),
+            ),
+        ],
         paper_bgcolor="rgba(0,0,0,0)",
         plot_bgcolor="rgba(0,0,0,0)",
     )

@@ -24,6 +24,7 @@ from utils.http import cache_invalidate, init_session_state
 from utils.load_css import load_css
 from utils.notify import notify
 from utils.render_header import render_page_header
+from utils.status_helpers import get_friendly_behavior_label
 
 # ── Cấu hình trang ──────────────────────────────────────────
 st.set_page_config(layout="wide", initial_sidebar_state="collapsed", page_title="Thi online")
@@ -233,148 +234,312 @@ st.markdown(
 )
 
 # ── Lưới giám thị ───────────────────────────────────────────
-st.markdown(
-    f"""
-    <div style="display: flex; align-items: center; justify-content: space-between; margin: 20px 0 14px 0;">
-        <h3 style="margin: 0; font-size: 17.5px; font-weight: 700; color: #0f172a;">Lưới giám thị thời gian thực</h3>
-        <span class="wf-badge accent">{tot_cands} thí sinh</span>
-    </div>
-    """,
-    unsafe_allow_html=True,
-)
-
 if not rows:
     notify.info("Ca thi này chưa có thí sinh nào. Vui lòng nhập danh sách thí sinh ở khung phía trên.")
 else:
-    def _snap_cell(sid, role, active, joined, label, empty_msg, alt_text):
-        """Một ô ảnh camera (trước/phụ) trong card thí sinh."""
-        if not sid:
-            body = '<div class="cand-snap-empty">Chưa vào phòng thi</div>'
-        else:
-            snap_bytes = get_candidate_snapshot(
-                st.session_state.client, sid, role=role, variant="thumbnail"
+    # ── Chuyển đổi linh hoạt giữa Danh sách giám sát vi phạm và Lưới camera ──
+    tab_list, tab_grid = st.tabs([
+        f"Danh sách giám sát vi phạm ({alr_cands} nghi vấn)",
+        f"Lưới camera thời gian thực ({tot_cands} thí sinh)",
+    ])
+
+    # =========================================================================
+    # TAB 1: DANH SÁCH GIÁM SÁT VI PHẠM (DỄ THEO DÕI, TẬP TRUNG GIAN LẬN)
+    # =========================================================================
+    with tab_list:
+        f_col1, f_col2 = st.columns([2.2, 1.2], vertical_alignment="center")
+        with f_col1:
+            list_filter = st.radio(
+                "Bộ lọc",
+                options=["Tất cả", "Nghi vấn gian lận", "Đang thi bình thường (sạch)"],
+                horizontal=True,
+                key="online_list_filter_mode",
+                label_visibility="collapsed",
             )
-            if snap_bytes:
-                b64_snap = base64.b64encode(snap_bytes).decode("ascii")
-                body = f'<img src="data:image/jpeg;base64,{b64_snap}" alt="{alt_text}"/>'
-            elif active:
-                body = '<div class="cand-snap-waiting">Đang kết nối camera...</div>'
-            elif joined:
-                body = '<div class="cand-snap-waiting">Đã cấp link, chờ kết nối</div>'
-            else:
-                body = f'<div class="cand-snap-empty">{empty_msg}</div>'
-        dot_cls = " on" if active else ""
-        return (
-            '<div class="cand-snap-cell">'
-            f'<div class="cand-snap-label"><span class="cand-cam-dot{dot_cls}"></span>{label}</div>'
-            f'<div class="cand-snap-wrap">{body}</div>'
-            '</div>'
+        with f_col2:
+            st.markdown(
+                f"<div style='text-align: right; font-size: 12px; color: #64748b;'>"
+                f"Tổng: <strong>{tot_cands}</strong> · Nghi vấn: <strong style='color:#dc2626;'>{alr_cands}</strong> · Online: <strong style='color:#16a34a;'>{act_cands}</strong>"
+                f"</div>",
+                unsafe_allow_html=True,
+            )
+
+        # Sắp xếp danh sách: Thí sinh có nghi vấn/chờ duyệt được ĐẨY LÊN ĐẦU TIÊN
+        sorted_rows = sorted(
+            rows,
+            key=lambda r: (
+                -(r.get("cho_kiem_tra", 0) or 0),
+                -(r.get("tong_su_kien", 0) or 0),
+                -int(bool(r.get("dang_giam_sat"))),
+                str(r.get("SBD") or ""),
+            ),
         )
 
-    CHUNK_SIZE = 4
-    for chunk_idx in range(0, len(rows), CHUNK_SIZE):
-        chunk = rows[chunk_idx : chunk_idx + CHUNK_SIZE]
-        cols = st.columns(CHUNK_SIZE)
-        for col_idx, c in enumerate(chunk):
-            with cols[col_idx]:
-                is_active = bool(c.get("dang_giam_sat"))
-                front_active = bool(c.get("camera_front_active"))
-                side_active = bool(c.get("camera_side_active"))
-                side_joined = bool(c.get("camera_side_joined"))
-                sid = c.get("PK_MaPhienGiamSat")
-                cho_kt = c.get("cho_kiem_tra", 0) or 0
-                tong_sk = c.get("tong_su_kien", 0) or 0
-                has_alert = cho_kt > 0
+        if list_filter == "Nghi vấn gian lận":
+            filtered_rows = [
+                r for r in sorted_rows
+                if (r.get("cho_kiem_tra", 0) or 0) > 0 or (r.get("tong_su_kien", 0) or 0) > 0
+            ]
+        elif list_filter == "Đang thi bình thường (sạch)":
+            filtered_rows = [
+                r for r in sorted_rows
+                if bool(r.get("dang_giam_sat")) and (r.get("tong_su_kien", 0) or 0) == 0
+            ]
+        else:
+            filtered_rows = sorted_rows
 
-                if is_active:
-                    chip_cls = "active"
-                    status_text = "Đang thi"
-                elif sid:
-                    chip_cls = "stopped"
-                    status_text = "Đã dừng"
-                else:
-                    chip_cls = "unjoined"
-                    status_text = "Chưa vào"
-
-                violation_cls = " has-violation" if has_alert else ""
-                alert_badge_html = (
-                    f'<span class="cand-alert-tag danger">{cho_kt} chờ duyệt</span>'
-                    if has_alert
-                    else '<span class="cand-alert-tag neutral">Bình thường</span>'
+        if not filtered_rows:
+            if list_filter == "Nghi vấn gian lận":
+                notify.empty_state(
+                    "Không có thí sinh nghi vấn gian lận",
+                    "Toàn bộ thí sinh trong ca thi đang làm bài nghiêm túc, chưa ghi nhận hành vi vi phạm nào.",
                 )
-
-                sbd_escaped = html.escape(str(c.get("SBD") or ""))
-                hoten_escaped = html.escape(str(c.get("HoTen") or "Thí sinh"))
-                lop_val = str(c.get("Lop") or "").strip()
-                lop_escaped = f" · {html.escape(lop_val)}" if lop_val else ""
-
-                # Hai camera: webcam máy tính (front) + điện thoại (side)
-                front_cell = _snap_cell(
-                    sid, "front", front_active, bool(sid),
-                    "Camera trước", "Chưa có ảnh",
-                    f"Camera trước {sbd_escaped}",
+            else:
+                notify.empty_state(
+                    "Không có thí sinh phù hợp",
+                    "Chưa có thí sinh nào khớp với bộ lọc đã chọn.",
                 )
-                side_cell = _snap_cell(
-                    sid, "side", side_active, side_joined,
-                    "Camera phụ", "Chưa kết nối",
-                    f"Camera phụ {sbd_escaped}",
-                )
-                snap_html = f'<div class="cand-snap-pair">{front_cell}{side_cell}</div>'
+        else:
+            h1, h2, h3, h4, h5 = st.columns([1.6, 1.2, 1.8, 2.0, 1.0])
+            h1.caption("THÍ SINH (SBD / HỌ TÊN)")
+            h2.caption("TRẠNG THÁI CAMERA")
+            h3.caption("ĐÁNH GIÁ GIAN LẬN")
+            h4.caption("HÀNH VI GẦN NHẤT")
+            h5.caption("THAO TÁC")
+            st.markdown("<hr style='margin: 4px 0 10px 0; border: none; border-top: 1px solid var(--wf-border);'>", unsafe_allow_html=True)
 
-                cam_chip_front = (
-                    '<span class="cand-cam-chip on"><span class="cand-cam-dot on"></span>Trước</span>'
-                    if front_active else
-                    '<span class="cand-cam-chip"><span class="cand-cam-dot"></span>Trước</span>'
-                )
-                cam_chip_side = (
-                    '<span class="cand-cam-chip on"><span class="cand-cam-dot on"></span>Phụ</span>'
-                    if side_active else
-                    '<span class="cand-cam-chip"><span class="cand-cam-dot"></span>Phụ</span>'
-                )
+            for r in filtered_rows:
+                r1, r2, r3, r4, r5 = st.columns([1.6, 1.2, 1.8, 2.0, 1.0], vertical_alignment="center")
+                sbd = html.escape(str(r.get("SBD") or ""))
+                hoten = html.escape(str(r.get("HoTen") or "Thí sinh"))
+                lop = html.escape(str(r.get("Lop") or ""))
+                lop_str = f" · {lop}" if lop else ""
+                is_active = bool(r.get("dang_giam_sat"))
+                front_active = bool(r.get("camera_front_active"))
+                side_active = bool(r.get("camera_side_active"))
+                sid = r.get("PK_MaPhienGiamSat")
+                cho_kt = r.get("cho_kiem_tra", 0) or 0
+                tong_sk = r.get("tong_su_kien", 0) or 0
+                has_alert = cho_kt > 0 or tong_sk > 0
 
-                # Render HTML card hoàn chỉnh đồng bộ phong cách
-                st.markdown(
-                    f"""
-                    <div class="cand-card{violation_cls}">
-                        <div class="cand-card-header">
-                            <div class="cand-meta">
-                                <div class="cand-sbd">{sbd_escaped}</div>
-                                <div class="cand-name" title="{hoten_escaped}">{hoten_escaped}{lop_escaped}</div>
-                            </div>
-                            <span class="cand-status-chip {chip_cls}">{status_text}</span>
-                        </div>
-                        {snap_html}
-                        <div class="cand-cam-row">{cam_chip_front}{cam_chip_side}</div>
-                        <div class="cand-card-footer">
-                            <span>Sự kiện: <strong>{tong_sk}</strong></span>
-                            {alert_badge_html}
-                        </div>
-                    </div>
-                    """,
-                    unsafe_allow_html=True,
-                )
+                # Cột 1: Thông tin thí sinh
+                with r1:
+                    st.markdown(
+                        f"<div><span style='font-weight:700; font-size:13.5px; color:#0f172a;'>{sbd}</span><br>"
+                        f"<span style='font-size:12.5px; color:#475569;'>{hoten}{lop_str}</span></div>",
+                        unsafe_allow_html=True,
+                    )
 
-                if sid and is_active:
-                    with st.popover("Link camera phụ", use_container_width=True):
-                        link_key = f"side_link_{sid}"
-                        st.caption("Mở link này trên điện thoại đặt sau/bên để giám sát góc rộng.")
-                        if st.button("Tạo / lấy link", key=f"gen_side_{sid}", use_container_width=True):
-                            data = get_stream_token(st.session_state.client, sid, vai_tro="side")
-                            if data and data.get("exam_url"):
-                                st.session_state[link_key] = API_BASE_URL + data["exam_url"]
-                            else:
-                                notify.error("Không tạo được link camera phụ.")
-                        side_link = st.session_state.get(link_key)
-                        if side_link:
-                            st.code(side_link, language=None)
-                            st.caption("Link giữ nguyên hiệu lực tới khi ca thi kết thúc. Không chia sẻ cho người khác.")
-
-                if st.button("Chi tiết ca thi", key=f"online_ev_{c['PK_MaThiSinh']}", use_container_width=True):
-                    if sid:
-                        st.session_state["selected_session"] = sid
-                        st.session_state["detail_return_to"] = "online_exam"
-                        st.switch_page("pages/session_detail.py")
+                # Cột 2: Trạng thái camera
+                with r2:
+                    if is_active:
+                        cam_f = (
+                            '<span class="cand-cam-chip on"><span class="cand-cam-dot on"></span>Trước</span>'
+                            if front_active else
+                            '<span class="cand-cam-chip"><span class="cand-cam-dot"></span>Trước</span>'
+                        )
+                        cam_s = (
+                            '<span class="cand-cam-chip on"><span class="cand-cam-dot on"></span>Phụ</span>'
+                            if side_active else
+                            '<span class="cand-cam-chip"><span class="cand-cam-dot"></span>Phụ</span>'
+                        )
+                        st.markdown(
+                            f"<div style='font-size:12px; font-weight:600; color:#16a34a; margin-bottom:4px;'>Đang thi</div>"
+                            f"<div style='display:flex; gap:4px; align-items:center;'>{cam_f}{cam_s}</div>",
+                            unsafe_allow_html=True,
+                        )
+                    elif sid:
+                        st.markdown(
+                            "<div style='font-size:12px; font-weight:600; color:#64748b;'>Đã dừng</div>"
+                            "<div style='font-size:11px; color:#94a3b8;'>Đã rời phòng</div>",
+                            unsafe_allow_html=True,
+                        )
                     else:
-                        notify.info(f"Thí sinh {c.get('HoTen')} ({c.get('SBD')}) chưa vào thi, chưa có dữ liệu phiên.")
+                        st.markdown(
+                            "<div style='font-size:12px; font-weight:500; color:#94a3b8;'>Chưa vào</div>"
+                            "<div style='font-size:11px; color:#94a3b8;'>Chờ kết nối</div>",
+                            unsafe_allow_html=True,
+                        )
+
+                # Cột 3: Đánh giá gian lận
+                with r3:
+                    if cho_kt > 0:
+                        st.markdown(
+                            f"<span class='cand-alert-tag danger' style='display:inline-block;'>Nghi vấn ({cho_kt} chờ duyệt)</span><br>"
+                            f"<span style='font-size:11px; color:#dc2626; font-weight:600;'>Tổng {tong_sk} sự kiện vi phạm</span>",
+                            unsafe_allow_html=True,
+                        )
+                    elif tong_sk > 0:
+                        st.markdown(
+                            f"<span class='cand-alert-tag neutral' style='display:inline-block; border-color:#cbd5e1;'>Có {tong_sk} sự kiện</span><br>"
+                            f"<span style='font-size:11px; color:#16a34a; font-weight:500;'>Đã xác minh hết</span>",
+                            unsafe_allow_html=True,
+                        )
+                    elif is_active:
+                        st.markdown(
+                            f"<span class='cand-alert-tag' style='display:inline-block; background:#f0fdf4; color:#16a34a; border:1px solid #bbf7d0;'>Bình thường (Sạch)</span><br>"
+                            f"<span style='font-size:11px; color:#64748b;'>Không có vi phạm</span>",
+                            unsafe_allow_html=True,
+                        )
+                    else:
+                        st.markdown(
+                            "<span class='cand-alert-tag neutral' style='display:inline-block;'>Chưa vào thi</span>",
+                            unsafe_allow_html=True,
+                        )
+
+                # Cột 4: Hành vi vi phạm gần nhất
+                with r4:
+                    raw_bh = r.get("hanh_vi_moi_nhat")
+                    bh_time = r.get("thoi_gian_vi_pham")
+                    if raw_bh:
+                        friendly_bh = get_friendly_behavior_label(raw_bh)
+                        time_disp = str(bh_time)[:19].replace("T", " ") if bh_time else "Gần đây"
+                        st.markdown(
+                            f"<div style='font-size:12.5px; font-weight:600; color:#dc2626;'>{friendly_bh}</div>"
+                            f"<div style='font-size:11px; color:#64748b;'>Lúc: {time_disp}</div>",
+                            unsafe_allow_html=True,
+                        )
+                    elif has_alert:
+                        st.markdown(
+                            "<div style='font-size:12px; font-weight:500; color:#d97706;'>Có sự kiện ghi nhận</div>",
+                            unsafe_allow_html=True,
+                        )
+                    else:
+                        st.markdown(
+                            "<div style='font-size:12px; color:#94a3b8;'>Không ghi nhận vi phạm</div>",
+                            unsafe_allow_html=True,
+                        )
+
+                # Cột 5: Thao tác nhanh
+                with r5:
+                    if sid:
+                        if st.button("Chi tiết", key=f"tbl_ev_{r['PK_MaThiSinh']}", use_container_width=True):
+                            st.session_state["selected_session"] = sid
+                            st.session_state["detail_return_to"] = "online_exam"
+                            st.switch_page("pages/session_detail.py")
+                    else:
+                        st.caption("—")
+
+                st.markdown("<hr style='margin: 4px 0 8px 0; border: none; border-top: 1px solid #f1f5f9;'>", unsafe_allow_html=True)
+
+    # =========================================================================
+    # TAB 2: LƯỚI CAMERA THỜI GIAN THỰC (QUAN SÁT VISUAL)
+    # =========================================================================
+    with tab_grid:
+        def _snap_cell(sid, role, active, joined, label, empty_msg, alt_text):
+            """Một ô ảnh camera (trước/phụ) trong card thí sinh."""
+            if not sid:
+                body = '<div class="cand-snap-empty">Chưa vào phòng thi</div>'
+            else:
+                snap_bytes = get_candidate_snapshot(
+                    st.session_state.client, sid, role=role, variant="thumbnail"
+                )
+                if snap_bytes:
+                    b64_snap = base64.b64encode(snap_bytes).decode("ascii")
+                    body = f'<img src="data:image/jpeg;base64,{b64_snap}" alt="{alt_text}"/>'
+                elif active:
+                    body = '<div class="cand-snap-waiting">Đang kết nối camera...</div>'
+                elif joined:
+                    body = '<div class="cand-snap-waiting">Đã cấp link, chờ kết nối</div>'
+                else:
+                    body = f'<div class="cand-snap-empty">{empty_msg}</div>'
+            dot_cls = " on" if active else ""
+            return (
+                '<div class="cand-snap-cell">'
+                f'<div class="cand-snap-label"><span class="cand-cam-dot{dot_cls}"></span>{label}</div>'
+                f'<div class="cand-snap-wrap">{body}</div>'
+                '</div>'
+            )
+
+        CHUNK_SIZE = 4
+        for chunk_idx in range(0, len(rows), CHUNK_SIZE):
+            chunk = rows[chunk_idx : chunk_idx + CHUNK_SIZE]
+            cols = st.columns(CHUNK_SIZE)
+            for col_idx, c in enumerate(chunk):
+                with cols[col_idx]:
+                    is_active = bool(c.get("dang_giam_sat"))
+                    front_active = bool(c.get("camera_front_active"))
+                    side_active = bool(c.get("camera_side_active"))
+                    side_joined = bool(c.get("camera_side_joined"))
+                    sid = c.get("PK_MaPhienGiamSat")
+                    cho_kt = c.get("cho_kiem_tra", 0) or 0
+                    tong_sk = c.get("tong_su_kien", 0) or 0
+                    has_alert = cho_kt > 0
+
+                    if is_active:
+                        chip_cls = "active"
+                        status_text = "Đang thi"
+                    elif sid:
+                        chip_cls = "stopped"
+                        status_text = "Đã dừng"
+                    else:
+                        chip_cls = "unjoined"
+                        status_text = "Chưa vào"
+
+                    violation_cls = " has-violation" if has_alert else ""
+                    alert_badge_html = (
+                        f'<span class="cand-alert-tag danger">{cho_kt} chờ duyệt</span>'
+                        if has_alert
+                        else '<span class="cand-alert-tag neutral">Bình thường</span>'
+                    )
+
+                    sbd_escaped = html.escape(str(c.get("SBD") or ""))
+                    hoten_escaped = html.escape(str(c.get("HoTen") or "Thí sinh"))
+                    lop_val = str(c.get("Lop") or "").strip()
+                    lop_escaped = f" · {html.escape(lop_val)}" if lop_val else ""
+
+                    # Hai camera: webcam máy tính (front) + điện thoại (side)
+                    front_cell = _snap_cell(
+                        sid, "front", front_active, bool(sid),
+                        "Camera trước", "Chưa có ảnh",
+                        f"Camera trước {sbd_escaped}",
+                    )
+                    side_cell = _snap_cell(
+                        sid, "side", side_active, side_joined,
+                        "Camera phụ", "Chưa kết nối",
+                        f"Camera phụ {sbd_escaped}",
+                    )
+                    snap_html = f'<div class="cand-snap-pair">{front_cell}{side_cell}</div>'
+
+                    cam_chip_front = (
+                        '<span class="cand-cam-chip on"><span class="cand-cam-dot on"></span>Trước</span>'
+                        if front_active else
+                        '<span class="cand-cam-chip"><span class="cand-cam-dot"></span>Trước</span>'
+                    )
+                    cam_chip_side = (
+                        '<span class="cand-cam-chip on"><span class="cand-cam-dot on"></span>Phụ</span>'
+                        if side_active else
+                        '<span class="cand-cam-chip"><span class="cand-cam-dot"></span>Phụ</span>'
+                    )
+
+                    # Render HTML card hoàn chỉnh đồng bộ phong cách
+                    st.markdown(
+                        f"""
+                        <div class="cand-card{violation_cls}">
+                            <div class="cand-card-header">
+                                <div class="cand-meta">
+                                    <div class="cand-sbd">{sbd_escaped}</div>
+                                    <div class="cand-name" title="{hoten_escaped}">{hoten_escaped}{lop_escaped}</div>
+                                </div>
+                                <span class="cand-status-chip {chip_cls}">{status_text}</span>
+                            </div>
+                            {snap_html}
+                            <div class="cand-cam-row">{cam_chip_front}{cam_chip_side}</div>
+                            <div class="cand-card-footer">
+                                <span>Sự kiện: <strong>{tong_sk}</strong></span>
+                                {alert_badge_html}
+                            </div>
+                        </div>
+                        """,
+                        unsafe_allow_html=True,
+                    )
+
+                    if st.button("Chi tiết ca thi", key=f"online_ev_{c['PK_MaThiSinh']}", use_container_width=True):
+                        if sid:
+                            st.session_state["selected_session"] = sid
+                            st.session_state["detail_return_to"] = "online_exam"
+                            st.switch_page("pages/session_detail.py")
+                        else:
+                            notify.info(f"Thí sinh {c.get('HoTen')} ({c.get('SBD')}) chưa vào thi, chưa có dữ liệu phiên.")
 
 st_autorefresh(interval=10000, key="online_grid_refresh")

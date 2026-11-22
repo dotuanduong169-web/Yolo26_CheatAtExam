@@ -88,7 +88,7 @@ def get_behavior_distribution(db: DBSession, user_id: Optional[int] = None) -> l
         if "phone" in low or "thoai" in low:
             return "Điện thoại di động"
         if "paper" in low or "lieu" in low or "cheat" in low:
-            return "Tài liệu trái phép"
+            return "Tài liệu không hợp lệ"
         if "head" in low or "quay_dau" in low or "trao doi" in low:
             return "Quay đầu trao đổi"
         if "sau" in low:

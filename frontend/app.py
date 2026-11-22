@@ -40,11 +40,8 @@ if token:
 
 # ── Route ───────────────────────────────────────────────────
 if is_login:
-    # Admin vào Giám sát; Cán bộ coi thi vào thẳng Thi online
-    if st.session_state.get("user_role") == "admin":
-        st.switch_page("pages/home.py")
-    else:
-        st.switch_page("pages/online_exam.py")
+    # Toàn bộ người dùng đăng nhập điều hướng vào Thi online
+    st.switch_page("pages/online_exam.py")
 else:
     # Thử khôi phục từ localStorage của trình duyệt trước khi chuyển sang login
     st.components.v1.html(
@@ -56,7 +53,7 @@ else:
                 if (raw) {
                     const data = JSON.parse(raw);
                     if (data && data.token) {
-                        const landing = (data.role === "admin") ? "/home" : "/online_exam";
+                        const landing = "/online_exam";
                         const target = landing + "?auth=" + encodeURIComponent(data.token) +
                             "&role=" + encodeURIComponent(data.role || "") +
                             "&u=" + encodeURIComponent(data.username || "");

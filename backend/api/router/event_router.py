@@ -75,7 +75,7 @@ def get_system_notifications_endpoint(
     active_session = get_active_session(db)
 
     behavior_names = {
-        "Cheat_Paper": "Tài liệu trái phép",
+        "Cheat_Paper": "Tài liệu không hợp lệ",
         "cellphone": "Điện thoại di động",
         "Head_Turn": "Quay đầu trao đổi",
         "quay_dau": "Quay đầu trao đổi",

@@ -41,7 +41,7 @@ và sửa nhãn thủ công; thống kê tự tính lại theo nhãn đã sửa.
 
 ```text
 Trình duyệt giám thị ── Streamlit :8501 ──┐
-Trình duyệt thí sinh ── /exam (webcam) ───┼── FastAPI :8000 ── PostgreSQL 16 :5432
+Trình duyệt thí sinh ── /exam (webcam) ───┼── FastAPI :8000 ── PostgreSQL 16 :5433
 Điện thoại thí sinh ── /exam?role=side ───┘        │
                                                     ├── YOLO26n-seg  (OpenVINO, fallback .pt)
                                                     ├── YOLO26n-pose (OpenVINO) + luật hành vi
@@ -373,7 +373,7 @@ và thu hồi token, in bảng kết quả PASS/FAIL.
 | Hiện tượng | Nguyên nhân / cách xử lý |
 |---|---|
 | `ValueError: DATABASE_URL must be set` | Chưa có `.env` hoặc chạy lệnh ngoài gốc dự án (`.env` được đọc theo thư mục hiện hành) |
-| Backend không kết nối DB | PostgreSQL chưa chạy: `docker compose up -d postgres`; kiểm tra cổng 5432 bị chiếm |
+| Backend không kết nối DB | PostgreSQL chưa chạy: `docker compose up -d postgres`; kiểm tra cổng 5433 bị chiếm |
 | `ModuleNotFoundError: streamlit_autorefresh` | Chưa cài frontend deps: `.venv/bin/pip install -r frontend/requirements.txt` |
 | Webcam không mở | Cấp quyền camera cho terminal/trình duyệt, đóng ứng dụng đang chiếm webcam; kiểm tra bằng nút Test ở trang Thiết bị |
 | RTSP treo/không kết nối | Sai IP/cổng hoặc camera ngoại tuyến; hệ thống đã giới hạn timeout 2,5 giây và sẽ báo lỗi rõ |

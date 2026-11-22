@@ -78,8 +78,8 @@ def delete_session_endpoint(
 ):
     """Xóa session và toàn bộ dữ liệu liên quan. Chặn xóa ca đang chạy, lỗi thì rollback."""
     try:
-        # Xóa theo quyền: mọi user đã đăng nhập đều thao tác trên lịch sử chung
-        user_id_check = None
+        # Xóa theo quyền: admin xóa mọi session, user thường chỉ xóa session do mình tạo
+        user_id_check = None if user.VaiTro == "admin" else user.PK_MaNguoiDung
         return delete_session(db, session_id, user_id_check)
     except HTTPException:
         raise

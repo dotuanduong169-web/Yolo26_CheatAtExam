@@ -24,6 +24,8 @@ from crud.candidate_crud import (
 )
 from crud.session_crud import end_session, get_session_by_id
 from database.database import get_db
+from models.detected_event import DetectedEvent
+from models.monitoring_session import MonitoringSession
 from models.user import User
 from pydantic import BaseModel, Field
 
@@ -125,23 +127,121 @@ def join_exam(data: CandidateJoin):
                 status_code=404,
                 detail=f"Không tìm thấy SBD '{data.SBD}' trong danh sách ca thi",
             )
+
+        # 1. BẮT BUỘC kiểm tra ca thi cha TRƯỚC TIÊN (bất kể thí sinh đã từng có sub-session hay chưa)
+        exam = get_session_by_id(db, candidate.FK_MaPhienGiamSat)
+        if not exam or exam.TrangThai != "dang_giam_sat" or exam.ThoiGianKetThuc is not None:
+            # Thu hồi và chốt sạch mọi sub-session còn sót của thí sinh này
+            lingering = (
+                db.query(MonitoringSession)
+                .filter(
+                    MonitoringSession.FK_MaThiSinh == candidate.PK_MaThiSinh,
+                    MonitoringSession.TrangThai == "dang_giam_sat",
+                )
+                .all()
+            )
+            for l_sub in lingering:
+                end_session(db, l_sub.PK_MaPhienGiamSat)
+                try:
+                    ingest_service.stop_session_workers(l_sub.PK_MaPhienGiamSat)
+                except Exception:
+                    pass
+            raise HTTPException(
+                status_code=403,
+                detail="Ca thi chưa mở hoặc đã kết thúc. Vui lòng liên hệ giám thị để mở ca thi.",
+            )
+
+        # 2. Khi ca thi cha đang mở hợp lệ: lấy sub-session hiện có hoặc mở mới
         sub = get_open_sub_session(db, candidate.PK_MaThiSinh)
         if not sub:
-            exam = get_session_by_id(db, candidate.FK_MaPhienGiamSat)
-            if not exam or exam.TrangThai != "dang_giam_sat":
-                raise HTTPException(
-                    status_code=403,
-                    detail="Ca thi chưa mở hoặc đã kết thúc. Vui lòng liên hệ giám thị để mở ca thi.",
-                )
             sub = create_sub_session(db, exam.FK_MaNguoiDung, candidate)
+
         token = ingest_service.mint_token(sub.PK_MaPhienGiamSat, role)
         ingest_service.ensure_worker(sub.PK_MaPhienGiamSat, role)
+
+        # Tự động cấp trước link & token camera phụ cho thí sinh (dùng cho điện thoại góc nghiêng/sau)
+        from models.camera_stream import CameraStream
+
+        side_stream = (
+            db.query(CameraStream)
+            .filter(
+                CameraStream.FK_MaPhienGiamSat == sub.PK_MaPhienGiamSat,
+                CameraStream.VaiTro == "side",
+            )
+            .first()
+        )
+        if side_stream is not None and side_stream.Token and side_stream.TrangThai != "ket_thuc":
+            side_token = side_stream.Token
+        else:
+            side_token = ingest_service.mint_token(sub.PK_MaPhienGiamSat, "side")
+
+        side_exam_url = f"/exam?session_id={sub.PK_MaPhienGiamSat}&role=side&token={side_token}"
+
         return CandidateJoinResponse(
             PK_MaPhienGiamSat=sub.PK_MaPhienGiamSat,
             VaiTro=role,
             token=token,
             candidate=candidate,
+            side_token=side_token,
+            side_exam_url=side_exam_url,
         )
+    finally:
+        db.close()
+
+
+@router.get("/session/{session_id}/side-status")
+def get_side_camera_status(session_id: int):
+    """Kiểm tra camera phụ của thí sinh đã kết nối và gửi frame hay chưa (public cho exam.html)."""
+    from database.database import SessionLocal
+    from models.camera_stream import CameraStream
+
+    db = SessionLocal()
+    try:
+        sub = get_session_by_id(db, session_id)
+        if not sub or sub.TrangThai != "dang_giam_sat":
+            return {"connected": False, "active": False}
+        stream = (
+            db.query(CameraStream)
+            .filter(
+                CameraStream.FK_MaPhienGiamSat == session_id,
+                CameraStream.VaiTro == "side",
+            )
+            .first()
+        )
+        is_active = (
+            stream is not None
+            and stream.TrangThai == "dang_hoat_dong"
+            and stream.LanCuoiNhan is not None
+            and (time.time() - _utc_timestamp(stream.LanCuoiNhan)) < 15
+        )
+        return {
+            "connected": stream is not None and stream.Token is not None,
+            "active": is_active,
+            "joined": stream is not None and stream.TrangThai != "ket_thuc",
+        }
+    finally:
+        db.close()
+
+
+@router.get("/session/{session_id}/status")
+def get_exam_session_status(session_id: int):
+    """Kiểm tra ca thi online có đang mở hay không (public cho trang exam.html)."""
+    from database.database import SessionLocal
+
+    db = SessionLocal()
+    try:
+        exam = get_session_by_id(db, session_id)
+        if not exam:
+            return {"session_id": session_id, "exists": False, "is_open": False}
+        is_open = (exam.TrangThai == "dang_giam_sat" and exam.ThoiGianKetThuc is None)
+        return {
+            "session_id": session_id,
+            "exists": True,
+            "is_open": is_open,
+            "TrangThai": exam.TrangThai,
+            "PhongThi": exam.PhongThi,
+            "MonThi": exam.MonThi,
+        }
     finally:
         db.close()
 
@@ -162,11 +262,16 @@ def attach_stream(session_id: int, token: str):
     db = SessionLocal()
     try:
         sub = get_session_by_id(db, session_id)
-        if not sub or sub.TrangThai != "dang_giam_sat":
+        if not sub or sub.TrangThai != "dang_giam_sat" or sub.ThoiGianKetThuc is not None:
             raise HTTPException(status_code=403, detail="Ca thi chưa mở hoặc đã kết thúc.")
         candidate = None
         if sub.FK_MaThiSinh is not None:
             candidate = sub.candidate
+            if candidate:
+                exam = get_session_by_id(db, candidate.FK_MaPhienGiamSat)
+                if not exam or exam.TrangThai != "dang_giam_sat" or exam.ThoiGianKetThuc is not None:
+                    end_session(db, session_id)
+                    raise HTTPException(status_code=403, detail="Ca thi chưa mở hoặc đã kết thúc.")
         ingest_service.ensure_worker(session_id, resolved[1])
         return {
             "PK_MaPhienGiamSat": session_id,
@@ -286,9 +391,20 @@ def exam_overview(
                 if not is_active and (now - _utc_timestamp(open_sub.ThoiGianBatDau) <= 30.0):
                     is_active = front_active = True
 
+            last_behavior = None
+            last_event_time = None
             if sid:
                 total, pending = count_unverified_by_candidate(db, sid)
                 latest = latest_evidence_time(db, sid)
+                last_event = (
+                    db.query(DetectedEvent)
+                    .filter(DetectedEvent.FK_MaPhienGiamSat == sid)
+                    .order_by(DetectedEvent.ThoiGianPhatHien.desc())
+                    .first()
+                )
+                if last_event:
+                    last_behavior = last_event.NhanNguoiDung or last_event.LoaiHanhVi
+                    last_event_time = last_event.ThoiGianPhatHien
 
             items.append(
                 CandidateStatusItem(
@@ -304,6 +420,8 @@ def exam_overview(
                     cho_kiem_tra=pending,
                     tong_su_kien=total,
                     anh_moi_nhat=latest,
+                    hanh_vi_moi_nhat=last_behavior,
+                    thoi_gian_vi_pham=last_event_time,
                 )
             )
         return items
@@ -408,9 +526,18 @@ def close_exam_session(
             raise HTTPException(status_code=404, detail="Không tìm thấy ca thi")
         end_session(db, session_id)
         try:
-            for c in list_candidates(db, session_id):
-                sub = get_open_sub_session(db, c.PK_MaThiSinh)
-                if sub:
+            candidates = list_candidates(db, session_id)
+            cand_ids = [c.PK_MaThiSinh for c in candidates]
+            if cand_ids:
+                open_subs = (
+                    db.query(MonitoringSession)
+                    .filter(
+                        MonitoringSession.FK_MaThiSinh.in_(cand_ids),
+                        MonitoringSession.TrangThai == "dang_giam_sat",
+                    )
+                    .all()
+                )
+                for sub in open_subs:
                     end_session(db, sub.PK_MaPhienGiamSat)
                     try:
                         ingest_service.stop_session_workers(sub.PK_MaPhienGiamSat)
@@ -434,6 +561,8 @@ def close_exam_session(
         db.close()
 
 
+@router.post("/session")
+@router.post("/sessions")
 @router.post("/session/create")
 @router.post("/sessions/create")
 @router.post("/create-session")

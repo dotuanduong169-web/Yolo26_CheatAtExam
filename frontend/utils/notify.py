@@ -9,12 +9,14 @@ _CSS = """
    ========================================================================== */
 .sys-toast-wrap {
     position: fixed !important;
+    top: 16px !important;
     right: 16px !important;
     z-index: 1000005 !important;
-    pointer-events: auto !important;
+    pointer-events: none !important;
     display: flex !important;
     flex-direction: column !important;
     align-items: flex-end !important;
+    gap: 10px !important;
 }
 
 /* Hàng đợi toast: render tập trung ở top-level (header) nên toast không bao giờ
@@ -37,6 +39,7 @@ _CSS = """
     backdrop-filter: blur(12px) !important;
     cursor: pointer !important;
     user-select: none !important;
+    pointer-events: auto !important;
 }
 
 .sys-toast.success { border-left: 4px solid #16a34a !important; }
@@ -322,30 +325,56 @@ _TITLES = {
 }
 
 
-def _show_toast(kind: str, msg: str, title: str | None = None) -> None:
-    """Hiện toast thông báo cao cấp, cố định góc trên-phải dưới thanh điều hướng.
-    Luôn cùng một vị trí để không nhảy lung tung giữa các lần rerun."""
-    top = 118
-    title_text = title or _TITLES.get(kind, "Thông báo")
-    icon_svg = _ICONS.get(kind, "")
+def _render_toasts(items: list[dict]) -> None:
+    """Render danh sách toast, gom chung vào khung neo cố định góc trên bên phải màn hình."""
+    if not items:
+        return
+    toasts_html = []
+    for item in items:
+        kind = item.get("kind", "info")
+        msg = item.get("msg", "")
+        title_text = item.get("title") or _TITLES.get(kind, "Thông báo")
+        icon_svg = _ICONS.get(kind, "")
+        t_html = (
+            f"  <div class='sys-toast {kind}' onclick='this.remove();' onanimationend=\"if(event.animationName==='sys-toast-slide'){{this.remove();}}\">"
+            f"    <div class='sys-toast-icon-box'>{icon_svg}</div>"
+            f"    <div class='sys-toast-body'>"
+            f"      <div class='sys-toast-title'>{title_text}</div>"
+            f"      <div class='sys-toast-msg'>{msg}</div>"
+            f"    </div>"
+            f"    <div class='sys-toast-close' onclick='this.closest(\".sys-toast\").remove(); event.stopPropagation();' title='Đóng'>"
+            f"      <svg width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'><line x1='18' y1='6' x2='6' y2='18'></line><line x1='6' y1='6' x2='18' y2='18'></line></svg>"
+            f"    </div>"
+            f"    <div class='sys-toast-progress'></div>"
+            f"  </div>"
+        )
+        toasts_html.append(t_html)
 
+    all_toasts_str = "".join(toasts_html)
     toast_html = (
         _CSS
-        + f"<div class='sys-toast-wrap' style='top:{top}px;' onclick='this.remove();'>"
-        + f"  <div class='sys-toast {kind}'>"
-        + f"    <div class='sys-toast-icon-box'>{icon_svg}</div>"
-        + f"    <div class='sys-toast-body'>"
-        + f"      <div class='sys-toast-title'>{title_text}</div>"
-        + f"      <div class='sys-toast-msg'>{msg}</div>"
-        + f"    </div>"
-        + f"    <div class='sys-toast-close' onclick='this.closest(\".sys-toast-wrap\").remove(); event.stopPropagation();' title='Đóng'>"
-        + f"      <svg width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'><line x1='18' y1='6' x2='6' y2='18'></line><line x1='6' y1='6' x2='18' y2='18'></line></svg>"
-        + f"    </div>"
-        + f"    <div class='sys-toast-progress'></div>"
-        + f"  </div>"
+        + f"<div class='sys-toast-wrap'>"
+        + all_toasts_str
         + f"</div>"
+        + "<script>"
+        + "(function() {"
+        + "  var wraps = document.querySelectorAll('.sys-toast-wrap');"
+        + "  if (wraps.length > 1) {"
+        + "    var first = wraps[0];"
+        + "    for (var i = 1; i < wraps.length; i++) {"
+        + "      while (wraps[i].firstChild) { first.appendChild(wraps[i].firstChild); }"
+        + "      wraps[i].remove();"
+        + "    }"
+        + "  }"
+        + "})();"
+        + "</script>"
     )
     st.markdown(toast_html, unsafe_allow_html=True)
+
+
+def _show_toast(kind: str, msg: str, title: str | None = None) -> None:
+    """Hiện toast thông báo cao cấp, cố định góc trên bên phải màn hình."""
+    _render_toasts([{"kind": kind, "msg": msg, "title": title}])
 
 
 def _show_inline(kind: str, msg: str, title: str | None = None) -> None:
@@ -392,10 +421,10 @@ def _enqueue(kind: str, msg: str, title: str | None = None) -> None:
 def flush() -> None:
     """Render toàn bộ toast đang xếp hàng tại vị trí gọi (top-level).
     Gọi trong render_page_header và cuối login.py để toast luôn neo ngoài,
-    đúng góc trên-phải hệ thống kể cả khi hành động xảy ra trong dialog."""
+    đúng góc trên bên phải hệ thống kể cả khi hành động xảy ra trong dialog."""
     queue = st.session_state.pop("_toast_queue", [])
-    for item in queue:
-        _show_toast(item["kind"], item["msg"], item.get("title"))
+    if queue:
+        _render_toasts(queue)
 
 
 class _Notify:

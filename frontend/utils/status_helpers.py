@@ -145,7 +145,7 @@ def get_user_role_badge(role_code: Optional[str]) -> str:
 # 5. HÀNH VI GIAN LẬN / NHÃN AI (LoaiHanhVi, NhanNguoiDung)
 # =========================================================================
 BEHAVIOR_LABEL_MAP = {
-    "cheat_paper": "Tài liệu trái phép",
+    "cheat_paper": "Tài liệu không hợp lệ",
     "cellphone": "Điện thoại di động",
     "quay_dau": "Quay đầu trao đổi",
     "head_turn": "Quay đầu trao đổi",
@@ -153,8 +153,6 @@ BEHAVIOR_LABEL_MAP = {
     "cui_xuong": "Cúi đầu nhìn xuống bàn",
     "vang_mat": "Vắng mặt khỏi khung hình",
     "nhieu_nguoi": "Nhiều người trong khung hình",
-    "answer_paper": "Giấy thi hợp lệ",
-    "hop_le": "Giấy thi hợp lệ",
 }
 
 

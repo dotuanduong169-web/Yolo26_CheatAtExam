@@ -77,3 +77,10 @@ class CandidateJoinResponse(BaseModel):
     VaiTro: str = "front"
     token: str
     candidate: CandidateResponse
+    session_id: Optional[int] = None
+    side_token: Optional[str] = None
+    side_exam_url: Optional[str] = None
+
+    def model_post_init(self, __context):
+        if self.session_id is None:
+            self.session_id = self.PK_MaPhienGiamSat

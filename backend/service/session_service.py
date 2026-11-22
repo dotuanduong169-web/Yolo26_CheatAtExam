@@ -52,7 +52,8 @@ def get_session_summary(db: DBSession, user_id: Optional[int], search: str | Non
     total = get_session_count_by_user(db, user_id, search)
 
     q_running = db.query(MonitoringSession).filter(
-        MonitoringSession.TrangThai == "dang_giam_sat"
+        MonitoringSession.TrangThai == "dang_giam_sat",
+        MonitoringSession.FK_MaThiSinh.is_(None),
     )
     q_events = db.query(DetectedEvent)
     q_pending = db.query(DetectedEvent).filter(

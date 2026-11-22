@@ -3,6 +3,7 @@ Logic chính: đăng nhập bằng TenDangNhap; access_token lưu cookie kèm bo
 """
 
 from typing import Optional
+from pydantic import BaseModel
 
 from fastapi import APIRouter, Cookie, Depends, Request, Response
 from sqlalchemy.orm import Session
@@ -139,13 +140,25 @@ def logout(
     return {"message": "Logout successful"}
 
 
+class RefreshRequest(BaseModel):
+    refresh_token: Optional[str] = None
+
+
 @router.post("/refresh")
 def refresh(
+    request: Request,
     response: Response,
+    body: Optional[RefreshRequest] = None,
     refresh_token: Optional[str] = Cookie(None),
 ):
-    """Cấp access_token mới từ refresh_token trong cookie. Ghi token mới đè lên cookie cũ."""
-    result = refresh_access_token(refresh_token)
+    """Cấp access_token mới từ refresh_token trong cookie, body JSON hoặc header."""
+    ref_tok = refresh_token
+    if not ref_tok and body:
+        ref_tok = body.refresh_token
+    if not ref_tok:
+        ref_tok = request.headers.get("x-refresh-token")
+
+    result = refresh_access_token(ref_tok)
 
     response.set_cookie(
         key="access_token",
@@ -161,6 +174,7 @@ def refresh(
     }
 
 
+@router.get("", response_model=list[UserResponse])
 @router.get("/list", response_model=list[UserResponse])
 def get_users(
     skip: int = 0,

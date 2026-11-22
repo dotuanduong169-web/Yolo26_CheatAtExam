@@ -30,3 +30,5 @@ class CandidateStatusItem(BaseModel):
     cho_kiem_tra: int = 0
     tong_su_kien: int = 0
     anh_moi_nhat: Optional[datetime] = None
+    hanh_vi_moi_nhat: Optional[str] = None
+    thoi_gian_vi_pham: Optional[datetime] = None

@@ -49,7 +49,7 @@ for s in sessions:
         subject = s.get("MonThi") or "Chưa đặt môn"
         sess_map[sid] = f"#{sid} · {room} · {subject}"
 
-f1, f2, f3 = st.columns([1.4, 1.4, 1.2])
+f1, f2, f3 = st.columns([1.5, 1.5, 1.0], vertical_alignment="bottom")
 with f1:
     selected_parent = st.selectbox(
         "Ca thi",
@@ -67,6 +67,9 @@ with f2:
                     f"{c.get('SBD') or ''} · {c.get('HoTen') or ''}"
                     + (f" · {c.get('Lop')}" if c.get("Lop") else "")
                 )
+    if st.session_state.get("stats_candidate") not in candidate_options:
+        st.session_state["stats_candidate"] = 0
+
     selected_candidate = st.selectbox(
         "Thí sinh",
         options=list(candidate_options.keys()),
@@ -74,6 +77,7 @@ with f2:
         key="stats_candidate",
     )
 with f3:
+    st.markdown("<div style='height: 28px;'></div>", unsafe_allow_html=True)
     only_alerts = st.checkbox("Chỉ mốc có cảnh báo", value=True, key="stats_only_alerts")
 
 session_filter = selected_parent or None
@@ -84,54 +88,56 @@ overview = get_stats_overview(client, session_id=session_filter) or {}
 summary = get_stats_summary(client)
 distribution = get_behavior_distribution(client)
 candidate_rows = get_candidate_stats(client, session_id=session_filter) or []
+if candidate_filter:
+    candidate_rows = [
+        r for r in candidate_rows
+        if (r.get("candidate") or {}).get("PK_MaThiSinh") == candidate_filter
+    ]
 
 total_cheats = summary.get("total_cheats", 0)
 if not distribution or all(d.get("count", 0) == 0 for d in distribution):
     # Fallback giữ tương thích dữ liệu cũ: tổng hợp từ timeline nếu có.
     distribution = []
 
-# ── KPI gắn thí sinh ────────────────────────────────────────
+# ── KPI gắn thí sinh (Chuẩn hoá 4 Cards tinh gọn, thiết thực) ──
 total_students = overview.get("total_students", len(candidate_rows))
 students_alert = overview.get("students_with_alerts", 0)
-timeline_alerts = overview.get("total_timeline_alerts", 0)
 total_events = overview.get("total_events", total_cheats)
 pending_events = overview.get("pending_events", 0)
 clean_rate = round(float(overview.get("clean_rate", 1.0)) * 100, 1)
-avg_latency = overview.get("avg_latency_ms")
-max_latency = overview.get("max_latency_ms")
 
-st.markdown(f"""
-<div class="wf-grid-3" style="grid-template-columns: repeat(5, minmax(0, 1fr));">
-    <div class="wf-stat-tile">
-        <div class="wf-stat-label">Tổng thí sinh</div>
-        <div class="wf-stat-num">{total_students}</div>
-        <div class="wf-stat-hint">Trong phạm vi đang lọc</div>
-    </div>
-    <div class="wf-stat-tile">
-        <div class="wf-stat-label">Thí sinh có cảnh báo</div>
-        <div class="wf-stat-num" style="color:#dc2626;">{students_alert}</div>
-        <div class="wf-stat-hint">Có ít nhất một mốc cảnh báo</div>
-    </div>
-    <div class="wf-stat-tile">
-        <div class="wf-stat-label">Mốc cảnh báo 2,5 giây</div>
-        <div class="wf-stat-num" style="color:#d97706;">{timeline_alerts}</div>
-        <div class="wf-stat-hint">Đã giữ trong timeline</div>
-    </div>
-    <div class="wf-stat-tile">
-        <div class="wf-stat-label">Sự kiện đã debounce</div>
-        <div class="wf-stat-num">{total_events}</div>
-        <div class="wf-stat-hint">Chờ kiểm tra: {pending_events}</div>
-    </div>
-    <div class="wf-stat-tile">
-        <div class="wf-stat-label">Tỷ lệ thí sinh sạch</div>
-        <div class="wf-stat-num">{clean_rate}%</div>
-        <div class="wf-stat-hint">
-            Độ trễ tick TB: {f"{avg_latency:.0f} ms" if avg_latency is not None else "—"}
-            {" · max " + str(max_latency) + " ms" if max_latency is not None else ""}
-        </div>
-    </div>
+clean_students = max(0, total_students - students_alert)
+verified_events = max(0, total_events - pending_events)
+
+alert_color = "#dc2626" if students_alert > 0 else "#16a34a"
+event_color = "#d97706" if total_events > 0 else "#0f172a"
+clean_color = "#16a34a" if clean_rate == 100.0 else ("#d97706" if clean_rate >= 80.0 else "#dc2626")
+
+st.markdown(
+    f"""<div class="wf-grid-4">
+<div class="wf-stat-tile">
+    <div class="wf-stat-label">Tổng thí sinh</div>
+    <div class="wf-stat-num">{total_students}</div>
+    <div class="wf-stat-hint">Sĩ số trong ca thi</div>
 </div>
-""", unsafe_allow_html=True)
+<div class="wf-stat-tile">
+    <div class="wf-stat-label">Thí sinh có nghi vấn</div>
+    <div class="wf-stat-num" style="color:{alert_color};">{students_alert}</div>
+    <div class="wf-stat-hint">{"Cần rà soát bằng chứng" if students_alert > 0 else "Không ghi nhận vi phạm"}</div>
+</div>
+<div class="wf-stat-tile">
+    <div class="wf-stat-label">Sự kiện vi phạm</div>
+    <div class="wf-stat-num" style="color:{event_color};">{total_events}</div>
+    <div class="wf-stat-hint">Chờ duyệt: <strong>{pending_events}</strong> · Đã xử lý: {verified_events}</div>
+</div>
+<div class="wf-stat-tile">
+    <div class="wf-stat-label">Tỷ lệ thí sinh sạch</div>
+    <div class="wf-stat-num" style="color:{clean_color};">{clean_rate}%</div>
+    <div class="wf-stat-hint">{clean_students}/{total_students} thí sinh nghiêm túc</div>
+</div>
+</div>""",
+    unsafe_allow_html=True,
+)
 
 # ── Bảng tổng hợp theo thí sinh ─────────────────────────────
 st.markdown("""
@@ -174,7 +180,7 @@ st.markdown("""
 <div class="wf-box" style="margin-top: 18px;">
     <div class="wf-box-header">
         <div class="wf-box-title">Timeline cảnh báo · ảnh minh chứng · thời gian · thí sinh</div>
-        <span style="font-size: 11px; color: var(--wf-text-muted);">Mỗi mốc có cảnh báo được giữ lại; 2,5 giây chỉ là nhịp tham khảo</span>
+        <span style="font-size: 11px; color: var(--wf-text-muted);">Mỗi mốc có cảnh báo được giữ lại</span>
     </div>
 </div>
 """, unsafe_allow_html=True)
@@ -255,7 +261,7 @@ else:
                 f" <span class='{status_cls}' style='margin-left:4px;'>{status_label}</span>"
                 f"</div>"
                 f"<div style='font-size:11px;color:#94a3b8;margin-top:2px;'>"
-                f"Ca #{sess.get('parent_session_id') or '—'} · Phiên con #{sess.get('PK_MaPhienGiamSat') or '—'}"
+                f"Ca #{sess.get('parent_session_id') or sess.get('PK_MaPhienGiamSat') or '—'}"
                 f"{' · độ trễ ' + str(latency) + ' ms' if latency is not None else ''}"
                 f"</div>",
                 unsafe_allow_html=True,

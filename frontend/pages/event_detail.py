@@ -270,10 +270,9 @@ with right_col:
                     </span>
                 </div>
                 <div style="font-size:11px;color:#64748b;margin-top:2px;">
-                    Ca thi #{html.escape(str(session_info.get('parent_session_id') or '—'))}
+                    Ca thi #{html.escape(str(session_info.get('parent_session_id') or session_info.get('PK_MaPhienGiamSat') or '—'))}
                     · {html.escape(str(session_info.get('PhongThi') or '—'))}
                     · {html.escape(str(session_info.get('MonThi') or '—'))}
-                    · Phiên con #{html.escape(str(session_info.get('PK_MaPhienGiamSat') or '—'))}
                 </div>
             </div>
         </div>
@@ -282,7 +281,14 @@ with right_col:
     st.markdown('<div class="right-section-title">Thông tin sự kiện</div>', unsafe_allow_html=True)
 
     user_label = data.get("NhanNguoiDung")
-    user_label_disp = get_friendly_behavior_label(user_label) if user_label else "Chưa xác minh"
+    if trang_thai == "sai":
+        user_label_disp = "Bác bỏ (Báo sai)"
+    elif user_label:
+        user_label_disp = get_friendly_behavior_label(user_label)
+    elif trang_thai in ("dung", "da_kiem_tra", "da_xac_minh"):
+        user_label_disp = friendly_label
+    else:
+        user_label_disp = "Chờ kiểm tra"
 
     st.markdown(f"""
     <div class="kpi-mini">
@@ -331,43 +337,61 @@ with right_col:
 
     st.markdown('<div class="right-section-title">Xác minh nghiệp vụ</div>', unsafe_allow_html=True)
 
-    available_labels = ["Cheat_Paper", "cellphone", "quay_dau", "quay_sau", "cui_xuong", "vang_mat", "nhieu_nguoi", "Answer_paper"]
-    label_names = {
-        "Cheat_Paper": "Tài liệu giấy (Cheat_Paper)",
-        "cellphone": "Điện thoại di động (cellphone)",
-        "quay_dau": "Quay đầu (>45°)",
-        "quay_sau": "Quay người về sau trao đổi bài",
-        "cui_xuong": "Cúi đầu nhìn xuống gầm bàn",
-        "vang_mat": "Vắng mặt khỏi khung hình (vang_mat)",
-        "nhieu_nguoi": "Nhiều người trong khung hình (nhieu_nguoi)",
-        "Answer_paper": "Giấy thi hợp lệ (Answer_paper - Không vi phạm)",
-    }
-    cur_choice = data.get("NhanNguoiDung") or data.get("NhanAI") or "Cheat_Paper"
-    def_idx = available_labels.index(cur_choice) if cur_choice in available_labels else 0
+    is_pending = (trang_thai == "cho_kiem_tra")
+    if not is_pending:
+        # Sự kiện đã được xử lý (xác nhận hoặc bác bỏ) -> Ẩn nút, không cho tương tác nữa
+        if trang_thai in ("dung", "da_kiem_tra", "da_xac_minh"):
+            st.markdown(
+                f"<div style='background:#f0fdf4; border:1px solid #bbf7d0; border-radius:8px; padding:12px 14px; color:#16a34a; font-size:13.5px; font-weight:600; text-align:center; margin-top:8px;'>"
+                f"Đã xác nhận Vi phạm: {user_label_disp}"
+                f"</div>",
+                unsafe_allow_html=True,
+            )
+        else:
+            st.markdown(
+                "<div style='background:#fef2f2; border:1px solid #fecaca; border-radius:8px; padding:12px 14px; color:#dc2626; font-size:13.5px; font-weight:600; text-align:center; margin-top:8px;'>"
+                "Đã bác bỏ sự kiện (Báo sai)"
+                "</div>",
+                unsafe_allow_html=True,
+            )
+    else:
+        # Sự kiện đang chờ kiểm tra -> Cho phép xác nhận vi phạm hoặc bác bỏ
+        available_labels = ["Cheat_Paper", "cellphone", "quay_dau", "quay_sau", "cui_xuong", "vang_mat", "nhieu_nguoi"]
+        label_names = {
+            "Cheat_Paper": "Tài liệu không hợp lệ (Cheat_Paper)",
+            "cellphone": "Điện thoại di động (cellphone)",
+            "quay_dau": "Quay đầu (>45°)",
+            "quay_sau": "Quay người về sau trao đổi bài",
+            "cui_xuong": "Cúi đầu nhìn xuống gầm bàn",
+            "vang_mat": "Vắng mặt khỏi khung hình (vang_mat)",
+            "nhieu_nguoi": "Nhiều người trong khung hình (nhieu_nguoi)",
+        }
+        cur_choice = data.get("NhanNguoiDung") or data.get("NhanAI") or "Cheat_Paper"
+        def_idx = available_labels.index(cur_choice) if cur_choice in available_labels else 0
 
-    chosen_label = st.selectbox(
-        "Nhãn xác minh kết luận:",
-        options=available_labels,
-        index=def_idx,
-        format_func=lambda x: label_names.get(x, x),
-        key=f"detail_sel_label_{event_id}",
-    )
+        chosen_label = st.selectbox(
+            "Nhãn xác minh kết luận:",
+            options=available_labels,
+            index=def_idx,
+            format_func=lambda x: label_names.get(x, x),
+            key=f"detail_sel_label_{event_id}",
+        )
 
-    col_ok, col_no = st.columns(2)
-    with col_ok:
-        if st.button("Xác nhận Vi phạm", use_container_width=True, type="primary"):
-            res = verify_event(st.session_state.client, event_id, "dung", chosen_label)
-            if res is not None and res.status_code == 200:
-                notify.defer_success(f"Đã xác nhận sự kiện với nhãn: {label_names.get(chosen_label, chosen_label)}")
-                st.rerun()
-            else:
-                notify.error("Lỗi khi gửi xác minh tới hệ thống")
-    with col_no:
-        if st.button("Bác bỏ (Báo sai)", use_container_width=True):
-            res = verify_event(st.session_state.client, event_id, "sai", "Answer_paper")
-            if res is not None and res.status_code == 200:
-                notify.defer_success("Đã ghi nhận bác bỏ sự kiện (Báo sai: Giấy thi hợp lệ)")
-                st.rerun()
-            else:
-                notify.error("Lỗi khi gửi xác minh tới hệ thống")
+        col_ok, col_no = st.columns(2)
+        with col_ok:
+            if st.button("Xác nhận Vi phạm", use_container_width=True, type="primary"):
+                res = verify_event(st.session_state.client, event_id, "dung", chosen_label)
+                if res is not None and res.status_code == 200:
+                    notify.defer_success(f"Đã xác nhận sự kiện với nhãn: {label_names.get(chosen_label, chosen_label)}")
+                    st.rerun()
+                else:
+                    notify.error("Lỗi khi gửi xác minh tới hệ thống")
+        with col_no:
+            if st.button("Bác bỏ (Báo sai)", use_container_width=True):
+                res = verify_event(st.session_state.client, event_id, "sai", "")
+                if res is not None and res.status_code == 200:
+                    notify.defer_success("Đã ghi nhận bác bỏ sự kiện (Báo sai)")
+                    st.rerun()
+                else:
+                    notify.error("Lỗi khi gửi xác minh tới hệ thống")
 

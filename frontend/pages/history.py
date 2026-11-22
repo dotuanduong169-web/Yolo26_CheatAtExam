@@ -142,9 +142,9 @@ if "reject_ev" in st.query_params:
         del st.query_params["reject_ev"]
         st.session_state["history_active_tab"] = "events"
         st.query_params["tab"] = "events"
-        res = verify_event(client, r_ev_id, "sai", "Answer_paper")
+        res = verify_event(client, r_ev_id, "sai", "")
         if res is not None and res.status_code == 200:
-            notify.defer_success(f"Đã bác bỏ sự kiện EV-{r_ev_id:02d} (Giấy thi hợp lệ)")
+            notify.defer_success(f"Đã bác bỏ sự kiện EV-{r_ev_id:02d} (Báo sai)")
             st.rerun()
         else:
             notify.error("Không thể cập nhật trạng thái sự kiện")
@@ -547,33 +547,39 @@ else:
                 with c6:
                     st.markdown(stt_badge, unsafe_allow_html=True)
                 with c7:
-                    # Nút native (icon CSS btn_act_*) → dialog/API trực tiếp, không qua URL
-                    eb1, eb2, eb3 = st.columns(3, gap="small")
-                    with eb1:
+                    # Nếu sự kiện đã được kiểm tra (dung/sai) thì chỉ hiển thị nút Xem, ẩn Duyệt/Bỏ
+                    if stt_code != "cho_kiem_tra":
                         if st.button("Xem", key=f"btn_act_view_ev_{ev_id}", help="Xem nhanh bằng chứng vi phạm"):
                             st.session_state["history_active_tab"] = "events"
                             st.query_params["tab"] = "events"
                             show_evidence_dialog(ev_id)
-                    with eb2:
-                        if st.button("Duyệt", key=f"btn_act_confirm_ev_{ev_id}", help=f"Xác nhận đúng vi phạm ({friendly_label})"):
-                            st.session_state["history_active_tab"] = "events"
-                            st.query_params["tab"] = "events"
-                            res = verify_event(client, ev_id, "dung", raw_label)
-                            if res is not None and res.status_code == 200:
-                                notify.defer_success(f"Đã xác nhận sự kiện EV-{ev_id:02d} là Vi phạm")
-                                st.rerun()
-                            else:
-                                notify.error("Không thể cập nhật trạng thái sự kiện")
-                    with eb3:
-                        if st.button("Bỏ", key=f"btn_act_reject_ev_{ev_id}", help="Bác bỏ vi phạm (Giấy thi hợp lệ)"):
-                            st.session_state["history_active_tab"] = "events"
-                            st.query_params["tab"] = "events"
-                            res = verify_event(client, ev_id, "sai", "Answer_paper")
-                            if res is not None and res.status_code == 200:
-                                notify.defer_success(f"Đã bác bỏ sự kiện EV-{ev_id:02d} (Giấy thi hợp lệ)")
-                                st.rerun()
-                            else:
-                                notify.error("Không thể cập nhật trạng thái sự kiện")
+                    else:
+                        eb1, eb2, eb3 = st.columns(3, gap="small")
+                        with eb1:
+                            if st.button("Xem", key=f"btn_act_view_ev_{ev_id}", help="Xem nhanh bằng chứng vi phạm"):
+                                st.session_state["history_active_tab"] = "events"
+                                st.query_params["tab"] = "events"
+                                show_evidence_dialog(ev_id)
+                        with eb2:
+                            if st.button("Duyệt", key=f"btn_act_confirm_ev_{ev_id}", help=f"Xác nhận đúng vi phạm ({friendly_label})"):
+                                st.session_state["history_active_tab"] = "events"
+                                st.query_params["tab"] = "events"
+                                res = verify_event(client, ev_id, "dung", raw_label)
+                                if res is not None and res.status_code == 200:
+                                    notify.defer_success(f"Đã xác nhận sự kiện EV-{ev_id:02d} là Vi phạm")
+                                    st.rerun()
+                                else:
+                                    notify.error("Không thể cập nhật trạng thái sự kiện")
+                        with eb3:
+                            if st.button("Bỏ", key=f"btn_act_reject_ev_{ev_id}", help="Bác bỏ vi phạm (Báo sai)"):
+                                st.session_state["history_active_tab"] = "events"
+                                st.query_params["tab"] = "events"
+                                res = verify_event(client, ev_id, "sai", "")
+                                if res is not None and res.status_code == 200:
+                                    notify.defer_success(f"Đã bác bỏ sự kiện EV-{ev_id:02d} (Báo sai)")
+                                    st.rerun()
+                                else:
+                                    notify.error("Không thể cập nhật trạng thái sự kiện")
 
             st.markdown("<hr style='margin: 4px 0 8px 0; border: none; border-top: 1px solid var(--wf-border);'>", unsafe_allow_html=True)
 

@@ -31,10 +31,9 @@ st.markdown(load_css("styles/home.css"), unsafe_allow_html=True)
 init_session_state()
 require_auth()
 
-# ── Phân quyền: hệ thống chuyển sang chỉ còn Thi online với Cán bộ coi thi.
-# Tab Giám sát & Thiết bị đã ẩn khỏi menu; chặn luôn truy cập trực tiếp bằng URL. ──
-if st.session_state.get("user_role") != "admin":
-    st.switch_page("pages/online_exam.py")
+# ── Phân quyền: Đã loại bỏ tab Giám sát trực tiếp khỏi hệ thống.
+# Toàn bộ người dùng truy cập /home đều tự động chuyển hướng sang Thi online. ──
+st.switch_page("pages/online_exam.py")
 
 if st.session_state["page_loaded"] != "home":
     st.session_state["page_loaded"] = "home"

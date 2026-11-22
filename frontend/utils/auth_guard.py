@@ -25,6 +25,7 @@ def require_auth() -> None:
                         if (data && data.token) {
                             const cur = new URL(window.parent.location.href);
                             cur.searchParams.set("auth", data.token);
+                            if (data.refresh_token) cur.searchParams.set("refresh", data.refresh_token);
                             if (data.role) cur.searchParams.set("role", data.role);
                             if (data.username) cur.searchParams.set("u", data.username);
                             window.parent.eval("window.location.replace('" + cur.pathname + cur.search + "')");

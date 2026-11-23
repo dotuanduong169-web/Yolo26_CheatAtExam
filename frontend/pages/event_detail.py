@@ -33,9 +33,10 @@ st.markdown(load_css("styles/app_theme.css"), unsafe_allow_html=True)
 st.markdown(load_css("styles/frame_detail.css"), unsafe_allow_html=True)
 
 # ── Event ID & Session ID ───────────────────────────────────
-if "id" in st.query_params:
+target_eid = st.query_params.get("id") or st.query_params.get("event_id")
+if target_eid:
     try:
-        st.session_state["event_id"] = int(st.query_params["id"])
+        st.session_state["event_id"] = int(target_eid)
     except Exception:
         pass
 

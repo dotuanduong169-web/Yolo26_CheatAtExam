@@ -38,11 +38,12 @@ st.markdown(load_css("styles/sidebar.css"), unsafe_allow_html=True)
 st.markdown(load_css("styles/app_theme.css"), unsafe_allow_html=True)
 st.markdown(load_css("styles/session_detail.css"), unsafe_allow_html=True)
 
-# ── Query params & Session ID (giữ đọc id/p để vào URL trực tiếp) ──
-if "id" in st.query_params:
+# ── Query params & Session ID (giữ đọc id/session_id/p để vào URL trực tiếp) ──
+target_sid = st.query_params.get("id") or st.query_params.get("session_id")
+if target_sid:
     try:
-        st.session_state["selected_session"] = int(st.query_params["id"])
-        st.session_state["session_id"] = int(st.query_params["id"])
+        st.session_state["selected_session"] = int(target_sid)
+        st.session_state["session_id"] = int(target_sid)
     except Exception:
         pass
 

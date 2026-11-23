@@ -3,6 +3,7 @@
 import logging
 
 import requests
+import streamlit as st
 
 from config import API_BASE_URL
 from utils.http import get_auth_headers

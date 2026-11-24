@@ -5,7 +5,7 @@ Logic chính: SBD duy nhất trong một ca; join idempotent (vào lại trả p
 from datetime import datetime, timezone
 from typing import Optional
 
-from sqlalchemy import func
+from sqlalchemy import case, func
 from sqlalchemy.orm import Session as DBSession
 
 from core.logger import get_logger
@@ -232,3 +232,38 @@ def count_unverified_by_candidate(db: DBSession, session_id: int) -> tuple[int, 
         or 0
     )
     return total, pending
+
+
+def behavior_breakdown_by_candidate(db: DBSession, session_id: int) -> list[dict]:
+    """Tổng hợp sự kiện theo từng nhãn hành vi của một phiên con.
+
+    Mỗi nhãn trả về tổng số lần, số đang chờ kiểm tra và thời điểm gần nhất,
+    sắp xếp theo lần xuất hiện mới nhất. Dùng cho lưới giám thị để không cô
+    đọng nhiều hành vi khác nhau thành một cảnh báo duy nhất.
+    """
+    pending_expr = func.sum(
+        case((DetectedEvent.TrangThaiKiemTra == "cho_kiem_tra", 1), else_=0)
+    )
+    rows = (
+        db.query(
+            DetectedEvent.LoaiHanhVi.label("label"),
+            func.count(DetectedEvent.PK_MaSuKien).label("total"),
+            pending_expr.label("pending"),
+            func.max(DetectedEvent.ThoiGianPhatHien).label("last_at"),
+        )
+        .filter(DetectedEvent.FK_MaPhienGiamSat == session_id)
+        .group_by(DetectedEvent.LoaiHanhVi)
+        # Ưu tiên nhãn còn chờ xác minh, sau đó mới tới lần xuất hiện mới nhất.
+        .order_by(pending_expr.desc(), func.max(DetectedEvent.ThoiGianPhatHien).desc())
+        .all()
+    )
+    return [
+        {
+            "label": row.label,
+            "total": int(row.total or 0),
+            "pending": int(row.pending or 0),
+            "last_at": row.last_at,
+        }
+        for row in rows
+        if row.label
+    ]

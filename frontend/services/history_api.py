@@ -14,7 +14,7 @@ def get_history(
     session: requests.Session,
     search: str = "",
     skip: int = 0,
-    limit: int = 5,
+    limit: int = 10,
 ) -> list:
     """Lấy danh sách phiên phân trang. Lỗi trả []."""
     key = f"hist:list:{search.strip()}:{skip}:{limit}"
@@ -120,8 +120,8 @@ def delete_session(session: requests.Session, session_id: int):
             headers=get_auth_headers(),
         )
         if res is not None and res.status_code == 200:
-            cache_invalidate("hist:")
-            cache_invalidate("ev:")
+            # Xóa phiên ảnh hưởng danh sách, chi tiết, sự kiện và thống kê.
+            cache_invalidate()
         return res
     except requests.RequestException as exc:
         logger.warning(f"delete_session error: {exc}")

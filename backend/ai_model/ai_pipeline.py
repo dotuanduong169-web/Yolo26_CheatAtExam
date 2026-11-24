@@ -88,6 +88,33 @@ def _bbox_iou(a, b) -> float:
     return ix * iy / ua if ua > 0 else 0.0
 
 
+def _dedupe_dets(dets: list[dict], iou_thr: float = 0.5) -> list[dict]:
+    """Gộp detection trùng nhãn + chồng lấn (cùng vật bị ByteTrack tách 2-3 box).
+
+    Giữ box tin cậy cao nhất. Box hành vi không có toạ độ thì mỗi nhãn chỉ giữ 1.
+    """
+    kept: list[dict] = []
+    for d in sorted(dets, key=lambda x: float(x.get("confidence") or 0.0), reverse=True):
+        label = d.get("label")
+        bbox = d.get("bbox") or []
+        duplicate = False
+        for k in kept:
+            if k.get("label") != label:
+                continue
+            kbox = k.get("bbox") or []
+            if (
+                d.get("kind") == "behavior"
+                or not bbox
+                or not kbox
+                or _bbox_iou(bbox, kbox) >= iou_thr
+            ):
+                duplicate = True
+                break
+        if not duplicate:
+            kept.append(d)
+    return kept
+
+
 def _smooth_behavior(ns: str, dets: list[dict]) -> list[dict]:
     """Giữ box hành vi ổn định qua frame miss: khớp IoU cùng nhãn thì tươi TTL,
     box mới thêm vào, box quá hạn xóa. Trả cùng schema kind=behavior."""
@@ -162,6 +189,11 @@ except Exception as exc:
     _pose_model = None
 
 
+def pose_available() -> bool:
+    """True khi đã nạp được model pose (dùng để tránh báo vắng mặt oan)."""
+    return _pose_model is not None
+
+
 def reset_tracker(ns: str | None = None) -> None:
     """Xóa trạng thái track (gọi khi đổi nguồn video/camera).
     Điểm logic: luôn xóa box giữ lại; chỉ reset predictor với model .pt
@@ -202,6 +234,7 @@ def process_frame(
     frame_count: int = 0,
     tracker_ns: str = "default",
     enable_pose: bool = True,
+    force_infer: bool = False,
 ) -> tuple[np.ndarray, list[dict]]:
     """
     Chạy YOLO26-seg trên một frame BGR.
@@ -210,6 +243,7 @@ def process_frame(
     tracker_ns tách bảng track theo nguồn (mặc định giữ tương thích gọi cũ).
     enable_pose=False dùng cho camera phụ (góc sau/bàn) để tránh luật tư thế
     chính diện báo sai và giảm tải CPU.
+    force_infer=True bắt buộc infer cả object lẫn pose (bỏ qua stride, dùng cho thi online 2.5s/frame).
 
     Returns:
         (annotated_frame, detections). Mỗi detection:
@@ -221,7 +255,13 @@ def process_frame(
         return frame, results_data
 
     if TRACK_ENABLED:
-        return _process_frame_tracked(frame, frame_count, tracker_ns, enable_pose=enable_pose)
+        return _process_frame_tracked(
+            frame,
+            frame_count,
+            tracker_ns,
+            enable_pose=enable_pose,
+            force_infer=force_infer,
+        )
 
     try:
         with _INFER_LOCK:
@@ -293,6 +333,19 @@ def process_frame(
     return frame, results_data
 
 
+def _containment(a: list, b: list) -> float:
+    """Tỉ lệ diện tích box nhỏ nằm trong box lớn (0..1)."""
+    if len(a) < 4 or len(b) < 4:
+        return 0.0
+    ix = max(0, min(a[2], b[2]) - max(a[0], b[0]))
+    iy = max(0, min(a[3], b[3]) - max(a[1], b[1]))
+    inter = ix * iy
+    area_a = (a[2] - a[0]) * (a[3] - a[1])
+    area_b = (b[2] - b[0]) * (b[3] - b[1])
+    small = min(area_a, area_b)
+    return inter / small if small > 0 else 0.0
+
+
 def _run_pose(frame: np.ndarray) -> tuple[list[dict], int, float]:
     """Chạy pose + rule hành vi, trả (detection kind=behavior, số người, conf người cao nhất).
     Điểm logic: bỏ nhin_thang; conf lấy từ rule keypoints; đếm người phục vụ luật vắng mặt/nhiều người."""
@@ -302,21 +355,38 @@ def _run_pose(frame: np.ndarray) -> tuple[list[dict], int, float]:
             res = _pose_model(frame, imgsz=POSE_IMGSZ, conf=POSE_CONF, verbose=False)[0]
     except Exception as exc:
         logger.debug(f"Pose inference failed: {exc}")
-        return out, 0, 0.0
+        # -1 = lỗi suy luận, khác 0 = "không có người". Ingest dùng sentinel này
+        # để không kết luận vắng mặt chỉ vì một lần pose lỗi.
+        return out, -1, 0.0
     if res.boxes is None or res.keypoints is None:
         return out, 0, 0.0
-    n_persons = len(res.boxes)
-    try:
-        person_confs = [float(c) for c in res.boxes.conf.tolist()]
-    except Exception:
-        person_confs = []
-    max_conf = max(person_confs) if person_confs else 0.0
-    kpts = res.keypoints.data
+
+    persons: list[tuple[int, list[int], float]] = []
     for i, box in enumerate(res.boxes):
         try:
             bbox = list(map(int, box.xyxy[0].tolist()))
+            conf = float(box.conf[0])
         except Exception:
             continue
+        persons.append((i, bbox, conf))
+
+    # Pose đôi khi trả 2 box cho CÙNG một người (box phụ chỉ phủ vai/thân).
+    # Box nhỏ nằm phần lớn trong box lớn hơn thì coi là trùng: bỏ để không báo
+    # nhieu_nguoi oan và không sinh quay_dau giả từ box thân không có đầu.
+    kept: list[tuple[int, list[int], float]] = []
+    for person in sorted(
+        persons,
+        key=lambda t: (t[1][2] - t[1][0]) * (t[1][3] - t[1][1]),
+        reverse=True,
+    ):
+        if any(_containment(person[1], k[1]) >= 0.6 for k in kept):
+            continue
+        kept.append(person)
+
+    n_persons = len(kept)
+    max_conf = max((c for _, _, c in kept), default=0.0)
+    kpts = res.keypoints.data
+    for i, bbox, _conf in kept:
         if i >= len(kpts):
             continue
         try:
@@ -342,16 +412,19 @@ def _process_frame_tracked(
     frame_count: int = 0,
     tracker_ns: str = "default",
     enable_pose: bool = True,
+    force_infer: bool = False,
 ) -> tuple[np.ndarray, list[dict]]:
     """Bản tối ưu: ByteTrack + infer cách frame + giữ box khi flicker.
-    Điểm logic: frame lẻ tái dùng box frame chẵn (giảm nửa infer);
-    box mất dấu được giữ TRACK_KEEP frame trước khi xóa;
-    pose chạy stride riêng, hành vi gian lận gắn kind=behavior.
-    tracker_ns tách bảng track theo nguồn để worker nhiều phiên không lẫn nhau;
-    persist=False + lock để an toàn luồng (keep-alive TTL vẫn lo mượt)."""
+
+    force_infer=True là chế độ snapshot thi online (2,5 giây/tick): mỗi tick là
+    một ảnh độc lập nên KHÔNG giữ box sang tick sau. Trước đây dùng chung TTL 5
+    frame của video 30 FPS, khiến một phát hiện thoáng qua bị lặp lại tới 12,5
+    giây và sinh nhiều sự kiện trùng trên cùng một ảnh.
+    """
     alive = _alive(tracker_ns)
     results_data: list[dict] = []
-    if frame_count % TRACK_STRIDE == 0:
+    keep_ttl = 1 if force_infer else TRACK_KEEP
+    if force_infer or frame_count == 1 or frame_count % TRACK_STRIDE == 0:
         try:
             with _INFER_LOCK:
                 res = _yolo_model.track(
@@ -378,7 +451,7 @@ def _process_frame_tracked(
                     continue
                 label = names.get(
                     cls_id, LABELS[cls_id] if cls_id < len(LABELS) else str(cls_id))
-                alive[track_id] = [label, conf, bbox, TRACK_KEEP]
+                alive[track_id] = [label, conf, bbox, keep_ttl]
                 seen.add(track_id)
         for track_id in list(alive):
             if track_id not in seen:
@@ -386,9 +459,9 @@ def _process_frame_tracked(
                 if alive[track_id][3] <= 0:
                     del alive[track_id]
 
+    object_dets = []
     for track_id, (label, conf, bbox, _ttl) in alive.items():
-        _draw_detection(frame, label, conf, bbox, track_id)
-        results_data.append({
+        object_dets.append({
             "bbox": bbox,
             "mask": None,
             "label": label,
@@ -397,13 +470,36 @@ def _process_frame_tracked(
             "kind": "object",
             "track_id": track_id,
         })
+    # Cùng một vật có thể bị tracker tách thành 2-3 box chồng lấn -> gộp lại,
+    # tránh tạo 2-3 sự kiện cho đúng một chiếc điện thoại.
+    for det in _dedupe_dets(object_dets):
+        _draw_detection(frame, det["label"], det["confidence"], det["bbox"], det.get("track_id"))
+        results_data.append(det)
 
-    if enable_pose and _pose_model is not None and frame_count % POSE_STRIDE == 0:
+    if enable_pose and _pose_model is not None and (force_infer or frame_count == 1 or frame_count % POSE_STRIDE == 0):
         pose_dets, n_persons, max_conf = _run_pose(frame)
-        _last_pose_info[tracker_ns] = (n_persons, max_conf)
-        pose_dets = _smooth_behavior(tracker_ns, pose_dets)
+        # -1 = pose lỗi: giữ nguyên thông tin lần trước, không kết luận vắng mặt.
+        if n_persons >= 0:
+            _last_pose_info[tracker_ns] = (n_persons, max_conf)
+        pose_dets = _dedupe_dets(pose_dets)
+        if force_infer:
+            # Snapshot 2,5s: không mang hành vi sang tick sau.
+            _beh_alive.pop(tracker_ns, None)
+            if n_persons <= 0:
+                pose_dets = []
+        elif n_persons == 0:
+            _beh_alive.pop(tracker_ns, None)
+            pose_dets = []
+        elif n_persons > 0:
+            pose_dets = _smooth_behavior(tracker_ns, pose_dets)
+        else:
+            pose_dets = []
     elif enable_pose and tracker_ns in _beh_alive:
-        pose_dets = _smooth_behavior(tracker_ns, [])
+        if _last_pose_info.get(tracker_ns, (0, 0.0))[0] == 0:
+            _beh_alive.pop(tracker_ns, None)
+            pose_dets = []
+        else:
+            pose_dets = _smooth_behavior(tracker_ns, [])
     else:
         pose_dets = []
     for b in pose_dets:

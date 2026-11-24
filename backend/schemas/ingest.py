@@ -5,7 +5,7 @@ Logic chính: frame JPEG + timestamp client để chống replay và đo trễ m
 from datetime import datetime
 from typing import Optional
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 
 class IngestAccepted(BaseModel):
@@ -13,6 +13,15 @@ class IngestAccepted(BaseModel):
 
     PK_MaPhienGiamSat: int
     queued: bool = True
+
+
+class CandidateBehaviorStat(BaseModel):
+    """Tổng hợp một loại hành vi của thí sinh (để lưới giám thị hiện đa hành vi)."""
+
+    label: str
+    total: int = 0
+    pending: int = 0
+    last_at: Optional[datetime] = None
 
 
 class CandidateStatusItem(BaseModel):
@@ -32,3 +41,5 @@ class CandidateStatusItem(BaseModel):
     anh_moi_nhat: Optional[datetime] = None
     hanh_vi_moi_nhat: Optional[str] = None
     thoi_gian_vi_pham: Optional[datetime] = None
+    # Danh sách hành vi đã ghi nhận (mỗi nhãn 1 dòng, mới nhất trước).
+    behaviors: list[CandidateBehaviorStat] = Field(default_factory=list)

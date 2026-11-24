@@ -327,6 +327,7 @@ def get_overview(
     user_id: Optional[int] = None,
     from_dt: Optional[datetime] = None,
     to_dt: Optional[datetime] = None,
+    candidate_id: Optional[int] = None,
 ) -> dict:
     """KPI tổng hợp đúng nghĩa thí sinh + cảnh báo + độ trễ tick."""
     parent = aliased(MonitoringSession)
@@ -335,6 +336,8 @@ def get_overview(
     )
     if session_id is not None:
         q_candidates = q_candidates.filter(Candidate.FK_MaPhienGiamSat == session_id)
+    if candidate_id is not None:
+        q_candidates = q_candidates.filter(Candidate.PK_MaThiSinh == candidate_id)
     if user_id is not None:
         q_candidates = q_candidates.filter(parent.FK_MaNguoiDung == user_id)
     total_students = q_candidates.scalar() or 0
@@ -344,6 +347,8 @@ def get_overview(
     ).join(parent, parent.PK_MaPhienGiamSat == Candidate.FK_MaPhienGiamSat)
     if session_id is not None:
         timeline_query = timeline_query.filter(Candidate.FK_MaPhienGiamSat == session_id)
+    if candidate_id is not None:
+        timeline_query = timeline_query.filter(CandidateTimeline.FK_MaThiSinh == candidate_id)
     if user_id is not None:
         timeline_query = timeline_query.filter(parent.FK_MaNguoiDung == user_id)
     if from_dt is not None:
@@ -375,10 +380,14 @@ def get_overview(
         MonitoringSession,
         MonitoringSession.PK_MaPhienGiamSat == DetectedEvent.FK_MaPhienGiamSat,
     )
-    if session_id is not None:
+    if session_id is not None or candidate_id is not None:
         q_events = q_events.join(
             Candidate, Candidate.PK_MaThiSinh == MonitoringSession.FK_MaThiSinh
-        ).filter(Candidate.FK_MaPhienGiamSat == session_id)
+        )
+        if session_id is not None:
+            q_events = q_events.filter(Candidate.FK_MaPhienGiamSat == session_id)
+        if candidate_id is not None:
+            q_events = q_events.filter(Candidate.PK_MaThiSinh == candidate_id)
     if user_id is not None:
         q_events = q_events.join(
             parent, parent.PK_MaPhienGiamSat == MonitoringSession.PK_MaPhienGiamSat
@@ -393,10 +402,14 @@ def get_overview(
         MonitoringSession,
         MonitoringSession.PK_MaPhienGiamSat == DetectedEvent.FK_MaPhienGiamSat,
     ).filter(DetectedEvent.TrangThaiKiemTra == "cho_kiem_tra")
-    if session_id is not None:
+    if session_id is not None or candidate_id is not None:
         q_pending = q_pending.join(
             Candidate, Candidate.PK_MaThiSinh == MonitoringSession.FK_MaThiSinh
-        ).filter(Candidate.FK_MaPhienGiamSat == session_id)
+        )
+        if session_id is not None:
+            q_pending = q_pending.filter(Candidate.FK_MaPhienGiamSat == session_id)
+        if candidate_id is not None:
+            q_pending = q_pending.filter(Candidate.PK_MaThiSinh == candidate_id)
     if user_id is not None:
         q_pending = q_pending.join(
             parent, parent.PK_MaPhienGiamSat == MonitoringSession.PK_MaPhienGiamSat

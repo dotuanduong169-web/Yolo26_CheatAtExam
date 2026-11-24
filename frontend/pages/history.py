@@ -35,7 +35,7 @@ require_auth()
 hide_sidebar()
 render_page_header("Lịch sử giám sát", active="history")
 
-PAGE_SIZE = 5
+PAGE_SIZE = 10
 client = st.session_state.client
 
 # ── Dialogs & Thao tác nghiệp vụ ───────────────────────────
@@ -548,7 +548,7 @@ else:
                     st.markdown(stt_badge, unsafe_allow_html=True)
                 with c7:
                     # Nếu sự kiện đã được kiểm tra (dung/sai) thì chỉ hiển thị nút Xem, ẩn Duyệt/Bỏ
-                    if stt_code != "cho_kiem_tra":
+                    if stt != "cho_kiem_tra":
                         if st.button("Xem", key=f"btn_act_view_ev_{ev_id}", help="Xem nhanh bằng chứng vi phạm"):
                             st.session_state["history_active_tab"] = "events"
                             st.query_params["tab"] = "events"

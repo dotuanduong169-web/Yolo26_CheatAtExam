@@ -103,7 +103,10 @@ def verify_event(
             headers=get_auth_headers(),
         )
         if res is not None and res.status_code == 200:
-            cache_invalidate("ev:")
+            # Xác minh làm đổi trạng thái/đếm sự kiện ở nhiều màn hình:
+            # danh sách sự kiện (ev:), chi tiết phiên (hist:), thống kê (stats:).
+            # Xóa toàn bộ cache để tag/badge cập nhật ngay ở lần rerun kế tiếp.
+            cache_invalidate()
         return res
     except requests.RequestException as exc:
         logger.warning(f"verify_event error: {exc}")

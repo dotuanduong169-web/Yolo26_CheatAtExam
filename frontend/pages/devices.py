@@ -27,9 +27,7 @@ require_auth()
 
 # ── Styles & Header ─────────────────────────────────────────
 hide_sidebar()
-st.markdown(load_css("styles/sidebar.css"), unsafe_allow_html=True)
-st.markdown(load_css("styles/app_theme.css"), unsafe_allow_html=True)
-render_page_header("Thiết bị biên", active="devices")
+st.switch_page("pages/online_exam.py")
 
 # ── Phân quyền: danh mục thiết bị biên chỉ dành cho Admin ────
 is_admin = st.session_state.get("user_role") == "admin"

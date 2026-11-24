@@ -26,6 +26,40 @@ from utils.notify import notify
 from utils.render_header import render_page_header
 from utils.status_helpers import get_friendly_behavior_label
 
+
+def _behavior_chips_html(behaviors, limit: int = 4) -> str:
+    """Dựng dải chip cho nhiều hành vi khác nhau của một thí sinh.
+
+    Mỗi chip hiển thị nhãn tiếng Việt + số lần ghi nhận. Chip màu đỏ khi còn
+    sự kiện chờ xác minh, màu xám khi đã xác minh. Bỏ bớt nhãn nếu quá nhiều.
+    """
+    if not behaviors:
+        return ""
+    chips = []
+    for b in behaviors[:limit]:
+        label = html.escape(get_friendly_behavior_label(b.get("label")))
+        total = int(b.get("total") or 0)
+        pending = int(b.get("pending") or 0)
+        cls = "pending" if pending > 0 else "verified"
+        count = f" <b>×{total}</b>" if total > 1 else ""
+        last_at = str(b.get("last_at") or "")[:19].replace("T", " ")
+        title = label
+        if pending > 0:
+            title += f" · {pending} chờ duyệt"
+        else:
+            title += " · đã xác minh"
+        if last_at:
+            title += f" · gần nhất {last_at}"
+        chips.append(
+            f'<span class="cand-behavior-chip {cls}" title="{title}">{label}{count}</span>'
+        )
+    if len(behaviors) > limit:
+        chips.append(
+            f'<span class="cand-behavior-chip more">+{len(behaviors) - limit}</span>'
+        )
+    return f'<div class="cand-behavior-list">{"".join(chips)}</div>'
+
+
 # ── Cấu hình trang ──────────────────────────────────────────
 st.set_page_config(layout="wide", initial_sidebar_state="collapsed", page_title="Thi online")
 
@@ -61,8 +95,8 @@ with st.expander("Tạo ca thi online mới", expanded=not bool(sessions)):
                 if resp is not None and resp.status_code == 200:
                     created_data = resp.json()
                     new_id = created_data.get("PK_MaPhienGiamSat")
-                    cache_invalidate("hist:")
-                    notify.success(f"Đã tạo ca thi #{new_id} ({new_room} - {new_subj}).")
+                    cache_invalidate()
+                    notify.defer_success(f"Đã tạo ca thi #{new_id} ({new_room} - {new_subj}).", title="Tạo ca thi thành công")
                     st.session_state["online_exam_session"] = new_id
                     st.rerun()
                 else:
@@ -106,8 +140,8 @@ with col_action:
         if st.button("Kết thúc ca thi", key=f"btn_close_sess_{sel_id}"):
             res = close_session(st.session_state.client, sel_id)
             if res is not None and res.status_code == 200:
-                cache_invalidate("hist:")
-                notify.success(f"Đã kết thúc ca thi #{sel_id}.")
+                cache_invalidate()
+                notify.defer_success(f"Đã kết thúc ca thi #{sel_id}.", title="Kết thúc ca thi")
                 st.rerun()
             else:
                 err_msg = extract_error_detail(res, default="Không thể kết thúc ca thi")
@@ -116,15 +150,29 @@ with col_action:
         if st.button("Mở ca thi", type="primary", key=f"btn_open_sess_{sel_id}"):
             res = open_session(st.session_state.client, sel_id)
             if res is not None and res.status_code == 200:
-                cache_invalidate("hist:")
-                notify.success(f"Đã mở ca thi #{sel_id}! Thí sinh có thể vào phòng thi.")
+                cache_invalidate()
+                notify.defer_success(f"Đã mở ca thi #{sel_id}! Thí sinh có thể vào phòng thi.", title="Mở ca thi thành công")
                 st.rerun()
             else:
                 err_msg = extract_error_detail(res, default="Không thể mở ca thi")
                 notify.error(err_msg, title="Lỗi mở ca thi")
 
 # ── Link trang thi cho thí sinh ─────────────────────────────
-exam_url = f"{API_BASE_URL}/exam?session_id={sel_id}"
+def _resolve_lan_ip() -> str:
+    try:
+        import socket
+        s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        s.settimeout(0.2)
+        s.connect(("8.8.8.8", 80))
+        ip = s.getsockname()[0]
+        s.close()
+        return ip
+    except Exception:
+        return "192.168.1.123"
+
+lan_ip = _resolve_lan_ip()
+exam_url = f"http://localhost:8000/exam?session_id={sel_id}"
+
 if is_open:
     st.markdown(
         f"""
@@ -167,31 +215,71 @@ else:
     )
 
 # ── Nhập danh sách thí sinh ─────────────────────────────────
-with st.expander("Nhập danh sách thí sinh vào ca thi (SBD, Họ tên, Lớp)", expanded=False):
-    st.caption("Mỗi dòng một thí sinh, phân tách bằng dấu phẩy. Ví dụ: `TS001, Nguyễn Văn A, 12A1`")
-    raw = st.text_area("Danh sách thí sinh", height=120, key="online_import_text", placeholder="TS001, Nguyễn Văn A, 12A1\nTS002, Trần Thị B, 12A2")
-    if st.button("Nhập danh sách thí sinh", type="primary", key="online_import_btn"):
+if "expand_import_cands" not in st.session_state:
+    st.session_state["expand_import_cands"] = False
+
+if st.session_state.get("_clear_online_import_text"):
+    st.session_state["online_import_text"] = ""
+    st.session_state["_clear_online_import_text"] = False
+
+with st.expander("Nhập danh sách thí sinh vào ca thi (SBD, Họ tên, Lớp)", expanded=st.session_state.get("expand_import_cands", False)):
+    st.caption("Mỗi dòng một thí sinh, phân tách bằng dấu phẩy. Cú pháp: `SBD, Họ tên, Lớp` (Lớp có thể bỏ trống).")
+
+    col_btn_sample, col_spacer = st.columns([1, 3])
+    with col_btn_sample:
+        if st.button("Điền dữ liệu mẫu", help="Tự động điền 3 thí sinh mẫu để thử nghiệm nhanh", key="btn_fill_sample"):
+            st.session_state["online_import_text"] = "TS001, Nguyễn Văn A, 12A1\nTS002, Trần Thị B, 12A2\nTS003, Lê Văn C, 12A1"
+            st.session_state["expand_import_cands"] = True
+            st.rerun()
+
+    raw = st.text_area(
+        "Danh sách thí sinh",
+        height=120,
+        key="online_import_text",
+        placeholder="TS001, Nguyễn Văn A, 12A1\nTS002, Trần Thị B, 12A2",
+    )
+
+    btn_import_cands = st.button("Nhập danh sách thí sinh", type="primary", key="online_import_btn")
+
+    if btn_import_cands:
+        st.session_state["expand_import_cands"] = True
+        raw_str = (raw or "").strip()
         items = []
-        for line in (raw or "").splitlines():
-            parts = [p.strip() for p in line.split(",")]
+        for line in raw_str.splitlines():
+            line_clean = line.strip()
+            if not line_clean:
+                continue
+            parts = [p.strip() for p in line_clean.split(",")]
             if len(parts) >= 2 and parts[0] and parts[1]:
                 items.append({
                     "SBD": parts[0],
                     "HoTen": parts[1],
                     "Lop": parts[2] if len(parts) > 2 else None,
                 })
-        if not items:
-            notify.warning("Chưa có dòng hợp lệ nào (yêu cầu tối thiểu SBD và Họ tên).")
+
+        if not raw_str:
+            notify.inline_warning("Ô danh sách thí sinh đang để trống. Vui lòng nhập dữ liệu theo cú pháp hoặc bấm nút **'Điền dữ liệu mẫu'** ở trên.", title="Chưa nhập danh sách")
+            notify.warning("Vui lòng nhập danh sách thí sinh trước khi bấm nút.")
+        elif not items:
+            notify.inline_error("Định dạng dữ liệu không hợp lệ. Mỗi dòng phải có tối thiểu SBD và Họ tên, phân tách bằng dấu phẩy (Ví dụ: `TS001, Nguyễn Văn A, 12A1`).", title="Sai định dạng")
+            notify.error("Chưa có dòng thí sinh hợp lệ nào.")
         else:
-            res = import_candidates(st.session_state.client, sel_id, items)
+            with st.spinner("Đang nhập danh sách thí sinh vào hệ thống..."):
+                res = import_candidates(st.session_state.client, sel_id, items)
             if res is not None and res.status_code == 200:
-                msg = f"Đã nhập thành công {len(res.json())} thí sinh vào ca #{sel_id}."
+                cache_invalidate()
+                count_imported = len(res.json())
+                msg = f"Đã nhập thành công {count_imported} thí sinh vào ca #{sel_id}."
                 if not is_open:
                     msg += " Hãy bấm 'Mở ca thi' để thí sinh có thể bắt đầu thi."
-                notify.success(msg)
+                notify.defer_success(msg, title="Nhập danh sách thành công")
+                st.session_state["expand_import_cands"] = False
+                st.session_state["_clear_online_import_text"] = True
                 st.rerun()
             else:
-                notify.error("Nhập danh sách thí sinh thất bại.")
+                err_detail = extract_error_detail(res, default="Nhập danh sách thí sinh thất bại.")
+                notify.inline_error(f"Lỗi từ máy chủ: {err_detail}", title="Lỗi nhập thí sinh")
+                notify.error(err_detail, title="Lỗi nhập thí sinh")
 
 # ── Tải dữ liệu tổng quan ca thi ────────────────────────────
 rows = exam_overview(st.session_state.client, sel_id) or []
@@ -202,6 +290,13 @@ act_cands = sum(1 for r in rows if r.get("dang_giam_sat"))
 alr_cands = sum(1 for r in rows if (r.get("cho_kiem_tra") or 0) > 0)
 stp_cands = sum(1 for r in rows if not r.get("dang_giam_sat") and r.get("PK_MaPhienGiamSat"))
 unj_cands = tot_cands - act_cands - stp_cands
+
+# Tổng số hành vi đang chờ xác minh (không gộp nhiều nhãn thành một cảnh báo).
+pending_events = sum(int(r.get("cho_kiem_tra") or 0) for r in rows)
+pending_kinds = sum(
+    sum(1 for b in (r.get("behaviors") or []) if int(b.get("pending") or 0) > 0)
+    for r in rows
+)
 
 alert_card_cls = " alert" if alr_cands > 0 else ""
 
@@ -221,7 +316,7 @@ st.markdown(
         <div class="online-kpi-card{alert_card_cls}">
             <div class="online-kpi-label">Nghi vấn gian lận</div>
             <div class="online-kpi-val red">{alr_cands}</div>
-            <div class="online-kpi-hint">Có sự kiện chờ xác minh</div>
+            <div class="online-kpi-hint">{pending_kinds} loại hành vi · {pending_events} sự kiện chờ duyệt</div>
         </div>
         <div class="online-kpi-card">
             <div class="online-kpi-label">Đã kết thúc / Chưa vào</div>
@@ -239,7 +334,7 @@ if not rows:
 else:
     # ── Chuyển đổi linh hoạt giữa Danh sách giám sát vi phạm và Lưới camera ──
     tab_list, tab_grid = st.tabs([
-        f"Danh sách giám sát vi phạm ({alr_cands} nghi vấn)",
+        f"Danh sách giám sát vi phạm ({alr_cands} thí sinh · {pending_kinds} hành vi)",
         f"Lưới camera thời gian thực ({tot_cands} thí sinh)",
     ])
 
@@ -320,6 +415,7 @@ else:
                 sid = r.get("PK_MaPhienGiamSat")
                 cho_kt = r.get("cho_kiem_tra", 0) or 0
                 tong_sk = r.get("tong_su_kien", 0) or 0
+                behaviors = r.get("behaviors") or []
                 has_alert = cho_kt > 0 or tong_sk > 0
 
                 # Cột 1: Thông tin thí sinh
@@ -361,31 +457,30 @@ else:
                             unsafe_allow_html=True,
                         )
 
-                # Cột 3: Đánh giá gian lận
+                # Cột 3: Đánh giá gian lận + toàn bộ hành vi đã ghi nhận
                 with r3:
                     if cho_kt > 0:
-                        st.markdown(
-                            f"<span class='cand-alert-tag danger' style='display:inline-block;'>Nghi vấn ({cho_kt} chờ duyệt)</span><br>"
-                            f"<span style='font-size:11px; color:#dc2626; font-weight:600;'>Tổng {tong_sk} sự kiện vi phạm</span>",
-                            unsafe_allow_html=True,
+                        summary = (
+                            f"<span class='cand-alert-tag danger'>Nghi vấn ({cho_kt} chờ duyệt)</span>"
+                            f"<span class='cand-alert-sub danger'>Tổng {tong_sk} sự kiện</span>"
                         )
                     elif tong_sk > 0:
-                        st.markdown(
-                            f"<span class='cand-alert-tag neutral' style='display:inline-block; border-color:#cbd5e1;'>Có {tong_sk} sự kiện</span><br>"
-                            f"<span style='font-size:11px; color:#16a34a; font-weight:500;'>Đã xác minh hết</span>",
-                            unsafe_allow_html=True,
+                        summary = (
+                            f"<span class='cand-alert-tag neutral'>Có {tong_sk} sự kiện</span>"
+                            f"<span class='cand-alert-sub ok'>Đã xác minh hết</span>"
                         )
                     elif is_active:
-                        st.markdown(
-                            f"<span class='cand-alert-tag' style='display:inline-block; background:#f0fdf4; color:#16a34a; border:1px solid #bbf7d0;'>Bình thường (Sạch)</span><br>"
-                            f"<span style='font-size:11px; color:#64748b;'>Không có vi phạm</span>",
-                            unsafe_allow_html=True,
+                        summary = (
+                            "<span class='cand-alert-tag' style='background:#f0fdf4; color:#16a34a; border:1px solid #bbf7d0;'>Bình thường (Sạch)</span>"
+                            "<span class='cand-alert-sub'>Không có vi phạm</span>"
                         )
                     else:
-                        st.markdown(
-                            "<span class='cand-alert-tag neutral' style='display:inline-block;'>Chưa vào thi</span>",
-                            unsafe_allow_html=True,
-                        )
+                        summary = "<span class='cand-alert-tag neutral'>Chưa vào thi</span>"
+                    st.markdown(
+                        f"<div class='cand-alert-summary'>{summary}</div>"
+                        f"{_behavior_chips_html(behaviors)}",
+                        unsafe_allow_html=True,
+                    )
 
                 # Cột 4: Hành vi vi phạm gần nhất
                 with r4:
@@ -394,9 +489,15 @@ else:
                     if raw_bh:
                         friendly_bh = get_friendly_behavior_label(raw_bh)
                         time_disp = str(bh_time)[:19].replace("T", " ") if bh_time else "Gần đây"
+                        kinds = len(behaviors)
+                        extra = (
+                            f"<div style='font-size:11px; color:#64748b;'>{kinds} loại hành vi · lúc {time_disp}</div>"
+                            if kinds > 1
+                            else f"<div style='font-size:11px; color:#64748b;'>Lúc: {time_disp}</div>"
+                        )
                         st.markdown(
                             f"<div style='font-size:12.5px; font-weight:600; color:#dc2626;'>{friendly_bh}</div>"
-                            f"<div style='font-size:11px; color:#64748b;'>Lúc: {time_disp}</div>",
+                            f"{extra}",
                             unsafe_allow_html=True,
                         )
                     elif has_alert:
@@ -464,7 +565,7 @@ else:
                     sid = c.get("PK_MaPhienGiamSat")
                     cho_kt = c.get("cho_kiem_tra", 0) or 0
                     tong_sk = c.get("tong_su_kien", 0) or 0
-                    has_alert = cho_kt > 0
+                    behaviors = c.get("behaviors") or []
 
                     if is_active:
                         chip_cls = "active"
@@ -476,12 +577,22 @@ else:
                         chip_cls = "unjoined"
                         status_text = "Chưa vào"
 
-                    violation_cls = " has-violation" if has_alert else ""
-                    alert_badge_html = (
-                        f'<span class="cand-alert-tag danger">{cho_kt} chờ duyệt</span>'
-                        if has_alert
-                        else '<span class="cand-alert-tag neutral">Bình thường</span>'
-                    )
+                    if cho_kt > 0:
+                        violation_cls = " has-violation"
+                        alert_badge_html = (
+                            f'<span class="cand-alert-tag danger">{cho_kt} chờ duyệt</span>'
+                        )
+                    elif tong_sk > 0:
+                        violation_cls = " has-event"
+                        alert_badge_html = (
+                            '<span class="cand-alert-tag neutral">Đã xác minh</span>'
+                        )
+                    else:
+                        violation_cls = ""
+                        alert_badge_html = (
+                            '<span class="cand-alert-tag neutral">Bình thường</span>'
+                        )
+                    behavior_html = _behavior_chips_html(behaviors)
 
                     sbd_escaped = html.escape(str(c.get("SBD") or ""))
                     hoten_escaped = html.escape(str(c.get("HoTen") or "Thí sinh"))
@@ -525,6 +636,7 @@ else:
                             </div>
                             {snap_html}
                             <div class="cand-cam-row">{cam_chip_front}{cam_chip_side}</div>
+                            {behavior_html}
                             <div class="cand-card-footer">
                                 <span>Sự kiện: <strong>{tong_sk}</strong></span>
                                 {alert_badge_html}

@@ -12,6 +12,7 @@ from PIL import Image
 
 from services.event_api import get_evidence_bytes
 from services.history_api import get_session_detail
+from components.evidence_dialog import show_evidence_dialog
 from utils.auth_guard import require_auth
 from utils.hide_streamlit_sidebar import hide_sidebar
 from utils.http import init_session_state
@@ -365,7 +366,7 @@ if is_parent_session and cand_groups:
 
 # ── Events Table ────────────────────────────────────────────
 
-PAGE_SIZE = 5
+PAGE_SIZE = 10
 total_rows = len(events)
 total_pages = max(1, math.ceil(total_rows / PAGE_SIZE))
 
@@ -482,16 +483,7 @@ else:
         with c5:
             ev_pk = row["PK_MaSuKien"]
             if st.button("Xem", key=f"btn_act_view_devt_{ev_pk}", help=f"Xem chi tiết vi phạm #{ev_pk}"):
-                # Lưu danh sách sự kiện của đúng ngữ cảnh đang xem (ca thi/thí sinh)
-                # để trang chi tiết sự kiện chuyển trước/sau mà không cần quay lại.
-                st.session_state["event_nav_ids"] = [r["PK_MaSuKien"] for r in events]
-                st.session_state["event_nav_scope"] = nav_scope_label
-                st.session_state["event_nav_session"] = session_id
-                st.session_state["event_id"] = ev_pk
-                st.session_state["from_session_id"] = session_id
-                st.session_state["selected_session"] = session_id
-                st.session_state["session_id"] = session_id
-                st.switch_page("pages/event_detail.py")
+                show_evidence_dialog(ev_pk)
 
         st.markdown("<hr style='margin: 4px 0 8px 0; border: none; border-top: 1px solid var(--wf-border);'>", unsafe_allow_html=True)
 

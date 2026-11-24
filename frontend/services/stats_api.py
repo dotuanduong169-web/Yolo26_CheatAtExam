@@ -82,19 +82,26 @@ def get_weekly_stats(session: requests.Session, weeks: int = 4) -> list:
         return []
 
 
-def get_behavior_distribution(session: requests.Session) -> list:
+def get_behavior_distribution(
+    session: requests.Session,
+    session_id: int | None = None,
+    candidate_id: int | None = None,
+) -> list:
     """Lấy phân bố hành vi vi phạm thực tế từ backend."""
-    hit, val = cache_get("stats:distr", 20)
+    params = _clean_params(session_id=session_id, candidate_id=candidate_id)
+    key = f"stats:distr:{params}"
+    hit, val = cache_get(key, 10)
     if hit:
         return val
     try:
         res = session.get(
             f"{API_BASE_URL}/stats/distribution",
+            params=params,
             headers=get_auth_headers(),
         )
         if res.status_code == 200:
             data = res.json()
-            cache_set("stats:distr", data)
+            cache_set(key, data)
             return data
         logger.warning(f"get_behavior_distribution failed: {res.status_code}")
         return []
@@ -111,11 +118,17 @@ def _clean_params(**kwargs) -> dict:
 def get_stats_overview(
     session: requests.Session,
     session_id: int | None = None,
+    candidate_id: int | None = None,
     from_date: str | None = None,
     to_date: str | None = None,
 ) -> dict:
     """KPI thống kê gắn thí sinh. Lỗi trả {}."""
-    params = _clean_params(session_id=session_id, from_date=from_date, to_date=to_date)
+    params = _clean_params(
+        session_id=session_id,
+        candidate_id=candidate_id,
+        from_date=from_date,
+        to_date=to_date,
+    )
     key = f"stats:overview:{params}"
     hit, val = cache_get(key, 10)
     if hit:

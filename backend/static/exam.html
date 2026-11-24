@@ -411,13 +411,17 @@
             <rect x="5" y="2" width="14" height="20" rx="2" ry="2"></rect>
             <line x1="12" y1="18" x2="12.01" y2="18"></line>
           </svg>
-          <span>Kết nối Camera phụ (Điện thoại giám sát góc sau / bên)</span>
+          <span>Kết nối Camera phụ (Điện thoại)</span>
         </div>
         <span id="sideCamStatusBadge" style="font-size: 11px; font-weight: 600; padding: 2px 8px; border-radius: 12px; background: #f1f5f9; color: #64748b; border: 1px solid #e2e8f0;">Chờ kết nối</span>
       </div>
-      <p style="font-size: 12px; color: #64748b; line-height: 1.45; margin-bottom: 10px;">
-        Mở link dưới đây trên điện thoại (hoặc quét mã QR), đặt điện thoại ở góc phía sau hoặc bên cạnh để giám sát toàn cảnh bàn làm bài.
+      <p style="font-size: 12px; color: #64748b; line-height: 1.45; margin-bottom: 8px;">
+        Dùng điện thoại quét mã QR hoặc mở link dưới đây để làm camera phụ góc nghiêng.
       </p>
+      <div style="font-size: 11.5px; color: #0369a1; background: #f0f9ff; border: 1px solid #bae6fd; border-radius: 6px; padding: 6px 10px; margin-bottom: 10px; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 4px;">
+        <span>Máy chủ: <strong id="serverIpBadge" style="font-family: monospace;">192.168.1.123:8000</strong> (Điện thoại và máy tính cần chung WiFi hoặc Hotspot)</span>
+        <button type="button" style="border: none; background: none; color: #0284c7; text-decoration: underline; cursor: pointer; font-size: 11px; padding: 0;" onclick="changeServerHost()">Đổi IP/Domain</button>
+      </div>
       <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
         <div style="flex: 1; min-width: 200px;">
           <input id="sideCamUrlInput" readonly style="font-size: 12px; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; background: #f8fafc; cursor: text; padding: 7px 10px;" onclick="this.select()">
@@ -440,8 +444,8 @@
         </button>
       </div>
       <div id="qrCodeContainer" style="display: none; text-align: center; margin-top: 12px; padding-top: 12px; border-top: 1px solid #f1f5f9;">
-        <img id="qrCodeImg" src="" alt="Mã QR camera phụ" style="width: 140px; height: 140px; border-radius: 6px; border: 1px solid #e2e8f0; padding: 4px; background: #fff; display: inline-block;">
-        <div style="font-size: 11.5px; color: #64748b; margin-top: 5px;">Dùng camera điện thoại quét mã này để kết nối nhanh</div>
+        <img id="qrCodeImg" src="" alt="Mã QR camera phụ" style="width: 150px; height: 150px; border-radius: 6px; border: 1px solid #e2e8f0; padding: 4px; background: #fff; display: inline-block;">
+        <div style="font-size: 11.5px; color: #64748b; margin-top: 5px;">Mở Camera điện thoại quét mã này để tự động kết nối</div>
       </div>
     </div>
 
@@ -499,6 +503,8 @@ let startTime = null, localStream = null, wakeLock = null;
 let failStreak = 0;
 let isFinished = false;
 let sideExamFullUrl = "";
+let rawSideUrl = "";
+let currentServerHost = "";
 
 function copySideCamLink() {
   const input = document.getElementById("sideCamUrlInput");
@@ -516,6 +522,31 @@ function copySideCamLink() {
     });
   } else {
     document.execCommand("copy");
+  }
+}
+
+function changeServerHost() {
+  const currentVal = currentServerHost || (document.getElementById("serverIpBadge") ? document.getElementById("serverIpBadge").textContent : "192.168.1.123:8000");
+  const newHost = prompt("Nhập địa chỉ IP hoặc Domain máy chủ cho điện thoại truy cập (Ví dụ: 192.168.1.123:8000 hoặc xxx.ngrok-free.app):", currentVal);
+  if (newHost && newHost.trim()) {
+    const rawInput = newHost.trim();
+    const explicitlyHttps = rawInput.startsWith("https://");
+    let clean = rawInput.replace(/^https?:\/\//, '').replace(/\/+$/, '');
+    currentServerHost = clean;
+    const isHttps = explicitlyHttps || clean.includes("ngrok") || clean.includes(".app") || clean.includes("trycloudflare") || clean.includes("loca.lt") || location.protocol === "https:";
+    const protocol = isHttps ? "https:" : "http:";
+    sideExamFullUrl = `${protocol}//${clean}${rawSideUrl}`;
+
+    const sideInput = document.getElementById("sideCamUrlInput");
+    if (sideInput) sideInput.value = sideExamFullUrl;
+
+    const serverBadge = document.getElementById("serverIpBadge");
+    if (serverBadge) serverBadge.textContent = clean;
+
+    const qrImg = document.getElementById("qrCodeImg");
+    if (qrImg) {
+      qrImg.src = "https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=" + encodeURIComponent(sideExamFullUrl);
+    }
   }
 }
 
@@ -543,7 +574,7 @@ async function checkSideCamStatus() {
         badge.style.background = "#eff6ff";
         badge.style.color = "#2563eb";
         badge.style.borderColor = "#bfdbfe";
-        badge.textContent = "Đã cấp link (Chờ mở camera)";
+        badge.textContent = "Chờ kết nối camera";
       } else {
         badge.style.background = "#f1f5f9";
         badge.style.color = "#64748b";
@@ -737,12 +768,27 @@ async function joinExam() {
 
     // Cấu hình link camera phụ cho thí sinh
     if (!IS_SIDE && d.side_exam_url) {
-      sideExamFullUrl = location.origin + d.side_exam_url;
+      rawSideUrl = d.side_exam_url;
+      const detectedLanIp = d.server_lan_ip || "192.168.1.123";
+      currentServerHost = `${detectedLanIp}:8000`;
+
+      // Ưu tiên sử dụng side_exam_full_url từ máy chủ đã cấu hình IP LAN
+      if (d.side_exam_full_url) {
+        sideExamFullUrl = d.side_exam_full_url;
+      } else if (location.hostname === "localhost" || location.hostname === "127.0.0.1") {
+        sideExamFullUrl = `http://${currentServerHost}${rawSideUrl}`;
+      } else {
+        sideExamFullUrl = location.origin + rawSideUrl;
+        currentServerHost = location.host;
+      }
+
       const sideInput = document.getElementById("sideCamUrlInput");
       if (sideInput) sideInput.value = sideExamFullUrl;
+      const serverBadge = document.getElementById("serverIpBadge");
+      if (serverBadge) serverBadge.textContent = currentServerHost;
       const qrImg = document.getElementById("qrCodeImg");
       if (qrImg) {
-        qrImg.src = "https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=" + encodeURIComponent(sideExamFullUrl);
+        qrImg.src = "https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=" + encodeURIComponent(sideExamFullUrl);
       }
     }
 
@@ -759,6 +805,15 @@ async function joinExam() {
 }
 
 async function startCameraAndUI() {
+  if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+    alert(
+      IS_SIDE
+        ? "Trình duyệt điện thoại đã chặn Camera vì địa chỉ IP này chưa dùng HTTPS!\n\nCách xử lý:\n1. (Nhanh nhất) Dùng Cloudflare Tunnel / ngrok trên máy tính để có link HTTPS.\n2. (Dành cho Android) Vào chrome://flags -> bật 'unsafely-treat-insecure-origin-as-secure' và thêm địa chỉ IP này."
+        : "Trình duyệt không hỗ trợ hoặc đã chặn Camera qua giao thức HTTP không an toàn. Vui lòng mở bằng HTTPS hoặc localhost."
+    );
+    return false;
+  }
+
   // Điện thoại camera phụ ưu tiên camera sau; laptop dùng webcam mặc định.
   const videoConstraints = IS_SIDE
     ? { facingMode: { ideal: "environment" }, width: { ideal: 1280 }, height: { ideal: 720 } }

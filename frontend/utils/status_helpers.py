@@ -146,6 +146,7 @@ def get_user_role_badge(role_code: Optional[str]) -> str:
 # =========================================================================
 BEHAVIOR_LABEL_MAP = {
     "cheat_paper": "Tài liệu không hợp lệ",
+    "answer_paper": "Giấy thi hợp lệ",
     "cellphone": "Điện thoại di động",
     "quay_dau": "Quay đầu trao đổi",
     "head_turn": "Quay đầu trao đổi",

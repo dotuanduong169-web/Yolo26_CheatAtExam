@@ -79,7 +79,12 @@ def get_weekly_stats(db: DBSession, user_id: Optional[int], weeks: int = 4) -> l
     ]
 
 
-def get_behavior_distribution(db: DBSession, user_id: Optional[int] = None) -> list[dict]:
+def get_behavior_distribution(
+    db: DBSession,
+    user_id: Optional[int] = None,
+    session_id: Optional[int] = None,
+    candidate_id: Optional[int] = None,
+) -> list[dict]:
     """Tổng hợp phân bố hành vi gian lận thực tế từ cơ sở dữ liệu."""
     def _normalize_name(raw: Optional[str]) -> str:
         if not raw:
@@ -101,13 +106,28 @@ def get_behavior_distribution(db: DBSession, user_id: Optional[int] = None) -> l
 
     # Gom nhóm theo LoaiHanhVi duy nhất
     target_col = func.coalesce(DetectedEvent.LoaiHanhVi, 'cellphone')
-    q = _filter_events_user(
-        db.query(
-            target_col.label("beh"),
-            func.count(DetectedEvent.PK_MaSuKien).label("cnt"),
-        ),
-        user_id,
-    ).group_by(target_col).all()
+    q = db.query(
+        target_col.label("beh"),
+        func.count(DetectedEvent.PK_MaSuKien).label("cnt"),
+    )
+    if user_id is not None:
+        q = q.join(
+            MonitoringSession, DetectedEvent.FK_MaPhienGiamSat == MonitoringSession.PK_MaPhienGiamSat
+        ).filter(MonitoringSession.FK_MaNguoiDung == user_id)
+    if session_id is not None or candidate_id is not None:
+        if user_id is None:
+            q = q.join(
+                MonitoringSession, DetectedEvent.FK_MaPhienGiamSat == MonitoringSession.PK_MaPhienGiamSat
+            )
+        q = q.join(
+            Candidate, Candidate.PK_MaThiSinh == MonitoringSession.FK_MaThiSinh
+        )
+        if session_id is not None:
+            q = q.filter(Candidate.FK_MaPhienGiamSat == session_id)
+        if candidate_id is not None:
+            q = q.filter(Candidate.PK_MaThiSinh == candidate_id)
+
+    q = q.group_by(target_col).all()
 
     total = sum(int(r[1] or 0) for r in q)
     if total == 0:

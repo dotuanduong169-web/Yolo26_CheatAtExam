@@ -11,6 +11,7 @@ from sqlalchemy.orm import Session
 from core.dependencies import get_current_user
 from core.logger import get_logger
 from crud.candidate_crud import (
+    behavior_breakdown_by_candidate,
     count_unverified_by_candidate,
     create_sub_session,
     find_candidate_for_join,
@@ -65,6 +66,33 @@ def _utc_timestamp(value: datetime | None) -> float:
     if value.tzinfo is None:
         value = value.replace(tzinfo=timezone.utc)
     return value.timestamp()
+
+
+def get_server_lan_ip() -> str:
+    """Tự động phát hiện địa chỉ IP mạng LAN hoặc Hotspot đang hoạt động của máy chủ."""
+    import os
+    import socket
+
+    pub = os.getenv("PUBLIC_HOST") or os.getenv("PUBLIC_IP")
+    if pub and pub.strip() not in ("0.0.0.0", "127.0.0.1", "localhost"):
+        return pub.strip()
+    try:
+        with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as s:
+            s.settimeout(0.2)
+            s.connect(("8.8.8.8", 80))
+            ip = s.getsockname()[0]
+            if ip and not ip.startswith("127."):
+                return ip
+    except Exception:
+        pass
+    try:
+        hostname = socket.gethostname()
+        for ip in socket.gethostbyname_ex(hostname)[2]:
+            if not ip.startswith("127.") and not ip.startswith("169.254."):
+                return ip
+    except Exception:
+        pass
+    return "192.168.1.123"
 
 
 @router.post("/import", response_model=list[CandidateResponse])
@@ -175,7 +203,9 @@ def join_exam(data: CandidateJoin):
         else:
             side_token = ingest_service.mint_token(sub.PK_MaPhienGiamSat, "side")
 
+        server_ip = get_server_lan_ip()
         side_exam_url = f"/exam?session_id={sub.PK_MaPhienGiamSat}&role=side&token={side_token}"
+        side_exam_full_url = f"http://{server_ip}:8000{side_exam_url}"
 
         return CandidateJoinResponse(
             PK_MaPhienGiamSat=sub.PK_MaPhienGiamSat,
@@ -184,6 +214,8 @@ def join_exam(data: CandidateJoin):
             candidate=candidate,
             side_token=side_token,
             side_exam_url=side_exam_url,
+            side_exam_full_url=side_exam_full_url,
+            server_lan_ip=server_ip,
         )
     finally:
         db.close()
@@ -393,8 +425,10 @@ def exam_overview(
 
             last_behavior = None
             last_event_time = None
+            behaviors = []
             if sid:
                 total, pending = count_unverified_by_candidate(db, sid)
+                behaviors = behavior_breakdown_by_candidate(db, sid)
                 latest = latest_evidence_time(db, sid)
                 last_event = (
                     db.query(DetectedEvent)
@@ -422,6 +456,7 @@ def exam_overview(
                     anh_moi_nhat=latest,
                     hanh_vi_moi_nhat=last_behavior,
                     thoi_gian_vi_pham=last_event_time,
+                    behaviors=behaviors,
                 )
             )
         return items

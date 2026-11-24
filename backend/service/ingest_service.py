@@ -13,7 +13,6 @@ import os
 import secrets
 import threading
 import time
-from collections import deque
 from datetime import datetime, timezone
 from queue import Queue
 
@@ -27,18 +26,8 @@ from core.logger import get_logger
 from crud.session_crud import end_session, get_session_by_id
 from database.database import SessionLocal
 from service import snapshot_service
-from service.camera_state import (
-    OBJECT_COOLDOWN_SECONDS,
-    POSE_COOLDOWN_SECONDS,
-    POSE_MIN_HITS,
-    POSE_WINDOW,
-)
-from service.pipeline_service import (
-    CHEAT_MIN_HITS,
-    CHEAT_WINDOW,
-    SAVE_INTERVAL_SECONDS,
-    _save_snapshot,
-)
+from service.camera_state import OBJECT_COOLDOWN_SECONDS, POSE_COOLDOWN_SECONDS
+from service.pipeline_service import SAVE_INTERVAL_SECONDS, _save_event_snapshot
 from service.timeline_service import record_tick
 
 logger = get_logger(__name__)
@@ -47,7 +36,22 @@ logger = get_logger(__name__)
 MAX_JPG_BYTES = 500 * 1024
 QUEUE_MAXLEN = 3
 TS_SKEW_SECONDS = 60
-ABSENT_SECONDS = 10
+# Vắng mặt: không thấy người liên tục quá ngưỡng này (giây) mới cảnh báo.
+# 6 giây ~ 2-3 tick 2,5 giây, đủ tránh báo oan khi thí sinh cúi lấy bút.
+ABSENT_SECONDS = max(3.0, float(os.getenv("ABSENT_SECONDS", "6")))
+# Camera bị che/tối: ảnh gần như đồng màu, mất chi tiết. Che tay vào lens
+# thường không làm pose trả n_persons = 0 ngay, nên cần tín hiệu ảnh độc lập.
+OBSTRUCTED_SECONDS = max(2.0, float(os.getenv("OBSTRUCTED_SECONDS", "4")))
+ABSENT_DARK_MEAN = float(os.getenv("ABSENT_DARK_MEAN", "22"))
+ABSENT_FLAT_STD = float(os.getenv("ABSENT_FLAT_STD", "8"))
+ABSENT_FLAT_LAPLACIAN = float(os.getenv("ABSENT_FLAT_LAPLACIAN", "15"))
+# Hành vi tư thế phải xuất hiện ở 2 tick liên tiếp mới lưu (giảm báo sai do
+# keypoint nhiễu/ánh sáng). quay_sau, vang_mat, nhieu_nguoi vẫn kích hoạt ngay.
+POSE_CONFIRM_TICKS = max(1, int(os.getenv("POSE_CONFIRM_TICKS", "2")))
+# Một nhãn biến mất 1 tick (nhận diện chập chờn) chưa mở lại cảnh báo; phải
+# vắng đủ số tick này mới coi là kết thúc đợt và cho phép cảnh báo lại.
+ALERT_CLEAR_TICKS = max(1, int(os.getenv("ALERT_CLEAR_TICKS", "2")))
+POSE_LABELS = {"quay_dau", "quay_sau", "cui_xuong"}
 IDLE_STOP_SECONDS = 120
 
 ROLE_FRONT = "front"
@@ -77,10 +81,27 @@ def _normalize_role(vai_tro: str | None) -> str:
     return role if role in VALID_ROLES else ROLE_FRONT
 
 
-def _window_ok(deq: deque, window: int = 1, hits: int = 1) -> bool:
-    """Kích hoạt tức thì theo từng snapshot: chỉ cần frame gần nhất có phát hiện vi phạm."""
-    recent = list(deq)[-window:]
-    return len(recent) >= hits and sum(1 for v in recent if v) >= hits
+def frame_obstructed(frame: np.ndarray) -> bool:
+    """True khi ảnh gần như không dùng được: quá tối, quá phẳng hoặc mất chi tiết.
+
+    Dùng để bắt trường hợp thí sinh lấy tay che camera: pose vẫn có thể trả về
+    một "người" mờ nên chỉ dựa vào n_persons == 0 sẽ không cảnh báo được.
+    """
+    if frame is None or getattr(frame, "size", 0) == 0:
+        return True
+    try:
+        gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+        small = cv2.resize(gray, (64, 48), interpolation=cv2.INTER_AREA)
+        mean = float(small.mean())
+        std = float(small.std())
+        if mean < ABSENT_DARK_MEAN:
+            return True
+        lap_var = float(cv2.Laplacian(small, cv2.CV_64F).var())
+        # Gần như đồng màu (std rất thấp) hoặc mất cạnh do mất nét: tay/bàn tay
+        # áp sát lens, vật che kín, hoặc ảnh không còn chi tiết dùng được.
+        return std < ABSENT_FLAT_STD or lap_var < ABSENT_FLAT_LAPLACIAN
+    except Exception:
+        return False
 
 
 def mint_token(session_id: int, vai_tro: str = ROLE_FRONT) -> str:
@@ -215,25 +236,79 @@ class _SessionWorker:
         self.vai_tro = _normalize_role(vai_tro)
         self.ns = f"ingest-{session_id}-{self.vai_tro}"
         self.queue: Queue = Queue(maxsize=QUEUE_MAXLEN)
-        self.cheat_window: deque = deque(maxlen=10)
-        self.behavior_window: deque = deque(maxlen=10)
-        self.recent: deque = deque(maxlen=10)
         self.frame_count = 0
         self.last_save = 0.0
-        self.last_object_save = 0.0
-        self.last_pose_save = 0.0
+        # Cooldown RIÊNG theo từng nhãn: một cellphone không được chặn Cheat_Paper,
+        # một quay_dau không được chặn cui_xuong.
+        self.last_save_by_label: dict[str, float] = {}
         self.last_snapshot_save = 0.0
         self.last_seen_person = time.time()
         self.vang_fired = False
+        self.multi_fired = False
+        self.single_streak = 0
+        self.occluded_since = 0.0
+        # Số tick liên tiếp thấy mỗi nhãn hành vi (xác nhận chống báo sai).
+        self.pose_streak: dict[str, int] = {}
+        # Nhãn đang trong một "đợt" đã cảnh báo: không lưu lặp mỗi cooldown khi
+        # điện thoại vẫn nằm trên bàn / đầu vẫn quay. Chỉ mở lại khi nhãn biến mất.
+        self.active_alerts: set[str] = set()
+        self.alert_misses: dict[str, int] = {}
         self.last_activity = time.time()
         self.latest_jpeg: bytes | None = None
         self.tick_index = 0
         self.last_timeline_signature = None
-        self.last_timeline_alert = False
         self.last_timeline_write = 0.0
         self.running = True
         self.thread = threading.Thread(target=self._loop, daemon=True)
         self.thread.start()
+
+    @staticmethod
+    def _cooldown_for(label: str) -> float:
+        """Cooldown theo loại: vật thể 15s, hành vi tư thế/vắng mặt 6s."""
+        if label in {"Cheat_Paper", "cellphone"}:
+            return OBJECT_COOLDOWN_SECONDS
+        return POSE_COOLDOWN_SECONDS
+
+    def _note_pose_streak(self, cheat_results: list[dict]) -> None:
+        """Đếm số tick liên tiếp thấy từng nhãn tư thế; mất 1 tick thì reset."""
+        labels = {
+            str(r.get("label") or "")
+            for r in cheat_results
+            if r.get("kind") == "behavior" and r.get("label") in POSE_LABELS
+        }
+        for label in list(self.pose_streak):
+            if label not in labels:
+                self.pose_streak.pop(label, None)
+        for label in labels:
+            self.pose_streak[label] = min(self.pose_streak.get(label, 0) + 1, 10)
+
+    def _update_alert_episodes(self, cheat_results: list[dict]) -> None:
+        """Đóng/mở đợt cảnh báo theo việc nhãn còn xuất hiện hay không."""
+        present = {str(r.get("label") or "") for r in cheat_results}
+        for label in list(self.active_alerts):
+            if label in present:
+                self.alert_misses[label] = 0
+                continue
+            misses = self.alert_misses.get(label, 0) + 1
+            self.alert_misses[label] = misses
+            if misses >= ALERT_CLEAR_TICKS:
+                self.active_alerts.discard(label)
+                self.alert_misses.pop(label, None)
+
+    def _label_ready(self, r: dict, now: float) -> bool:
+        """Nhãn đã đủ xác nhận, chưa cảnh báo trong đợt này và hết cooldown chưa."""
+        label = str(r.get("label") or "")
+        if label in self.active_alerts:
+            return False
+        if r.get("kind") == "behavior" and label in POSE_LABELS:
+            if label != "quay_sau" and self.pose_streak.get(label, 0) < POSE_CONFIRM_TICKS:
+                return False
+        # vang_mat/nhieu_nguoi đã tự chặn theo "đợt" bằng vang_fired/multi_fired,
+        # nên bỏ qua cooldown để không mất cảnh báo khi thí sinh vừa ló mặt rồi
+        # che camera lại trong vòng 6 giây.
+        if label in {"vang_mat", "nhieu_nguoi"}:
+            return True
+        return now - self.last_save_by_label.get(label, 0.0) >= self._cooldown_for(label)
 
     def push(self, jpg: bytes) -> bool:
         """Đẩy frame vào hàng đợi, đầy thì bỏ cũ nhất giữ mới nhất."""
@@ -268,52 +343,65 @@ class _SessionWorker:
                         continue
                     self.frame_count += 1
                     self.tick_index += 1
+                    now = time.time()
+                    if self.frame_count == 1:
+                        self.last_seen_person = now
+                        self.last_save = now
+                        self.vang_fired = False
+
                     captured_at = datetime.fromtimestamp(recv_ts, tz=timezone.utc)
-                    annotated, results = process_frame(
-                        frame,
-                        self.frame_count,
-                        tracker_ns=self.ns,
-                        enable_pose=(self.vai_tro == ROLE_FRONT),
-                    )
+                    occluded = frame_obstructed(frame)
+                    if occluded and self.vai_tro == ROLE_FRONT:
+                        # Ảnh camera trước bị che/tối: bỏ luôn inference để tiết kiệm
+                        # CPU và không sinh quay_dau/cellphone giả trước khi báo
+                        # vang_mat. Camera phụ vẫn giữ object detection.
+                        annotated, results = frame, []
+                    else:
+                        annotated, results = process_frame(
+                            frame,
+                            self.frame_count,
+                            tracker_ns=self.ns,
+                            enable_pose=(self.vai_tro == ROLE_FRONT),
+                            force_infer=True,
+                        )
                     ok, buf = cv2.imencode(".jpg", annotated, [cv2.IMWRITE_JPEG_QUALITY, 75])
                     if ok:
                         self.latest_jpeg = buf.tobytes()
-                    self.recent.append((annotated, list(results)))
-                    self._note_windows(results)
+                    self._note_windows(results, occluded=occluded)
 
                     now = time.time()
-                    has_obj = any(
-                        r.get("is_cheat") and r.get("kind", "object") == "object" for r in results
-                    )
-                    has_beh = (
-                        self.vai_tro == ROLE_FRONT
-                        and any(r.get("kind") == "behavior" for r in results)
-                    )
-                    trigger_obj = (
-                        has_obj
-                        and (now - self.last_object_save >= OBJECT_COOLDOWN_SECONDS)
-                    )
-                    trigger_beh = (
-                        has_beh
-                        and (now - self.last_pose_save >= POSE_COOLDOWN_SECONDS)
-                    )
+                    cheat_results = [r for r in results if r.get("is_cheat")]
+                    self._note_pose_streak(cheat_results)
+                    self._update_alert_episodes(cheat_results)
 
+                    # Chỉ lưu sự kiện cho nhãn đã đủ xác nhận + hết cooldown riêng.
+                    # Không dùng danh sách "tất cả cheat" ở đây: nhãn đang trong
+                    # cooldown/chưa xác nhận sẽ bị lưu lặp mỗi chu kỳ.
+                    due_results = [r for r in cheat_results if self._label_ready(r, now)]
                     saved_event_ids: list[int] = []
-                    if trigger_obj or trigger_beh:
-                        if trigger_obj:
-                            self.last_object_save = now
-                        if trigger_beh:
-                            self.last_pose_save = now
-                        saved_event_ids = self._snapshot(db, annotated, results, image_dir) or []
-                        self.last_save = now
+                    if due_results:
+                        saved_event_ids = self._snapshot(
+                            db, annotated, due_results, image_dir
+                        ) or []
+                        if saved_event_ids:
+                            # Chỉ đánh dấu cooldown/đợt khi ghi DB thành công;
+                            # lỗi tạm thời sẽ được thử lại ở tick sau.
+                            for label in {str(r.get("label") or "") for r in due_results}:
+                                self.last_save_by_label[label] = now
+                                self.active_alerts.add(label)
+                                self.alert_misses[label] = 0
+                            self.last_save = now
                     elif now - self.last_save > SAVE_INTERVAL_SECONDS:
-                        saved_event_ids = self._snapshot(db, annotated, results, image_dir) or []
+                        # Snapshot nền định kỳ KHÔNG tạo sự kiện. Trước đây nhánh
+                        # này gọi _snapshot với mọi detection nên 10 giây lại nhân
+                        # bản sự kiện đang cooldown (nguồn gốc cảnh báo lặp).
+                        if not TIMELINE_ENABLED:
+                            self._persist_snapshot(jpg, annotated)
                         self.last_save = now
 
                     # Nhật ký tick 2,5 giây (tham khảo): ghi mọi tick có cảnh báo,
                     # tick đổi trạng thái và heartbeat. Không ghi tick sạch lặp lại.
                     if TIMELINE_ENABLED:
-                        cheat_results = [r for r in results if r.get("is_cheat")]
                         signature = tuple(
                             sorted(
                                 (
@@ -351,14 +439,12 @@ class _SessionWorker:
                                 recv_ts=recv_ts,
                             )
                             self.last_timeline_signature = signature
-                            self.last_timeline_alert = has_alert
                             self.last_timeline_write = now
 
                     # Khi timeline bật, thumbnail heartbeat đã phục vụ dashboard;
                     # không cần pipeline snapshot đầy đủ (raw/normalized) mỗi 30 giây.
                     if not TIMELINE_ENABLED and (
-                        trigger_obj
-                        or trigger_beh
+                        due_results
                         or now - self.last_snapshot_save >= snapshot_service.SNAPSHOT_INTERVAL_SECONDS
                     ):
                         self._persist_snapshot(jpg, annotated)
@@ -389,33 +475,77 @@ class _SessionWorker:
                 f"Snapshot pipeline failed for session {self.session_id}/{self.vai_tro}: {exc}"
             )
 
-    def _note_windows(self, results: list[dict]) -> None:
+    def _note_windows(self, results: list[dict], occluded: bool = False) -> None:
         """Cập nhật debounce vật/hành vi + luật vắng mặt/nhiều người.
 
         Camera phụ chỉ chạy object detection nên không dùng cửa sổ behavior và
         không kích hoạt vang_mat/nhieu_nguoi (tránh báo trùng với camera trước).
-        """
-        has_cheat = any(
-            r.get("is_cheat") and r.get("kind", "object") == "object" for r in results
-        )
-        self.cheat_window.append(bool(has_cheat))
 
+        occluded=True khi ảnh tối/phẳng/mất chi tiết (tay che lens). Khi đó
+        không tin n_persons do pose trả về và coi như không thấy thí sinh.
+        """
         if self.vai_tro != ROLE_FRONT:
-            self.behavior_window.append(False)
             return
 
-        n_persons, _ = _last_pose_info.get(self.ns, (0, 0.0))
+        # None = chưa có kết quả pose lần nào (model chưa nạp hoặc lỗi suy luận):
+        # không được coi là "0 người" rồi báo vắng mặt oan.
+        pose_info = _last_pose_info.get(self.ns)
+        pose_known = ai_pipeline.pose_available() and pose_info is not None
+        n_persons, max_conf = pose_info if pose_info else (0, 0.0)
         now = time.time()
-        if n_persons > 0:
+
+        if occluded:
+            if self.occluded_since <= 0.0:
+                self.occluded_since = now
+        else:
+            self.occluded_since = 0.0
+
+        person_visible = (not occluded) and n_persons > 0
+        if person_visible:
             self.last_seen_person = now
             self.vang_fired = False
-        absent_long = n_persons == 0 and (now - self.last_seen_person) > ABSENT_SECONDS
+        if not occluded and pose_known:
+            if n_persons <= 1:
+                self.single_streak += 1
+                # Chỉ kết thúc đợt "nhiều người" khi thật sự còn 1 người ổn định,
+                # tránh pose chập chờn 1 tick làm cảnh báo lặp lại.
+                if self.single_streak >= ALERT_CLEAR_TICKS:
+                    self.multi_fired = False
+            else:
+                self.single_streak = 0
 
-        has_behavior = any(r.get("kind") == "behavior" for r in results)
-        self.behavior_window.append(bool(has_behavior or absent_long))
+        # Ân hạn khởi động: 3 frame đầu không cảnh báo để thí sinh ổn định.
+        obstructed_long = (
+            self.frame_count > 3
+            and self.occluded_since > 0.0
+            and (now - self.occluded_since) >= OBSTRUCTED_SECONDS
+        )
+        absent_long = (
+            self.frame_count > 3
+            and (occluded or pose_known)
+            and not person_visible
+            and (now - self.last_seen_person) > ABSENT_SECONDS
+        )
 
-        if n_persons > 1:
-            _, max_conf = _last_pose_info.get(self.ns, (0, 0.0))
+        if (obstructed_long or absent_long) and not self.vang_fired:
+            reason = "camera bị che/tối" if obstructed_long else "không thấy người"
+            logger.info(
+                f"[{self.session_id}/{self.vai_tro}] vang_mat: {reason} "
+                f"(n_persons={n_persons}, occluded={occluded})"
+            )
+            results.append({
+                "bbox": [],
+                "mask": None,
+                "label": "vang_mat",
+                "confidence": 0.95 if obstructed_long else 0.9,
+                "is_cheat": True,
+                "kind": "behavior",
+            })
+            self.vang_fired = True
+
+        # nhieu_nguoi: báo 1 lần mỗi đợt, chỉ reset khi trở lại đúng 1 người.
+        if n_persons > 1 and not occluded and not self.multi_fired:
+            logger.info(f"[{self.session_id}/{self.vai_tro}] nhieu_nguoi: n_persons={n_persons}")
             results.append({
                 "bbox": [],
                 "mask": None,
@@ -424,51 +554,27 @@ class _SessionWorker:
                 "is_cheat": True,
                 "kind": "behavior",
             })
+            self.multi_fired = True
 
     def _snapshot(self, db, annotated, results, image_dir) -> list[int]:
-        """Chọn frame gần nhất có cheat rồi lưu snapshot (logic như pipeline)."""
-        for frm, res in reversed(list(self.recent)):
-            if any(r.get("is_cheat") for r in res):
-                annotated, results = frm, list(res)
-                break
-        kept: list[dict] = []
-        for r in results:
-            if not r.get("is_cheat"):
-                kept.append(r)
-                continue
-            if r.get("kind") == "behavior":
-                if self.vai_tro != ROLE_FRONT:
-                    continue
-                kept.append(r)
-                continue
-            kept.append(r)
+        """Lưu đúng ảnh hiện tại + đúng các nhãn đã đủ điều kiện lưu.
 
-        if self.vai_tro == ROLE_FRONT:
-            # vang_mat: chỉ ghi 1 lần cho mỗi đợt vắng khi liên tục quá ABSENT_SECONDS (10s)
-            now = time.time()
-            n_persons, _ = _last_pose_info.get(self.ns, (0, 0.0))
-            if (
-                n_persons == 0
-                and (now - self.last_seen_person) > ABSENT_SECONDS
-                and not self.vang_fired
-            ):
-                kept.append({
-                    "bbox": [],
-                    "mask": None,
-                    "label": "vang_mat",
-                    "confidence": 0.9,
-                    "is_cheat": True,
-                    "kind": "behavior",
-                })
-                self.vang_fired = True
-
-        return _save_snapshot(
+        Không quét lại ``recent`` và không tự thêm vang_mat: việc quét lại từng
+        lấy một ảnh cũ rồi lưu lại toàn bộ detection, tạo sự kiện trùng.
+        """
+        kept = [r for r in results if r.get("is_cheat")]
+        if self.vai_tro != ROLE_FRONT:
+            kept = [r for r in kept if r.get("kind") != "behavior"]
+        if not kept:
+            return []
+        return _save_event_snapshot(
             db,
             self.session_id,
             annotated,
             kept,
             image_dir,
             self.frame_count,
+            reason="ingest",
             vai_tro_camera=self.vai_tro,
         )
 

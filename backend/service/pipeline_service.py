@@ -170,6 +170,43 @@ def _keep_result(state: CameraState, r: dict) -> bool:
     return True
 
 
+def _iou(a: list, b: list) -> float:
+    """IoU 2 bbox [x1,y1,x2,y2]; bbox rỗng (hành vi) trả 0."""
+    if len(a) < 4 or len(b) < 4:
+        return 0.0
+    ix = max(0, min(a[2], b[2]) - max(a[0], b[0]))
+    iy = max(0, min(a[3], b[3]) - max(a[1], b[1]))
+    union = (a[2] - a[0]) * (a[3] - a[1]) + (b[2] - b[0]) * (b[3] - b[1]) - ix * iy
+    return ix * iy / union if union > 0 else 0.0
+
+
+def _dedupe_cheats(results: list[dict], iou_thr: float = 0.45) -> list[dict]:
+    """Gộp các detection trùng nhãn + chồng lấn trong CÙNG một ảnh.
+
+    Một chiếc điện thoại bị tracker tách thành 2-3 box, hoặc pose trả 2 box cho
+    cùng một người, trước đây sinh 2-3 sự kiện trên cùng một ảnh bằng chứng.
+    Hành vi không có bbox nên mỗi nhãn chỉ giữ 1 (box tin cậy cao nhất).
+    """
+    unique: list[dict] = []
+    cheats = [r for r in results if r.get("is_cheat")]
+    for r in sorted(cheats, key=lambda x: float(x.get("confidence") or 0.0), reverse=True):
+        label = r.get("label")
+        bbox = r.get("bbox") or []
+        if any(
+            k.get("label") == label
+            and (
+                r.get("kind") == "behavior"
+                or not bbox
+                or not (k.get("bbox") or [])
+                or _iou(bbox, k.get("bbox") or []) >= iou_thr
+            )
+            for k in unique
+        ):
+            continue
+        unique.append(r)
+    return unique
+
+
 def _save_event_snapshot(
     db,
     session_id: int | None,
@@ -183,6 +220,11 @@ def _save_event_snapshot(
     """Lưu snapshot sự kiện vi phạm NGAY LẬP TỨC: 1 ảnh bằng chứng + 1 event/vật.
     Trả về danh sách PK_MaSuKien đã tạo để timeline tick liên kết."""
     if not session_id or not results:
+        return []
+
+    # Gộp box trùng trước khi ghi ảnh: tránh 1 ảnh nhưng 2-3 event cùng nhãn.
+    results = _dedupe_cheats(results)
+    if not results:
         return []
 
     # Tên file kèm phiên + vai trò để 2 luồng camera không ghi đè nhau và dễ truy vết.

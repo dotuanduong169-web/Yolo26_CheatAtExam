@@ -31,13 +31,11 @@ def render_page_header(title: str, active: str | None = None):
     from utils.http import auth_query_params
     aqs = auth_query_params()
 
-    # ── Menu điều hướng: Đã loại bỏ tab "Giám sát" trực tiếp.
-    # "Thi online" là trung tâm giám sát thi trực tuyến chính.
-    # Cán bộ coi thi (teacher) không thấy "Thiết bị". ──
+    # ── Menu điều hướng: Đã loại bỏ tab "Giám sát" và "Thiết bị".
+    # "Thi online" là trung tâm giám sát thi trực tuyến chính. ──
     _NAV_ITEMS = (
         ("online_exam", "pages/online_exam.py", "Thi online", cls_online, True),
         ("history", "pages/history.py", "Lịch sử", cls_hist, True),
-        ("devices", "pages/devices.py", "Thiết bị", cls_dev, is_admin),
         ("statistics", "pages/statistics.py", "Thống kê", cls_stats, True),
         ("users", "pages/users.py", "Cài đặt", cls_set, True),
     )

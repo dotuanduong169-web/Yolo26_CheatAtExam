@@ -101,6 +101,7 @@ def stats_summary(
 @router.get("/overview", response_model=StatsOverviewResponse)
 def stats_overview(
     session_id: Optional[int] = Query(None, description="Mã ca thi cha; bỏ trống để xem tất cả"),
+    candidate_id: Optional[int] = Query(None, description="Mã thí sinh; bỏ trống để xem tất cả"),
     from_date: Optional[datetime] = Query(None),
     to_date: Optional[datetime] = Query(None),
     user: User = Depends(get_current_user),
@@ -109,7 +110,7 @@ def stats_overview(
     """KPI thống kê gắn thí sinh: tổng thí sinh, thí sinh có cảnh báo, cảnh báo, độ trễ."""
     try:
         user_id_filter = None if user.VaiTro == "admin" else user.PK_MaNguoiDung
-        return get_overview(db, session_id, user_id_filter, from_date, to_date)
+        return get_overview(db, session_id, user_id_filter, from_date, to_date, candidate_id=candidate_id)
     except Exception as exc:
         logger.error(f"Error fetching stats overview: {exc}", exc_info=True)
         raise HTTPException(status_code=500, detail="Failed to fetch stats overview")
@@ -181,14 +182,16 @@ def stats_timeline_file(
 
 @router.get("/distribution")
 def stats_distribution(
+    session_id: Optional[int] = Query(None, description="Mã ca thi cha"),
+    candidate_id: Optional[int] = Query(None, description="Mã thí sinh"),
     user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
     """Lấy phân bố hành vi gian lận thực tế từ cơ sở dữ liệu."""
     try:
         from service.statistics_service import get_behavior_distribution
-        user_id_filter = None
-        return get_behavior_distribution(db, user_id_filter)
+        user_id_filter = None if user.VaiTro == "admin" else user.PK_MaNguoiDung
+        return get_behavior_distribution(db, user_id_filter, session_id=session_id, candidate_id=candidate_id)
     except Exception as exc:
         logger.error(f"Error fetching distribution: {exc}", exc_info=True)
         raise HTTPException(status_code=500, detail="Failed to fetch distribution")

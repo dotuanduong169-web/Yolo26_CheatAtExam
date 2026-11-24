@@ -317,12 +317,17 @@ div[data-baseweb="input"], div[data-baseweb="select"] {
   border-color: var(--wf-border) !important;
 }
 
-/* Sub-Tabs (Chuẩn phong cách phẳng Govita / Med Working theo Ảnh 3) */
+/* ==========================================================================
+   SUB-TABS NATIVE (Chuẩn phẳng Govita / Med Working, không nền box, không viền hộp)
+   Áp dụng đồng bộ cho cả st.tabs và native button sub-tabs (History, Users, Online Exam)
+   ========================================================================== */
+
+/* 1. NATIVE st.tabs (Dùng ở Online Exam, v.v.) */
 div[data-baseweb="tab-list"],
 div[data-testid="stTabs"] > div:first-child {
   border-bottom: 2px solid #e2e8f0 !important;
   background: transparent !important;
-  gap: 32px !important;
+  gap: 28px !important;
   padding: 0 4px !important;
   margin-bottom: 20px !important;
 }
@@ -331,15 +336,19 @@ button[data-baseweb="tab"],
 div[data-testid="stTabs"] button[role="tab"] {
   background: transparent !important;
   background-color: transparent !important;
+  background-image: none !important;
   border: none !important;
+  border-top: none !important;
+  border-left: none !important;
+  border-right: none !important;
   border-bottom: 3px solid transparent !important;
   border-radius: 0 !important;
   font-size: 15px !important;
   font-weight: 500 !important;
-  color: #475569 !important;
-  padding: 10px 4px 14px 4px !important;
+  color: #64748b !important;
+  padding: 10px 8px 14px 8px !important;
   margin-bottom: -2px !important;
-  transition: all 0.2s ease !important;
+  transition: color 0.15s ease, border-color 0.15s ease !important;
   box-shadow: none !important;
   outline: none !important;
 }
@@ -357,17 +366,35 @@ div[data-testid="stTabs"] button[role="tab"]:hover {
   background: transparent !important;
   background-color: transparent !important;
   color: #0f172a !important;
+  border-top: none !important;
+  border-left: none !important;
+  border-right: none !important;
   border-bottom: 3px solid #cbd5e1 !important;
+}
+
+button[data-baseweb="tab"]:hover p,
+div[data-testid="stTabs"] button[role="tab"]:hover p {
+  color: #0f172a !important;
 }
 
 button[data-baseweb="tab"][aria-selected="true"],
 div[data-testid="stTabs"] button[role="tab"][aria-selected="true"] {
   background: transparent !important;
   background-color: transparent !important;
-  color: #1e3a8a !important;
+  color: #2563eb !important;
   font-weight: 700 !important;
-  border-bottom: 3px solid #1e3a8a !important;
+  border: none !important;
+  border-top: none !important;
+  border-left: none !important;
+  border-right: none !important;
+  border-bottom: 3px solid #2563eb !important;
   box-shadow: none !important;
+}
+
+button[data-baseweb="tab"][aria-selected="true"] p,
+div[data-testid="stTabs"] button[role="tab"][aria-selected="true"] p {
+  color: #2563eb !important;
+  font-weight: 700 !important;
 }
 
 /* Tắt vạch đỏ mặc định của BaseWeb để dùng underline tùy biến */
@@ -376,87 +403,205 @@ div[data-baseweb="tab-border"] {
   display: none !important;
 }
 
-/* Sub-tabs phẳng native button (Chuẩn Govita / Med Working, không reload, không nhảy tab) */
-div[data-testid="stHorizontalBlock"]:has(div[class*="st-key-subtab_btn_"]) {
+/* 2. SUB-TABS DẠNG BUTTON NATIVE (Dùng trong History, Users - Giữ URL & phân trang không reload) */
+div[data-testid="stHorizontalBlock"]:has([class*="st-key-subtab_btn_"]),
+div.stHorizontalBlock:has([class*="st-key-subtab_btn_"]) {
   border-bottom: 2px solid #e2e8f0 !important;
-  gap: 32px !important;
+  display: flex !important;
+  flex-direction: row !important;
+  flex-wrap: nowrap !important;
+  gap: 28px !important;
   padding: 0 4px !important;
+  margin-top: 4px !important;
   margin-bottom: 20px !important;
   align-items: flex-end !important;
+  overflow: visible !important;
 }
 
-div[data-testid="stHorizontalBlock"]:has(div[class*="st-key-subtab_btn_"]) > div[data-testid="stColumn"]:has(div[class*="st-key-subtab_btn_"]),
-div[data-testid="stHorizontalBlock"]:has(div[class*="st-key-subtab_btn_"]) > div[data-testid="column"]:has(div[class*="st-key-subtab_btn_"]),
-div[data-testid="stHorizontalBlock"]:has(div[class*="st-key-subtab_btn_"]) > div.stColumn:has(div[class*="st-key-subtab_btn_"]) {
+/* Cột chứa nút tab co vừa vặn chữ, không bị kéo dãn chiếm phần trăm */
+div[data-testid="stHorizontalBlock"]:has([class*="st-key-subtab_btn_"]) > div[data-testid="stColumn"]:has([class*="st-key-subtab_btn_"]),
+div[data-testid="stHorizontalBlock"]:has([class*="st-key-subtab_btn_"]) > div[data-testid="column"]:has([class*="st-key-subtab_btn_"]),
+div[data-testid="stHorizontalBlock"]:has([class*="st-key-subtab_btn_"]) > div.stColumn:has([class*="st-key-subtab_btn_"]) {
   width: auto !important;
   min-width: auto !important;
+  max-width: none !important;
   flex: 0 0 auto !important;
+  padding: 0 !important;
+  margin: 0 !important;
 }
 
-div[class*="st-key-subtab_btn_"] {
+/* Cột spacer cuối cùng giãn hết không gian còn lại để đường viền xám trải dài toàn bộ */
+div[data-testid="stHorizontalBlock"]:has([class*="st-key-subtab_btn_"]) > div[data-testid="stColumn"]:not(:has([class*="st-key-subtab_btn_"])),
+div[data-testid="stHorizontalBlock"]:has([class*="st-key-subtab_btn_"]) > div[data-testid="column"]:not(:has([class*="st-key-subtab_btn_"])),
+div[data-testid="stHorizontalBlock"]:has([class*="st-key-subtab_btn_"]) > div.stColumn:not(:has([class*="st-key-subtab_btn_"])) {
+  flex: 1 1 auto !important;
+  padding: 0 !important;
+  margin: 0 !important;
+}
+
+/* Triệt tiêu khoảng trống thừa bên trong cột tab */
+div[data-testid="stHorizontalBlock"]:has([class*="st-key-subtab_btn_"]) [data-testid="stVerticalBlock"],
+div[data-testid="stHorizontalBlock"]:has([class*="st-key-subtab_btn_"]) div.stVerticalBlock {
+  gap: 0 !important;
+  padding: 0 !important;
+  margin: 0 !important;
+}
+
+div[data-testid="stHorizontalBlock"]:has([class*="st-key-subtab_btn_"]) [data-testid="stElementContainer"],
+div[data-testid="stHorizontalBlock"]:has([class*="st-key-subtab_btn_"]) div.element-container,
+div[data-testid="stHorizontalBlock"]:has([class*="st-key-subtab_btn_"]) div.stButton {
+  padding: 0 !important;
+  margin: 0 !important;
+}
+
+[class*="st-key-subtab_btn_"],
+div[class*="st-key-subtab_btn_"],
+[class*="st-key-subtab_btn_"] [data-testid="stButton"],
+[class*="st-key-subtab_btn_"] div.stButton {
   width: auto !important;
-  margin-bottom: -2px !important;
-}
-
-div[class*="st-key-subtab_btn_"] button {
+  margin: 0 !important;
+  padding: 0 !important;
   background: transparent !important;
   background-color: transparent !important;
   border: none !important;
+  box-shadow: none !important;
+}
+
+/* Toàn bộ nút tab: LOẠI BỎ TOÀN BỘ NỀN BOX, VIỀN HỘP, SHADOW */
+[class*="st-key-subtab_btn_"] button,
+div[class*="st-key-subtab_btn_"] button,
+[class*="st-key-subtab_btn_"] .stButton > button,
+div[class*="st-key-subtab_btn_"] .stButton > button,
+[class*="st-key-subtab_btn_"] button[kind="secondary"],
+div[class*="st-key-subtab_btn_"] button[kind="secondary"],
+[class*="st-key-subtab_btn_"] button[data-testid="stBaseButton-secondary"],
+div[class*="st-key-subtab_btn_"] button[data-testid="stBaseButton-secondary"] {
+  background: transparent !important;
+  background-color: transparent !important;
+  background-image: none !important;
+  border: none !important;
+  border-top: none !important;
+  border-left: none !important;
+  border-right: none !important;
   border-bottom: 3px solid transparent !important;
   border-radius: 0 !important;
-  font-size: 15px !important;
-  font-weight: 500 !important;
-  color: #64748b !important;
-  padding: 10px 12px 14px 12px !important;
-  margin-bottom: 0 !important;
-  transition: all 0.2s ease !important;
   box-shadow: none !important;
   outline: none !important;
+  padding: 10px 8px 14px 8px !important;
+  margin: 0 0 -2px 0 !important;
   height: auto !important;
   min-height: 0 !important;
   width: auto !important;
   cursor: pointer !important;
+  position: relative !important;
+  z-index: 1 !important;
+  font-size: 15px !important;
+  font-weight: 500 !important;
+  color: #64748b !important;
+  transition: color 0.15s ease, border-color 0.15s ease !important;
+  transform: none !important;
 }
 
-div[class*="st-key-subtab_btn_"] button p {
+[class*="st-key-subtab_btn_"] button p,
+div[class*="st-key-subtab_btn_"] button p,
+[class*="st-key-subtab_btn_"] .stButton > button p,
+div[class*="st-key-subtab_btn_"] .stButton > button p {
   font-size: 15px !important;
   font-weight: inherit !important;
   color: inherit !important;
   margin: 0 !important;
+  padding: 0 !important;
 }
 
-div[class*="st-key-subtab_btn_"]:not([class*="st-key-subtab_btn_active_"]) button:hover {
-  background: #f8fafc !important;
-  background-color: #f8fafc !important;
+/* Inactive Tab Hover */
+[class*="st-key-subtab_btn_"]:not([class*="st-key-subtab_btn_active_"]) button:hover,
+div[class*="st-key-subtab_btn_"]:not([class*="st-key-subtab_btn_active_"]) button:hover,
+[class*="st-key-subtab_btn_"]:not([class*="st-key-subtab_btn_active_"]) .stButton > button:hover,
+div[class*="st-key-subtab_btn_"]:not([class*="st-key-subtab_btn_active_"]) .stButton > button:hover,
+[class*="st-key-subtab_btn_"]:not([class*="st-key-subtab_btn_active_"]) button[kind="secondary"]:hover,
+div[class*="st-key-subtab_btn_"]:not([class*="st-key-subtab_btn_active_"]) button[kind="secondary"]:hover {
+  background: transparent !important;
+  background-color: transparent !important;
   color: #0f172a !important;
+  border-top: none !important;
+  border-left: none !important;
+  border-right: none !important;
   border-bottom: 3px solid #cbd5e1 !important;
-  transform: none !important;
   box-shadow: none !important;
+  transform: none !important;
 }
 
-div[class*="st-key-subtab_btn_active_"] button {
-  background: #eff6ff !important;
-  background-color: #eff6ff !important;
+[class*="st-key-subtab_btn_"]:not([class*="st-key-subtab_btn_active_"]) button:hover p,
+div[class*="st-key-subtab_btn_"]:not([class*="st-key-subtab_btn_active_"]) button:hover p,
+[class*="st-key-subtab_btn_"]:not([class*="st-key-subtab_btn_active_"]) .stButton > button:hover p,
+div[class*="st-key-subtab_btn_"]:not([class*="st-key-subtab_btn_active_"]) .stButton > button:hover p {
+  color: #0f172a !important;
+}
+
+/* ACTIVE TAB: Chữ xanh #2563eb, KHÔNG nền box, thanh gạch chân đáy xanh #2563eb cùng màu chữ */
+[class*="st-key-subtab_btn_active_"] button,
+div[class*="st-key-subtab_btn_active_"] button,
+[class*="st-key-subtab_btn_active_"] .stButton > button,
+div[class*="st-key-subtab_btn_active_"] .stButton > button,
+[class*="st-key-subtab_btn_active_"] button[kind="secondary"],
+div[class*="st-key-subtab_btn_active_"] button[kind="secondary"],
+[class*="st-key-subtab_btn_active_"] button[data-testid="stBaseButton-secondary"],
+div[class*="st-key-subtab_btn_active_"] button[data-testid="stBaseButton-secondary"] {
+  background: transparent !important;
+  background-color: transparent !important;
+  background-image: none !important;
   color: #2563eb !important;
   font-weight: 700 !important;
   border: none !important;
+  border-top: none !important;
+  border-left: none !important;
+  border-right: none !important;
   border-bottom: 3px solid #2563eb !important;
   border-radius: 0 !important;
   box-shadow: none !important;
   transform: none !important;
+  z-index: 2 !important;
 }
 
-div[class*="st-key-subtab_btn_active_"] button p {
+[class*="st-key-subtab_btn_active_"] button p,
+div[class*="st-key-subtab_btn_active_"] button p,
+[class*="st-key-subtab_btn_active_"] .stButton > button p,
+div[class*="st-key-subtab_btn_active_"] .stButton > button p {
   color: #2563eb !important;
+  font-weight: 700 !important;
 }
 
-div[class*="st-key-subtab_btn_active_"] button:hover {
-  background: #dbeafe !important;
-  background-color: #dbeafe !important;
+[class*="st-key-subtab_btn_active_"] button:hover,
+div[class*="st-key-subtab_btn_active_"] button:hover,
+[class*="st-key-subtab_btn_active_"] .stButton > button:hover,
+div[class*="st-key-subtab_btn_active_"] .stButton > button:hover,
+[class*="st-key-subtab_btn_active_"] button[kind="secondary"]:hover,
+div[class*="st-key-subtab_btn_active_"] button[kind="secondary"]:hover {
+  background: transparent !important;
+  background-color: transparent !important;
   color: #2563eb !important;
-  border-color: #2563eb !important;
-  transform: none !important;
+  border-top: none !important;
+  border-left: none !important;
+  border-right: none !important;
+  border-bottom: 3px solid #2563eb !important;
   box-shadow: none !important;
+  transform: none !important;
+}
+
+[class*="st-key-subtab_btn_active_"] button:hover p,
+div[class*="st-key-subtab_btn_active_"] button:hover p,
+[class*="st-key-subtab_btn_active_"] .stButton > button:hover p,
+div[class*="st-key-subtab_btn_active_"] .stButton > button:hover p {
+  color: #2563eb !important;
+}
+
+/* Chặn toàn bộ focus ring / outline khi click */
+[class*="st-key-subtab_btn_"] button:focus,
+[class*="st-key-subtab_btn_"] button:active,
+[class*="st-key-subtab_btn_"] button:focus-visible {
+  outline: none !important;
+  box-shadow: none !important;
+  background: transparent !important;
 }
 
 /* ==========================================================================

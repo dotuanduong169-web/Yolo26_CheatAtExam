@@ -19,9 +19,9 @@ POSE_MIN_HITS = 1
 
 # Cooldown chống spam giữa các lần lưu cùng vi phạm:
 # Object: 15s (tương đương 6 chu kỳ snapshot 2.5s)
-# Pose: 5.0s (tương đương đúng 2 chu kỳ snapshot 2.5s)
+# Pose: 6s (tương đương 2-3 chu kỳ snapshot 2.5s)
 OBJECT_COOLDOWN_SECONDS = float(os.getenv("OBJECT_COOLDOWN_SECONDS", "15.0"))
-POSE_COOLDOWN_SECONDS = float(os.getenv("POSE_COOLDOWN_SECONDS", "5.0"))
+POSE_COOLDOWN_SECONDS = float(os.getenv("POSE_COOLDOWN_SECONDS", "6.0"))
 
 
 class CameraState:
@@ -65,7 +65,10 @@ class CameraState:
         self._fps_last_count: int = 0
         self.start_time: Optional[float] = None
 
-        # Quản lý cooldown riêng cho Object và Pose
+        # Cooldown theo từng nhãn (không dùng chung một mốc cho mọi vật/hành vi,
+        # vì cellphone sẽ chặn Cheat_Paper và quay_dau sẽ chặn cui_xuong).
+        self.last_save_by_label: dict[str, float] = {}
+        # Giữ 2 mốc cũ để tương thích với mã bên ngoài từng đọc trực tiếp.
         self.last_object_save_time: float = 0.0
         self.last_pose_save_time: float = 0.0
         self.last_stats_time: float = 0.0
@@ -92,6 +95,7 @@ class CameraState:
         self.recent.clear()
         self.cheat_window.clear()
         self.behavior_window.clear()
+        self.last_save_by_label.clear()
         self.last_object_save_time = 0.0
         self.last_pose_save_time = 0.0
         self.last_stats_time = 0.0
@@ -134,10 +138,24 @@ class CameraState:
         recent = list(self.behavior_window)[-window:]
         return len(recent) >= min_hits and sum(recent) >= min_hits
 
+    @staticmethod
+    def _cooldown_seconds(label: str) -> float:
+        """Vật thể dùng cooldown 15s, hành vi dùng 6s (theo từng nhãn)."""
+        if label in {"Cheat_Paper", "cellphone"}:
+            return OBJECT_COOLDOWN_SECONDS
+        return POSE_COOLDOWN_SECONDS
+
+    def _label_due(self, label: str, now: float) -> bool:
+        last = self.last_save_by_label.get(label, 0.0)
+        return now - last >= self._cooldown_seconds(label)
+
     def check_triggers(self, results: list[dict], now: float) -> tuple[bool, list[dict], str]:
         """
-        Đánh giá frame hiện tại: kiểm tra debounce và cooldown riêng cho Object và Pose.
+        Đánh giá frame hiện tại: debounce + cooldown RIÊNG theo từng nhãn.
         Trả về: (should_save, confirmed_results, reason)
+
+        Một nhãn đang cooldown không được chặn nhãn khác, và không được tự động
+        lưu lại chỉ vì "có cheat khác" trong frame.
         """
         has_obj = any(r.get("is_cheat") and r.get("kind", "object") == "object" for r in results)
         has_beh = any(r.get("is_cheat") and r.get("kind") == "behavior" for r in results)
@@ -145,33 +163,43 @@ class CameraState:
         self.note_frame_cheat(has_obj)
         self.note_frame_behavior(has_beh)
 
-        trigger_obj = False
-        trigger_beh = False
+        confirmed: list[dict] = []
+        reasons: list[str] = []
 
-        if has_obj and self.is_cheat_confirmed(OBJECT_WINDOW, OBJECT_MIN_HITS):
-            if now - self.last_object_save_time >= OBJECT_COOLDOWN_SECONDS:
-                trigger_obj = True
-                self.last_object_save_time = now
+        due_obj = [
+            r for r in results
+            if r.get("is_cheat")
+            and r.get("kind", "object") == "object"
+            and self._label_due(str(r.get("label") or ""), now)
+        ]
+        if has_obj and due_obj and self.is_cheat_confirmed(OBJECT_WINDOW, OBJECT_MIN_HITS):
+            confirmed.extend(due_obj)
+            reasons.append("object")
+            for r in due_obj:
+                self.last_save_by_label[str(r.get("label") or "")] = now
+            self.last_object_save_time = now
 
-        if has_beh:
-            is_quay_sau = any(r.get("label") == "quay_sau" for r in results)
-            beh_ok = True if is_quay_sau else self.is_behavior_confirmed(POSE_WINDOW, POSE_MIN_HITS)
-            if beh_ok and (now - self.last_pose_save_time >= POSE_COOLDOWN_SECONDS):
-                trigger_beh = True
+        due_beh = [
+            r for r in results
+            if r.get("is_cheat")
+            and r.get("kind") == "behavior"
+            and self._label_due(str(r.get("label") or ""), now)
+        ]
+        if has_beh and due_beh and self.is_behavior_confirmed(POSE_WINDOW, POSE_MIN_HITS):
+            beh_confirmed = [
+                r for r in due_beh
+                if r.get("label") == "quay_sau"
+                or self.is_behavior_confirmed(POSE_WINDOW, POSE_MIN_HITS)
+            ]
+            if beh_confirmed:
+                confirmed.extend(beh_confirmed)
+                reasons.append("behavior")
+                for r in beh_confirmed:
+                    self.last_save_by_label[str(r.get("label") or "")] = now
                 self.last_pose_save_time = now
 
-        if not (trigger_obj or trigger_beh):
+        if not confirmed:
             return False, [], ""
-
-        confirmed = []
-        reasons = []
-        if trigger_obj:
-            reasons.append("object")
-            confirmed.extend([r for r in results if r.get("is_cheat") and r.get("kind", "object") == "object"])
-        if trigger_beh:
-            reasons.append("behavior")
-            confirmed.extend([r for r in results if r.get("is_cheat") and r.get("kind") == "behavior"])
-
         return True, confirmed, "+".join(reasons)
 
     def is_running(self) -> bool:

@@ -80,6 +80,8 @@ class CandidateJoinResponse(BaseModel):
     session_id: Optional[int] = None
     side_token: Optional[str] = None
     side_exam_url: Optional[str] = None
+    side_exam_full_url: Optional[str] = None
+    server_lan_ip: Optional[str] = None
 
     def model_post_init(self, __context):
         if self.session_id is None:

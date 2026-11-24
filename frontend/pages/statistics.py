@@ -49,6 +49,15 @@ for s in sessions:
         subject = s.get("MonThi") or "Chưa đặt môn"
         sess_map[sid] = f"#{sid} · {room} · {subject}"
 
+# Lấy trước dữ liệu ứng viên để populate dropdown Thí sinh kể cả khi chọn "Tất cả ca thi"
+all_candidate_rows = get_candidate_stats(client, session_id=None) or []
+cand_by_id = {}
+for r in all_candidate_rows:
+    c = r.get("candidate") or {}
+    cid = c.get("PK_MaThiSinh")
+    if cid:
+        cand_by_id[cid] = c
+
 f1, f2, f3 = st.columns([1.5, 1.5, 1.0], vertical_alignment="bottom")
 with f1:
     selected_parent = st.selectbox(
@@ -67,6 +76,14 @@ with f2:
                     f"{c.get('SBD') or ''} · {c.get('HoTen') or ''}"
                     + (f" · {c.get('Lop')}" if c.get("Lop") else "")
                 )
+    else:
+        # Khi chọn "Tất cả ca thi", hiển thị tất cả thí sinh từ mọi ca
+        for cid, c in sorted(cand_by_id.items(), key=lambda x: str(x[1].get("SBD") or "")):
+            candidate_options[cid] = (
+                f"{c.get('SBD') or ''} · {c.get('HoTen') or ''}"
+                + (f" · {c.get('Lop')}" if c.get("Lop") else "")
+            )
+
     if st.session_state.get("stats_candidate") not in candidate_options:
         st.session_state["stats_candidate"] = 0
 
@@ -82,16 +99,32 @@ with f3:
 
 session_filter = selected_parent or None
 candidate_filter = selected_candidate or None
+cand_info = cand_by_id.get(candidate_filter, {}) if candidate_filter else {}
+
+# Reset timeline page khi bộ lọc thay đổi
+current_filter_sig = f"{session_filter}_{candidate_filter}_{only_alerts}"
+if st.session_state.get("_prev_filter_sig") != current_filter_sig:
+    st.session_state["_prev_filter_sig"] = current_filter_sig
+    st.session_state["stats_timeline_page"] = 1
 
 # ── Dữ liệu tổng hợp ────────────────────────────────────────
-overview = get_stats_overview(client, session_id=session_filter) or {}
+overview = get_stats_overview(client, session_id=session_filter, candidate_id=candidate_filter) or {}
 summary = get_stats_summary(client)
-distribution = get_behavior_distribution(client)
+distribution = get_behavior_distribution(client, session_id=session_filter, candidate_id=candidate_filter)
 candidate_rows = get_candidate_stats(client, session_id=session_filter) or []
+
+# Lọc candidate_rows theo thí sinh (nếu chọn)
 if candidate_filter:
     candidate_rows = [
         r for r in candidate_rows
         if (r.get("candidate") or {}).get("PK_MaThiSinh") == candidate_filter
+    ]
+
+# Lọc candidate_rows theo checkbox "Chỉ mốc có cảnh báo"
+if only_alerts:
+    candidate_rows = [
+        r for r in candidate_rows
+        if (r.get("total_events", 0) > 0 or r.get("timeline_alerts", 0) > 0)
     ]
 
 total_cheats = summary.get("total_cheats", 0)
@@ -102,7 +135,7 @@ if not distribution or all(d.get("count", 0) == 0 for d in distribution):
 # ── KPI gắn thí sinh (Chuẩn hoá 4 Cards tinh gọn, thiết thực) ──
 total_students = overview.get("total_students", len(candidate_rows))
 students_alert = overview.get("students_with_alerts", 0)
-total_events = overview.get("total_events", total_cheats)
+total_events = overview.get("total_events", 0 if candidate_filter else total_cheats)
 pending_events = overview.get("pending_events", 0)
 clean_rate = round(float(overview.get("clean_rate", 1.0)) * 100, 1)
 
@@ -113,17 +146,31 @@ alert_color = "#dc2626" if students_alert > 0 else "#16a34a"
 event_color = "#d97706" if total_events > 0 else "#0f172a"
 clean_color = "#16a34a" if clean_rate == 100.0 else ("#d97706" if clean_rate >= 80.0 else "#dc2626")
 
+if candidate_filter:
+    cand_info = cand_by_id.get(candidate_filter, {})
+    card1_label = "Thí sinh"
+    card1_num = "1"
+    card1_hint = f"{cand_info.get('SBD') or ''} · {cand_info.get('HoTen') or 'Thí sinh được chọn'}"
+    card2_hint = "Có ghi nhận nghi vấn" if students_alert > 0 else "Nghiêm túc, không vi phạm"
+    card4_hint = "Phát hiện gian lận" if students_alert > 0 else "Hoàn toàn nghiêm túc"
+else:
+    card1_label = "Tổng thí sinh"
+    card1_num = str(total_students)
+    card1_hint = "Sĩ số trong ca thi" if session_filter else "Toàn bộ hệ thống"
+    card2_hint = "Cần rà soát bằng chứng" if students_alert > 0 else "Không ghi nhận vi phạm"
+    card4_hint = f"{clean_students}/{total_students} thí sinh nghiêm túc"
+
 st.markdown(
     f"""<div class="wf-grid-4">
 <div class="wf-stat-tile">
-    <div class="wf-stat-label">Tổng thí sinh</div>
-    <div class="wf-stat-num">{total_students}</div>
-    <div class="wf-stat-hint">Sĩ số trong ca thi</div>
+    <div class="wf-stat-label">{card1_label}</div>
+    <div class="wf-stat-num">{card1_num}</div>
+    <div class="wf-stat-hint">{card1_hint}</div>
 </div>
 <div class="wf-stat-tile">
     <div class="wf-stat-label">Thí sinh có nghi vấn</div>
     <div class="wf-stat-num" style="color:{alert_color};">{students_alert}</div>
-    <div class="wf-stat-hint">{"Cần rà soát bằng chứng" if students_alert > 0 else "Không ghi nhận vi phạm"}</div>
+    <div class="wf-stat-hint">{card2_hint}</div>
 </div>
 <div class="wf-stat-tile">
     <div class="wf-stat-label">Sự kiện vi phạm</div>
@@ -133,27 +180,38 @@ st.markdown(
 <div class="wf-stat-tile">
     <div class="wf-stat-label">Tỷ lệ thí sinh sạch</div>
     <div class="wf-stat-num" style="color:{clean_color};">{clean_rate}%</div>
-    <div class="wf-stat-hint">{clean_students}/{total_students} thí sinh nghiêm túc</div>
+    <div class="wf-stat-hint">{card4_hint}</div>
 </div>
 </div>""",
     unsafe_allow_html=True,
 )
 
 # ── Bảng tổng hợp theo thí sinh ─────────────────────────────
-st.markdown("""
+cand_subtitle = (
+    f"Đang hiển thị {len(candidate_rows)} thí sinh có cảnh báo vi phạm"
+    if only_alerts
+    else f"Đang hiển thị toàn bộ {len(candidate_rows)} thí sinh"
+)
+st.markdown(f"""
 <div class="wf-box" style="margin-top: 14px;">
     <div class="wf-box-header">
         <div class="wf-box-title">Tổng hợp cảnh báo theo từng thí sinh</div>
-        <span style="font-size: 11px; color: var(--wf-text-muted);">Ảnh và mốc thời gian chi tiết ở timeline bên dưới</span>
+        <span style="font-size: 11px; color: var(--wf-text-muted);">{cand_subtitle}</span>
     </div>
 </div>
 """, unsafe_allow_html=True)
 
 if not candidate_rows:
-    notify.empty_state(
-        "Chưa có thí sinh trong phạm vi lọc",
-        "Hãy chọn ca thi đã nhập danh sách thí sinh hoặc chọn 'Tất cả ca thi'.",
-    )
+    if only_alerts:
+        notify.empty_state(
+            "Không có thí sinh nào bị cảnh báo",
+            "Tất cả thí sinh trong phạm vi lọc đều nghiêm túc, không có vi phạm. Bỏ chọn 'Chỉ mốc có cảnh báo' để xem toàn bộ danh sách.",
+        )
+    else:
+        notify.empty_state(
+            "Chưa có thí sinh trong phạm vi lọc",
+            "Hãy chọn ca thi đã nhập danh sách thí sinh hoặc chọn 'Tất cả ca thi'.",
+        )
 else:
     h1, h2, h3, h4, h5, h6 = st.columns([0.8, 1.8, 0.7, 0.8, 0.9, 1.2])
     h1.caption("SBD")
@@ -176,11 +234,16 @@ else:
         st.markdown("<hr style='margin: 4px 0 8px 0; border: none; border-top: 1px solid #f1f5f9;'>", unsafe_allow_html=True)
 
 # ── Timeline cảnh báo của tất cả thí sinh ───────────────────
-st.markdown("""
+tl_subtitle = (
+    "Chỉ hiển thị các mốc phát hiện cảnh báo vi phạm"
+    if only_alerts
+    else "Hiển thị toàn bộ các mốc quan sát (bao gồm kiểm tra định kỳ an toàn)"
+)
+st.markdown(f"""
 <div class="wf-box" style="margin-top: 18px;">
     <div class="wf-box-header">
-        <div class="wf-box-title">Timeline cảnh báo · ảnh minh chứng · thời gian · thí sinh</div>
-        <span style="font-size: 11px; color: var(--wf-text-muted);">Mỗi mốc có cảnh báo được giữ lại</span>
+        <div class="wf-box-title">Timeline quan sát · ảnh minh chứng · thời gian · thí sinh</div>
+        <span style="font-size: 11px; color: var(--wf-text-muted);">{tl_subtitle}</span>
     </div>
 </div>
 """, unsafe_allow_html=True)
@@ -207,8 +270,10 @@ if page > total_pages:
     page = total_pages
 
 
-def _status_badge(status: str | None) -> tuple[str, str]:
-    """Nhãn trạng thái cho cả event đã xác minh và tick chỉ theo dõi."""
+def _status_badge(status: str | None, has_alert: bool = True) -> tuple[str, str]:
+    """Nhãn trạng thái cho cả event đã xác minh, tick chỉ theo dõi và tick bình thường."""
+    if not has_alert:
+        return "Bình thường", "wf-badge success"
     if status == "theo_doi":
         return "Theo dõi", "wf-badge warning"
     return get_event_status_info(status or "cho_kiem_tra")
@@ -216,7 +281,7 @@ def _status_badge(status: str | None) -> tuple[str, str]:
 
 if not items:
     notify.empty_state(
-        "Chưa có mốc cảnh báo nào",
+        "Chưa có mốc quan sát nào",
         "Thử bỏ chọn 'Chỉ mốc có cảnh báo' hoặc chọn ca thi/thí sinh khác.",
     )
 else:
@@ -226,10 +291,19 @@ else:
         image_b64 = item.get("image_b64")
         ev_id = item.get("event_id")
         camera = "Camera phụ" if item.get("camera") == "side" else "Camera trước"
-        status_label, status_cls = _status_badge(item.get("trang_thai"))
-        behavior = get_friendly_behavior_label(item.get("hanh_vi") or "")
+        has_alert = bool(item.get("co_canh_bao"))
+        status_label, status_cls = _status_badge(item.get("trang_thai"), has_alert=has_alert)
         conf = item.get("do_tin_cay")
         conf_text = f"{round(float(conf) * 100, 1)}%" if conf is not None else "—"
+        if has_alert:
+            raw_bh = item.get("hanh_vi") or ""
+            behavior = get_friendly_behavior_label(raw_bh) if raw_bh else "Cảnh báo bất thường"
+            behavior_color = "#dc2626"
+            conf_display = f"· {conf_text}"
+        else:
+            behavior = "Không phát hiện vi phạm"
+            behavior_color = "#16a34a"
+            conf_display = "· Giám sát định kỳ"
         time_text = str(item.get("thoi_gian") or "")[:19].replace("T", " ")
         latency = item.get("do_tre_ms")
 
@@ -256,8 +330,8 @@ else:
                 f"{' · ' + html.escape(str(c.get('Lop'))) if c.get('Lop') else ''}"
                 f"</div>"
                 f"<div style='font-size:12.5px;margin-top:2px;'>"
-                f"<span style='color:#dc2626;font-weight:600;'>{html.escape(behavior)}</span>"
-                f" <span style='color:#64748b;'>· {conf_text}</span>"
+                f"<span style='color:{behavior_color};font-weight:600;'>{html.escape(behavior)}</span>"
+                f" <span style='color:#64748b;'>{conf_display}</span>"
                 f" <span class='{status_cls}' style='margin-left:4px;'>{status_label}</span>"
                 f"</div>"
                 f"<div style='font-size:11px;color:#94a3b8;margin-top:2px;'>"
@@ -275,8 +349,10 @@ else:
                         st.session_state["selected_session"] = sess.get("PK_MaPhienGiamSat")
                         st.session_state["session_id"] = sess.get("PK_MaPhienGiamSat")
                     st.switch_page("pages/event_detail.py")
+            elif has_alert:
+                st.caption("Cảnh báo theo dõi")
             else:
-                st.caption("Chưa tạo sự kiện")
+                st.markdown("<span style='color:#16a34a;font-size:12px;font-weight:500;'>An toàn</span>", unsafe_allow_html=True)
         st.markdown("<hr style='margin: 6px 0 8px 0; border: none; border-top: 1px solid #f1f5f9;'>", unsafe_allow_html=True)
 
     # Phân trang timeline
@@ -284,9 +360,10 @@ else:
     with pg_left:
         start_no = skip + 1 if total_tl else 0
         end_no = min(skip + len(items), total_tl)
+        unit_label = "mốc cảnh báo" if only_alerts else "mốc quan sát"
         st.markdown(
             f"<div style='font-size:13px;color:#64748b;font-weight:500;'>"
-            f"Hiển thị <strong>{start_no} – {end_no}</strong> trong <strong>{total_tl}</strong> mốc cảnh báo"
+            f"Hiển thị <strong>{start_no} – {end_no}</strong> trong <strong>{total_tl}</strong> {unit_label}"
             f"</div>",
             unsafe_allow_html=True,
         )
@@ -307,11 +384,20 @@ else:
                 st.rerun()
 
 # ── Biểu đồ phân bố hành vi gian lận ────────────────────────
-st.markdown("""
+chart_subtitle = (
+    f"Hành vi vi phạm của thí sinh {cand_info.get('HoTen', '')}"
+    if candidate_filter
+    else (
+        f"Hành vi vi phạm trong ca thi #{session_filter}"
+        if session_filter
+        else "Tổng hợp từ các sự kiện được camera AI ghi nhận"
+    )
+)
+st.markdown(f"""
 <div class="wf-box" style="margin-top: 18px;">
     <div class="wf-box-header">
         <div class="wf-box-title">Biểu đồ phân bố hành vi gian lận thực tế</div>
-        <span style="font-size: 11px; color: var(--wf-text-muted);">Tổng hợp từ các sự kiện được camera AI ghi nhận</span>
+        <span style="font-size: 11px; color: var(--wf-text-muted);">{chart_subtitle}</span>
     </div>
 </div>
 """, unsafe_allow_html=True)

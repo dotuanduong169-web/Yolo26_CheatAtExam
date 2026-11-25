@@ -215,7 +215,7 @@ trình duyệt (`utils/http.py`) để tránh gọi lại API ở mỗi rerun.
 | Trang | Cơ chế cập nhật | Sau khi bấm xác minh (cùng phiên) |
 | --- | --- | --- |
 | Home (giám sát trực tiếp) | Tự chuyển hướng sang **Thi online**; fragment 2,5 giây cũ không còn dùng | Theo trang Thi online |
-| Thi online (lưới thí sinh) | `st_autorefresh` 10 giây; `/candidates/overview` không cache | Ngay khi quay lại; tối đa 10 giây nếu đang mở |
+| Thi online (lưới thí sinh) | Fragment `run_every` 2,5 giây (lớp ≤ 24) hoặc 5 giây (lớp đông); ảnh `variant=live` lấy thumbnail RAM tươi mỗi tick; `/candidates/overview` không cache | Ngay khi quay lại; tối đa 2,5–5 giây nếu đang mở |
 | Chi tiết phiên | Không tự refresh; cache `hist:detail` 10 giây | Ngay sau rerun (xác minh xóa toàn bộ cache) |
 | Lịch sử | Không tự refresh; cache sự kiện `ev:` 8–12 giây | Ngay sau rerun |
 | Chi tiết sự kiện | Không cache | Ngay sau rerun |

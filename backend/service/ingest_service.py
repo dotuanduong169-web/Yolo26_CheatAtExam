@@ -228,6 +228,35 @@ def revoke_session_tokens(session_id: int) -> None:
         db.close()
 
 
+def _encode_live_thumb(frame: np.ndarray) -> bytes | None:
+    """Thumbnail nhẹ cho lưới giám thị, encode đúng một lần mỗi tick.
+
+    Dùng cùng kích thước/chất lượng với thumbnail timeline để payload tương đương
+    (~15-20 KB), nhưng KHÔNG ghi DB/đĩa: ảnh nằm trong RAM và tươi theo từng
+    khung 2,5 giây thay vì chờ heartbeat 30 giây.
+    """
+    try:
+        if frame is None or getattr(frame, "size", 0) == 0:
+            return None
+        img = frame
+        max_w = snapshot_service.TIMELINE_IMAGE_MAX_WIDTH
+        if img.shape[1] > max_w:
+            ratio = max_w / float(img.shape[1])
+            img = cv2.resize(
+                img,
+                (max_w, max(1, int(img.shape[0] * ratio))),
+                interpolation=cv2.INTER_AREA,
+            )
+        ok, buf = cv2.imencode(
+            ".jpg",
+            img,
+            [cv2.IMWRITE_JPEG_QUALITY, snapshot_service.TIMELINE_JPEG_QUALITY],
+        )
+        return buf.tobytes() if ok else None
+    except Exception:
+        return None
+
+
 class _SessionWorker:
     """Worker infer cho một luồng camera (session_id, vai_tro)."""
 
@@ -255,6 +284,9 @@ class _SessionWorker:
         self.alert_misses: dict[str, int] = {}
         self.last_activity = time.time()
         self.latest_jpeg: bytes | None = None
+        # Thumbnail nhẹ cho lưới giám thị, encode 1 lần mỗi tick và giữ trong RAM.
+        # Không ghi DB/đĩa nên ảnh lưới tươi theo đúng nhịp 2,5 giây.
+        self.latest_thumb: bytes | None = None
         self.tick_index = 0
         self.last_timeline_signature = None
         self.last_timeline_write = 0.0
@@ -367,6 +399,7 @@ class _SessionWorker:
                     ok, buf = cv2.imencode(".jpg", annotated, [cv2.IMWRITE_JPEG_QUALITY, 75])
                     if ok:
                         self.latest_jpeg = buf.tobytes()
+                    self.latest_thumb = _encode_live_thumb(annotated)
                     self._note_windows(results, occluded=occluded)
 
                     now = time.time()
@@ -697,6 +730,17 @@ def get_latest_frame(session_id: int, vai_tro: str | None = None) -> bytes | Non
             worker = _workers.get((session_id, role))
             if worker and worker.latest_jpeg:
                 return worker.latest_jpeg
+    return None
+
+
+def get_latest_thumb(session_id: int, vai_tro: str | None = None) -> bytes | None:
+    """Thumbnail live trong RAM của một luồng (cập nhật mỗi tick 2,5 giây)."""
+    roles = [vai_tro] if vai_tro in VALID_ROLES else [ROLE_FRONT, ROLE_SIDE]
+    with _workers_lock:
+        for role in roles:
+            worker = _workers.get((session_id, role))
+            if worker and worker.latest_thumb:
+                return worker.latest_thumb
     return None
 
 

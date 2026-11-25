@@ -205,7 +205,15 @@ def join_exam(data: CandidateJoin):
 
         server_ip = get_server_lan_ip()
         side_exam_url = f"/exam?session_id={sub.PK_MaPhienGiamSat}&role=side&token={side_token}"
-        side_exam_full_url = f"http://{server_ip}:8000{side_exam_url}"
+
+        # Ưu tiên cấu hình PUBLIC_EXAM_URL / PUBLIC_URL khi đưa ra Internet
+        pub_url = (os.getenv("PUBLIC_EXAM_URL") or os.getenv("PUBLIC_URL") or "").strip().rstrip("/")
+        if pub_url:
+            side_exam_full_url = f"{pub_url}{side_exam_url}"
+            display_server = pub_url.replace("https://", "").replace("http://", "")
+        else:
+            side_exam_full_url = f"http://{server_ip}:8000{side_exam_url}"
+            display_server = server_ip
 
         return CandidateJoinResponse(
             PK_MaPhienGiamSat=sub.PK_MaPhienGiamSat,
@@ -215,7 +223,7 @@ def join_exam(data: CandidateJoin):
             side_token=side_token,
             side_exam_url=side_exam_url,
             side_exam_full_url=side_exam_full_url,
-            server_lan_ip=server_ip,
+            server_lan_ip=display_server,
         )
     finally:
         db.close()
@@ -666,8 +674,8 @@ def get_candidate_snapshot_endpoint(
     """Trả ảnh snapshot mới nhất của thí sinh.
 
     role: front/side (rỗng = ưu tiên camera trước rồi camera phụ).
-    variant: auto (live frame -> ảnh dẫn xuất -> bằng chứng), normalized,
-             thumbnail hoặc annotated.
+    variant: live (thumbnail RAM, tươi mỗi tick), auto (live frame đầy đủ),
+             normalized, thumbnail hoặc annotated.
     """
     from pathlib import Path
     from fastapi import Response
@@ -676,18 +684,27 @@ def get_candidate_snapshot_endpoint(
     from service import snapshot_service
 
     role = role if role in ingest_service.VALID_ROLES else None
-    variant = variant if variant in {"normalized", "thumbnail", "annotated"} else "auto"
+    variant = (
+        variant
+        if variant in {"live", "normalized", "thumbnail", "annotated"}
+        else "auto"
+    )
 
-    # 1. Live frame đã vẽ overlay AI (nếu worker còn chạy)
-    if variant == "auto":
-        live_jpg = ingest_service.get_latest_frame(session_id, role)
+    # 1. Ảnh live trong RAM (worker còn chạy). "live" trả thumbnail nhẹ đã encode
+    #    mỗi tick; "auto" trả frame đầy đủ đã vẽ overlay AI.
+    if variant in {"auto", "live"}:
+        live_jpg = (
+            ingest_service.get_latest_thumb(session_id, role)
+            if variant == "live"
+            else ingest_service.get_latest_frame(session_id, role)
+        )
         if live_jpg:
             return Response(content=live_jpg, media_type="image/jpeg")
 
     # 2. Ảnh dẫn xuất từ pipeline snapshot (raw -> normalized/thumbnail/annotated)
     db = SessionLocal()
     try:
-        loai_anh = "thumbnail" if variant == "auto" else variant
+        loai_anh = "thumbnail" if variant in {"auto", "live"} else variant
         img_path = snapshot_service.latest_snapshot_path(
             db, session_id, vai_tro=role, loai_anh=loai_anh
         )

@@ -103,7 +103,8 @@ def get_candidate_snapshot(
     """Tải ảnh snapshot mới nhất của thí sinh theo vai trò camera.
 
     role: front/side (None = ưu tiên camera trước).
-    variant: auto (live -> ảnh dẫn xuất), normalized, thumbnail, annotated.
+    variant: live (thumbnail RAM, tươi mỗi tick 2,5 giây), auto (live -> ảnh
+             dẫn xuất), normalized, thumbnail, annotated.
     """
     try:
         params = {"variant": variant}

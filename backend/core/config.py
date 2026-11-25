@@ -33,9 +33,10 @@ class Settings:
     ENVIRONMENT: str = os.getenv("ENVIRONMENT", "development")
     DEBUG: bool = os.getenv("DEBUG", "False").lower() in ("true", "1")
 
-    # --- API ---
+    # --- API & Public URL ---
     API_HOST: str = os.getenv("API_HOST", "0.0.0.0")
     API_PORT: int = int(os.getenv("API_PORT", "8000"))
+    PUBLIC_EXAM_URL: str = (os.getenv("PUBLIC_EXAM_URL") or os.getenv("PUBLIC_URL") or "").strip().rstrip("/")
 
     # --- CORS ---
     ALLOWED_ORIGINS: list[str] = [

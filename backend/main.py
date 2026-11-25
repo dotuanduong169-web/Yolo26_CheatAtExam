@@ -158,19 +158,22 @@ app = FastAPI(
 )
 
 # ── CORS ────────────────────────────────────────────────────
-if settings.is_production:
-    allowed_origins = settings.ALLOWED_ORIGINS or ["https://yourdomain.com"]
+# Hỗ trợ cả domain chỉ định hoặc toàn bộ origin an toàn qua regex khi chạy Cloudflare Tunnel / Ngrok
+allow_origin_regex = None
+if not settings.ALLOWED_ORIGINS or "*" in settings.ALLOWED_ORIGINS:
+    # Cho phép linh hoạt mọi origin (bao gồm Cloudflare Tunnel / Ngrok / Local) kèm credentials
+    allowed_origins = []
+    allow_origin_regex = r"^https?://.*"
 else:
-    allowed_origins = settings.ALLOWED_ORIGINS or [
-        "http://localhost:8501",
-        "http://127.0.0.1:8501",
-        "http://localhost:8502",
-        "http://127.0.0.1:8502",
-    ]
+    allowed_origins = list(settings.ALLOWED_ORIGINS)
+    for loc in ["http://localhost:8501", "http://127.0.0.1:8501"]:
+        if loc not in allowed_origins:
+            allowed_origins.append(loc)
 
 app.add_middleware(
     CORSMiddleware,
     allow_origins=allowed_origins,
+    allow_origin_regex=allow_origin_regex,
     allow_credentials=True,
     allow_methods=["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
     allow_headers=["*"],

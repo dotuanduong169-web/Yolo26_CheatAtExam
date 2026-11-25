@@ -419,7 +419,7 @@
         Dùng điện thoại quét mã QR hoặc mở link dưới đây để làm camera phụ góc nghiêng.
       </p>
       <div style="font-size: 11.5px; color: #0369a1; background: #f0f9ff; border: 1px solid #bae6fd; border-radius: 6px; padding: 6px 10px; margin-bottom: 10px; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 4px;">
-        <span>Máy chủ: <strong id="serverIpBadge" style="font-family: monospace;">192.168.1.123:8000</strong> (Điện thoại và máy tính cần chung WiFi hoặc Hotspot)</span>
+        <span>Máy chủ: <strong id="serverIpBadge" style="font-family: monospace;">192.168.1.123:8000</strong> <span id="serverHintText">(Điện thoại và máy tính cần chung WiFi hoặc Hotspot)</span></span>
         <button type="button" style="border: none; background: none; color: #0284c7; text-decoration: underline; cursor: pointer; font-size: 11px; padding: 0;" onclick="changeServerHost()">Đổi IP/Domain</button>
       </div>
       <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
@@ -769,23 +769,35 @@ async function joinExam() {
     // Cấu hình link camera phụ cho thí sinh
     if (!IS_SIDE && d.side_exam_url) {
       rawSideUrl = d.side_exam_url;
-      const detectedLanIp = d.server_lan_ip || "192.168.1.123";
-      currentServerHost = `${detectedLanIp}:8000`;
+      const isLocalHost = (location.hostname === "localhost" || location.hostname === "127.0.0.1");
 
-      // Ưu tiên sử dụng side_exam_full_url từ máy chủ đã cấu hình IP LAN
-      if (d.side_exam_full_url) {
-        sideExamFullUrl = d.side_exam_full_url;
-      } else if (location.hostname === "localhost" || location.hostname === "127.0.0.1") {
-        sideExamFullUrl = `http://${currentServerHost}${rawSideUrl}`;
-      } else {
+      if (!isLocalHost) {
+        // Khi thí sinh mở qua Domain / Cloudflare Tunnel / Ngrok công khai:
+        // Luôn ưu tiên dùng chính origin HTTPS hiện tại để điện thoại quét QR mở được ngay
         sideExamFullUrl = location.origin + rawSideUrl;
         currentServerHost = location.host;
+      } else if (d.side_exam_full_url && !d.side_exam_full_url.includes("127.0.0.1") && !d.side_exam_full_url.includes("localhost")) {
+        // Khi mở trên máy chủ local nhưng server đã cấu hình IP LAN hoặc Public URL
+        sideExamFullUrl = d.side_exam_full_url;
+        try {
+          currentServerHost = new URL(d.side_exam_full_url).host;
+        } catch (e) {
+          currentServerHost = d.server_lan_ip || "192.168.1.123:8000";
+        }
+      } else {
+        const detectedLanIp = d.server_lan_ip || "192.168.1.123";
+        currentServerHost = `${detectedLanIp}:8000`;
+        sideExamFullUrl = `http://${currentServerHost}${rawSideUrl}`;
       }
 
       const sideInput = document.getElementById("sideCamUrlInput");
       if (sideInput) sideInput.value = sideExamFullUrl;
       const serverBadge = document.getElementById("serverIpBadge");
       if (serverBadge) serverBadge.textContent = currentServerHost;
+      const serverHint = document.getElementById("serverHintText");
+      if (serverHint) {
+        serverHint.textContent = isLocalHost ? "(Điện thoại và máy tính cần chung WiFi hoặc Hotspot)" : "(Truy cập qua Internet công khai)";
+      }
       const qrImg = document.getElementById("qrCodeImg");
       if (qrImg) {
         qrImg.src = "https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=" + encodeURIComponent(sideExamFullUrl);

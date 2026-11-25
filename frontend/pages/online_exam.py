@@ -27,36 +27,74 @@ from utils.render_header import render_page_header
 from utils.status_helpers import get_friendly_behavior_label
 
 
-def _behavior_chips_html(behaviors, limit: int = 4) -> str:
-    """Dựng dải chip cho nhiều hành vi khác nhau của một thí sinh.
+def _behavior_chips_html(behaviors, is_unjoined: bool = False, show_empty_placeholder: bool = True) -> str:
+    """Dựng dải chip cho hành vi của thí sinh.
 
-    Mỗi chip hiển thị nhãn tiếng Việt + số lần ghi nhận. Chip màu đỏ khi còn
-    sự kiện chờ xác minh, màu xám khi đã xác minh. Bỏ bớt nhãn nếu quá nhiều.
+    - Cố định trên 1 dòng duy nhất, không bị tràn hay rớt dòng.
+    - Hiển thị chip chính rõ ràng, không bị cụt chữ.
+    - Badge +N có Custom Tooltip tức thì khi rê chuột vào (0s delay, không che icon).
+    - Duy trì chiều cao cố định cho mọi card để card có hành vi hay không đều bằng nhau tăm tắp.
     """
     if not behaviors:
-        return ""
+        if not show_empty_placeholder:
+            return ""
+        if is_unjoined:
+            return '<div class="cand-behavior-list is-empty"><span class="cand-behavior-clean text-muted">Chưa vào phòng thi</span></div>'
+        return '<div class="cand-behavior-list is-empty"><span class="cand-behavior-clean">✓ Chưa có vi phạm</span></div>'
+
+    # Sắp xếp: hành vi có sự kiện chờ duyệt (pending) lên đầu, tiếp đến tổng số lần
+    sorted_beh = sorted(
+        behaviors,
+        key=lambda x: (int(x.get("pending") or 0) > 0, int(x.get("total") or 0)),
+        reverse=True,
+    )
+
+    # Nếu chỉ có 2 hành vi và cả 2 đều ngắn (mỗi cái <= 12 ký tự) thì hiển thị cả 2 chip
+    # Nếu có hành vi dài (như "Nhiều người trong khung hình"), chỉ hiển thị 1 chip chính + badge +N để chữ không bị cắt
+    chips_to_show = 1
+    if len(sorted_beh) == 2:
+        l1 = get_friendly_behavior_label(sorted_beh[0].get("label"))
+        l2 = get_friendly_behavior_label(sorted_beh[1].get("label"))
+        if len(l1) <= 12 and len(l2) <= 12:
+            chips_to_show = 2
+
     chips = []
-    for b in behaviors[:limit]:
+    for b in sorted_beh[:chips_to_show]:
         label = html.escape(get_friendly_behavior_label(b.get("label")))
         total = int(b.get("total") or 0)
         pending = int(b.get("pending") or 0)
         cls = "pending" if pending > 0 else "verified"
         count = f" <b>×{total}</b>" if total > 1 else ""
-        last_at = str(b.get("last_at") or "")[:19].replace("T", " ")
-        title = label
-        if pending > 0:
-            title += f" · {pending} chờ duyệt"
-        else:
-            title += " · đã xác minh"
-        if last_at:
-            title += f" · gần nhất {last_at}"
         chips.append(
-            f'<span class="cand-behavior-chip {cls}" title="{title}">{label}{count}</span>'
+            f'<span class="cand-behavior-chip {cls}" title="{label}">{label}{count}</span>'
         )
-    if len(behaviors) > limit:
+
+    if len(sorted_beh) > chips_to_show:
+        more_count = len(sorted_beh) - chips_to_show
+        tooltip_items = []
+        for b in sorted_beh[chips_to_show:]:
+            lbl = html.escape(get_friendly_behavior_label(b.get("label")))
+            tot = int(b.get("total") or 0)
+            pend = int(b.get("pending") or 0)
+            cnt = f" <b>×{tot}</b>" if tot > 1 else ""
+            if pend > 0:
+                tag_html = f'<span class="tt-tag danger">{pend} chờ duyệt</span>'
+            else:
+                tag_html = '<span class="tt-tag neutral">đã xác minh</span>'
+            tooltip_items.append(
+                f'<div class="cand-tooltip-item"><span class="tt-dot"></span><span class="tt-name">{lbl}{cnt}</span>{tag_html}</div>'
+            )
+        tooltip_body = "".join(tooltip_items)
         chips.append(
-            f'<span class="cand-behavior-chip more">+{len(behaviors) - limit}</span>'
+            f'<div class="cand-bh-more-wrap">'
+            f'<span class="cand-behavior-chip more">+{more_count}</span>'
+            f'<div class="cand-tooltip-box">'
+            f'<div class="cand-tooltip-header">Còn {more_count} hành vi khác</div>'
+            f'<div class="cand-tooltip-body">{tooltip_body}</div>'
+            f'</div>'
+            f'</div>'
         )
+
     return f'<div class="cand-behavior-list">{"".join(chips)}</div>'
 
 
@@ -171,15 +209,21 @@ def _resolve_lan_ip() -> str:
         return "192.168.1.123"
 
 def _resolve_exam_base_url() -> str:
-    # 1. Custom URL trong session state (giám thị tự cấu hình trên UI)
-    custom = st.session_state.get("custom_exam_url", "").strip()
-    if custom:
-        return custom.rstrip("/")
-
-    # 2. Biến môi trường PUBLIC_EXAM_URL / PUBLIC_URL
+    # 1. Biến môi trường PUBLIC_EXAM_URL / PUBLIC_URL
     pub = os.getenv("PUBLIC_EXAM_URL") or os.getenv("PUBLIC_URL")
     if pub and pub.strip():
         return pub.strip().rstrip("/")
+
+    # 2. Đọc từ file cache .cf_backend_url nếu có script tunnel tự động
+    from pathlib import Path
+    cf_file = Path(__file__).resolve().parents[2] / ".cf_backend_url"
+    if cf_file.exists():
+        try:
+            val = cf_file.read_text().strip()
+            if val.startswith("http"):
+                return val.rstrip("/")
+        except Exception:
+            pass
 
     # 3. Theo API_BASE_URL nếu khác localhost
     if API_BASE_URL and not any(h in API_BASE_URL for h in ("localhost", "127.0.0.1")):
@@ -231,25 +275,6 @@ else:
         """,
         unsafe_allow_html=True,
     )
-
-# Cấu hình địa chỉ Public / Cloudflare Tunnel trực tiếp trên giao diện
-with st.expander("🌐 Cấu hình địa chỉ Public / Cloudflare Tunnel / Ngrok", expanded=False):
-    c_url1, c_url2 = st.columns([3, 1])
-    with c_url1:
-        new_tunnel_url = st.text_input(
-            "Địa chỉ Public HTTPS máy chủ (FastAPI port 8000):",
-            value=st.session_state.get("custom_exam_url", os.getenv("PUBLIC_EXAM_URL", "")),
-            placeholder="Ví dụ: https://exam-demo.trycloudflare.com hoặc https://exam.domain.com",
-            help="Dán URL HTTPS từ Cloudflare Tunnel hoặc ngrok vào đây để link thí sinh và mã QR tự cập nhật mà không cần khởi động lại server.",
-            key="_inp_public_exam_url",
-        )
-    with c_url2:
-        st.write("")
-        st.write("")
-        if st.button("Lưu & Đổi link", use_container_width=True):
-            st.session_state["custom_exam_url"] = new_tunnel_url.strip()
-            notify.success("Đã cập nhật link dự thi công khai!", title="Thành công")
-            st.rerun()
 
 # ── Nhập danh sách thí sinh ─────────────────────────────────
 if "expand_import_cands" not in st.session_state:
@@ -519,7 +544,7 @@ else:
                         summary = "<span class='cand-alert-tag neutral'>Chưa vào thi</span>"
                     st.markdown(
                         f"<div class='cand-alert-summary'>{summary}</div>"
-                        f"{_behavior_chips_html(behaviors)}",
+                        f"{_behavior_chips_html(behaviors, show_empty_placeholder=False)}",
                         unsafe_allow_html=True,
                     )
 
@@ -575,14 +600,38 @@ else:
         def _render_candidate_grid() -> None:
             live_rows = exam_overview(st.session_state.client, sel_id) or []
 
+            # Ảnh của thí sinh đã dừng không đổi: giữ lại trong session_state để
+            # mỗi nhịp poll chỉ tải ảnh live của các luồng đang hoạt động.
+            snap_cache_key = "_online_snap_cache"
+            if st.session_state.get("_online_snap_parent") != sel_id:
+                st.session_state["_online_snap_parent"] = sel_id
+                st.session_state[snap_cache_key] = {}
+            snap_cache = st.session_state.setdefault(snap_cache_key, {})
+
             def _snap_cell(sid, role, active, joined, label, empty_msg, alt_text):
                 """Một ô ảnh camera (trước/phụ) trong card thí sinh."""
                 if not sid:
                     body = '<div class="cand-snap-empty">Chưa vào phòng thi</div>'
                 else:
-                    snap_bytes = get_candidate_snapshot(
-                        st.session_state.client, sid, role=role, variant="live"
-                    )
+                    ck = (sid, role)
+                    if active:
+                        # Luồng đang chạy: luôn lấy ảnh mới, giữ bản cuối dự phòng.
+                        fresh = get_candidate_snapshot(
+                            st.session_state.client, sid, role=role, variant="live"
+                        )
+                        if fresh:
+                            snap_cache[ck] = fresh
+                        snap_bytes = fresh or snap_cache.get(ck)
+                    elif ck in snap_cache:
+                        # Luồng đã dừng: ảnh không đổi, không gọi lại API.
+                        snap_bytes = snap_cache[ck]
+                    else:
+                        # Tải một lần rồi tái sử dụng; lưu cả None để camera phụ
+                        # chưa có ảnh không bị gọi lại mỗi nhịp poll.
+                        snap_bytes = get_candidate_snapshot(
+                            st.session_state.client, sid, role=role, variant="live"
+                        )
+                        snap_cache[ck] = snap_bytes
                     if snap_bytes:
                         b64_snap = base64.b64encode(snap_bytes).decode("ascii")
                         body = f'<img src="data:image/jpeg;base64,{b64_snap}" alt="{alt_text}"/>'
@@ -640,7 +689,7 @@ else:
                             alert_badge_html = (
                                 '<span class="cand-alert-tag neutral">Bình thường</span>'
                             )
-                        behavior_html = _behavior_chips_html(behaviors)
+                        behavior_html = _behavior_chips_html(behaviors, is_unjoined=not bool(sid))
 
                         sbd_escaped = html.escape(str(c.get("SBD") or ""))
                         hoten_escaped = html.escape(str(c.get("HoTen") or "Thí sinh"))
@@ -671,28 +720,26 @@ else:
                             '<span class="cand-cam-chip"><span class="cand-cam-dot"></span>Phụ</span>'
                         )
 
-                        # Render HTML card hoàn chỉnh đồng bộ phong cách
-                        st.markdown(
-                            f"""
-                            <div class="cand-card{violation_cls}">
-                                <div class="cand-card-header">
-                                    <div class="cand-meta">
-                                        <div class="cand-sbd">{sbd_escaped}</div>
-                                        <div class="cand-name" title="{hoten_escaped}">{hoten_escaped}{lop_escaped}</div>
-                                    </div>
-                                    <span class="cand-status-chip {chip_cls}">{status_text}</span>
-                                </div>
-                                {snap_html}
-                                <div class="cand-cam-row">{cam_chip_front}{cam_chip_side}</div>
-                                {behavior_html}
-                                <div class="cand-card-footer">
-                                    <span>Sự kiện: <strong>{tong_sk}</strong></span>
-                                    {alert_badge_html}
-                                </div>
-                            </div>
-                            """,
-                            unsafe_allow_html=True,
+                        # Render HTML card hoàn chỉnh đồng bộ phong cách (tránh thụt đầu dòng gây lỗi Markdown indented code block)
+                        card_html = (
+                            f'<div class="cand-card{violation_cls}">'
+                            f'<div class="cand-card-header">'
+                            f'<div class="cand-meta">'
+                            f'<div class="cand-sbd">{sbd_escaped}</div>'
+                            f'<div class="cand-name" title="{hoten_escaped}">{hoten_escaped}{lop_escaped}</div>'
+                            f'</div>'
+                            f'<span class="cand-status-chip {chip_cls}">{status_text}</span>'
+                            f'</div>'
+                            f'{snap_html}'
+                            f'<div class="cand-cam-row">{cam_chip_front}{cam_chip_side}</div>'
+                            f'{behavior_html}'
+                            f'<div class="cand-card-footer">'
+                            f'<span>Sự kiện: <strong>{tong_sk}</strong></span>'
+                            f'{alert_badge_html}'
+                            f'</div>'
+                            f'</div>'
                         )
+                        st.markdown(card_html, unsafe_allow_html=True)
 
                         if st.button("Chi tiết ca thi", key=f"online_ev_{c['PK_MaThiSinh']}", use_container_width=True):
                             if sid:

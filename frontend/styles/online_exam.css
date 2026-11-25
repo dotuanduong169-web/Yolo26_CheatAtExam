@@ -152,6 +152,8 @@
     justify-content: space-between;
     margin-bottom: 10px;
     gap: 8px;
+    height: 38px;
+    min-height: 38px;
 }
 
 .cand-meta {
@@ -312,6 +314,9 @@
     gap: 6px;
     margin-bottom: 8px;
     flex-wrap: wrap;
+    height: 22px;
+    min-height: 22px;
+    align-items: center;
 }
 
 .cand-cam-chip {
@@ -343,6 +348,8 @@
     margin-top: auto;
     padding-top: 6px;
     border-top: 1px solid #f1f5f9;
+    height: 28px;
+    min-height: 28px;
 }
 
 .cand-alert-tag {
@@ -388,28 +395,42 @@
     font-weight: 500;
 }
 
+/* Dải chip đa hành vi + Tooltip tức thì */
 .cand-behavior-list {
     display: flex;
-    flex-wrap: wrap;
-    gap: 4px;
-    margin-bottom: 6px;
+    flex-wrap: nowrap;
+    overflow: visible; /* Cho phép tooltip hiển thị không bị cắt */
+    gap: 5px;
+    height: 24px;
+    min-height: 24px;
+    margin-bottom: 8px;
+    align-items: center;
+}
+
+.cand-behavior-list.is-empty {
+    height: 24px;
+    min-height: 24px;
 }
 
 .cand-behavior-chip {
-    display: inline-block;
-    max-width: 100%;
-    padding: 2px 7px;
+    display: inline-flex;
+    align-items: center;
+    max-width: 195px;
+    padding: 2px 8px;
     border-radius: 10px;
     font-size: 10.5px;
     font-weight: 600;
     line-height: 1.4;
     text-align: left;
-    white-space: normal;
-    word-break: break-word;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    flex-shrink: 1;
 }
 
 .cand-behavior-chip b {
     font-weight: 700;
+    margin-left: 2px;
 }
 
 .cand-behavior-chip.pending {
@@ -424,10 +445,154 @@
     border: 1px solid #e2e8f0;
 }
 
+/* Badge +N và Custom Tooltip tức thì */
+.cand-bh-more-wrap {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    flex-shrink: 0;
+}
+
 .cand-behavior-chip.more {
     background: #f8fafc;
-    color: #94a3b8;
+    color: #475569;
     border: 1px dashed #cbd5e1;
+    flex-shrink: 0;
+    cursor: pointer !important;
+    font-weight: 700;
+    padding: 2px 7px;
+    white-space: nowrap;
+    border-radius: 10px;
+    font-size: 10.5px;
+    transition: all 0.15s ease;
+}
+
+.cand-bh-more-wrap:hover .cand-behavior-chip.more {
+    background: #eff6ff;
+    color: #1d4ed8;
+    border-color: #93c5fd;
+}
+
+/* Hộp Tooltip nổi lên đồng bộ Wireframe Theme hệ thống (nền trắng, viền slate, shadow tinh tế) */
+.cand-tooltip-box {
+    visibility: hidden;
+    opacity: 0;
+    position: absolute;
+    bottom: calc(100% + 8px);
+    right: -4px;
+    background: #ffffff;
+    color: #0f172a;
+    border-radius: 8px;
+    padding: 8px 12px;
+    font-size: 11px;
+    line-height: 1.45;
+    white-space: nowrap;
+    box-shadow: 0 4px 16px -2px rgba(15, 23, 42, 0.12), 0 2px 6px -1px rgba(15, 23, 42, 0.08);
+    border: 1px solid #cbd5e1;
+    z-index: 9999;
+    pointer-events: none;
+    transform: translateY(4px);
+    transition: opacity 0.12s ease-out, transform 0.12s ease-out, visibility 0.12s ease-out;
+}
+
+/* Mũi tên nhỏ trỏ xuống badge (viền ngoài) */
+.cand-tooltip-box::before {
+    content: "";
+    position: absolute;
+    top: 100%;
+    right: 14px;
+    border-width: 6px;
+    border-style: solid;
+    border-color: #cbd5e1 transparent transparent transparent;
+}
+
+/* Mũi tên nền trắng bên trong */
+.cand-tooltip-box::after {
+    content: "";
+    position: absolute;
+    top: 100%;
+    right: 15px;
+    border-width: 5px;
+    border-style: solid;
+    border-color: #ffffff transparent transparent transparent;
+}
+
+/* Hover là hiện NGAY LẬP TỨC (0s delay) */
+.cand-bh-more-wrap:hover .cand-tooltip-box {
+    visibility: visible;
+    opacity: 1;
+    transform: translateY(0);
+}
+
+.cand-tooltip-header {
+    font-size: 10px;
+    font-weight: 700;
+    color: #64748b;
+    text-transform: uppercase;
+    letter-spacing: 0.4px;
+    margin-bottom: 6px;
+    padding-bottom: 5px;
+    border-bottom: 1px solid #e2e8f0;
+}
+
+.cand-tooltip-body {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+}
+
+.cand-tooltip-item {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    font-size: 11.5px;
+    color: #1e293b;
+}
+
+.cand-tooltip-item .tt-dot {
+    width: 5px;
+    height: 5px;
+    border-radius: 50%;
+    background: #64748b;
+    flex-shrink: 0;
+}
+
+.cand-tooltip-item .tt-name {
+    font-weight: 600;
+    color: #0f172a;
+}
+
+.cand-tooltip-item .tt-tag {
+    font-size: 10px;
+    font-weight: 600;
+    padding: 1.5px 6px;
+    border-radius: 4px;
+    margin-left: 10px;
+}
+
+.cand-tooltip-item .tt-tag.danger {
+    background: #fef2f2;
+    color: #dc2626;
+    border: 1px solid #fecaca;
+}
+
+.cand-tooltip-item .tt-tag.neutral {
+    background: #f1f5f9;
+    color: #475569;
+    border: 1px solid #e2e8f0;
+}
+
+.cand-behavior-clean {
+    font-size: 11px;
+    color: #64748b;
+    font-weight: 500;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.cand-behavior-clean.text-muted {
+    color: #94a3b8;
 }
 
 .cand-card.has-event {

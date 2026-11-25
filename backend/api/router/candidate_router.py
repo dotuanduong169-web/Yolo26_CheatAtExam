@@ -2,6 +2,7 @@
 Logic chính: giám thị cần đăng nhập; thí sinh join chỉ cần SBD đúng ca đang mở.
 """
 
+import os
 import time
 from datetime import datetime, timezone
 
@@ -208,6 +209,16 @@ def join_exam(data: CandidateJoin):
 
         # Ưu tiên cấu hình PUBLIC_EXAM_URL / PUBLIC_URL khi đưa ra Internet
         pub_url = (os.getenv("PUBLIC_EXAM_URL") or os.getenv("PUBLIC_URL") or "").strip().rstrip("/")
+        if not pub_url:
+            from pathlib import Path
+            cf_file = Path(__file__).resolve().parents[3] / ".cf_backend_url"
+            if cf_file.exists():
+                try:
+                    val = cf_file.read_text().strip()
+                    if val.startswith("http"):
+                        pub_url = val.rstrip("/")
+                except Exception:
+                    pass
         if pub_url:
             side_exam_full_url = f"{pub_url}{side_exam_url}"
             display_server = pub_url.replace("https://", "").replace("http://", "")

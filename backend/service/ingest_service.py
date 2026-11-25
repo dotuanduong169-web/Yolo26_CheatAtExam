@@ -36,6 +36,10 @@ logger = get_logger(__name__)
 MAX_JPG_BYTES = 500 * 1024
 QUEUE_MAXLEN = 3
 TS_SKEW_SECONDS = 60
+# Thumbnail live cho lưới giám thị: nhỏ hơn ảnh timeline để giảm băng thông khi
+# poll 2,5 giây, nhưng vẫn đủ nét ở kích thước ô ảnh trên dashboard.
+LIVE_THUMB_MAX_WIDTH = max(160, int(os.getenv("LIVE_THUMB_MAX_WIDTH", "400")))
+LIVE_THUMB_JPEG_QUALITY = min(90, max(45, int(os.getenv("LIVE_THUMB_JPEG_QUALITY", "68"))))
 # Vắng mặt: không thấy người liên tục quá ngưỡng này (giây) mới cảnh báo.
 # 6 giây ~ 2-3 tick 2,5 giây, đủ tránh báo oan khi thí sinh cúi lấy bút.
 ABSENT_SECONDS = max(3.0, float(os.getenv("ABSENT_SECONDS", "6")))
@@ -231,15 +235,14 @@ def revoke_session_tokens(session_id: int) -> None:
 def _encode_live_thumb(frame: np.ndarray) -> bytes | None:
     """Thumbnail nhẹ cho lưới giám thị, encode đúng một lần mỗi tick.
 
-    Dùng cùng kích thước/chất lượng với thumbnail timeline để payload tương đương
-    (~15-20 KB), nhưng KHÔNG ghi DB/đĩa: ảnh nằm trong RAM và tươi theo từng
-    khung 2,5 giây thay vì chờ heartbeat 30 giây.
+    Dùng cấu hình riêng của thumbnail live (mặc định 400px/q68, ~12 KB) thay vì
+    ảnh timeline 480px/q72, để giảm băng thông khi lưới poll mỗi 2,5 giây.
     """
     try:
         if frame is None or getattr(frame, "size", 0) == 0:
             return None
         img = frame
-        max_w = snapshot_service.TIMELINE_IMAGE_MAX_WIDTH
+        max_w = LIVE_THUMB_MAX_WIDTH
         if img.shape[1] > max_w:
             ratio = max_w / float(img.shape[1])
             img = cv2.resize(
@@ -250,7 +253,7 @@ def _encode_live_thumb(frame: np.ndarray) -> bytes | None:
         ok, buf = cv2.imencode(
             ".jpg",
             img,
-            [cv2.IMWRITE_JPEG_QUALITY, snapshot_service.TIMELINE_JPEG_QUALITY],
+            [cv2.IMWRITE_JPEG_QUALITY, LIVE_THUMB_JPEG_QUALITY],
         )
         return buf.tobytes() if ok else None
     except Exception:

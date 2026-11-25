@@ -118,6 +118,7 @@ Sao chép từ `.env.example`. Các biến chính:
 | `TIMELINE_ENABLED`                                                                               | `1`                                    | Bật nhật ký tick (`tbl_candidate_timeline`); `0` để tắt                                                                                  |
 | `TIMELINE_HEARTBEAT_SECONDS`                                                                     | `30`                                   | Chu kỳ ghi heartbeat khi không có cảnh báo (giây, tối thiểu 5)                                                                           |
 | `TIMELINE_IMAGE_MAX_WIDTH` / `TIMELINE_JPEG_QUALITY`                                             | `480` / `72`                           | Kích thước và chất lượng thumbnail nhẹ cho mỗi tick                                                                                      |
+| `LIVE_THUMB_MAX_WIDTH` / `LIVE_THUMB_JPEG_QUALITY`                                               | `400` / `68`                           | Thumbnail live trong RAM cho lưới giám thị (không ghi đĩa, tươi mỗi tick)                                                                 |
 | `OBJECT_COOLDOWN_SECONDS` / `POSE_COOLDOWN_SECONDS`                                              | `15` / `6`                             | Khoảng chờ giữa 2 lần lưu **cùng một nhãn** vi phạm                                                                                      |
 | `POSE_CONFIRM_TICKS` / `ALERT_CLEAR_TICKS`                                                       | `2` / `2`                              | Số tick liên tiếp để xác nhận hành vi / để kết thúc một đợt cảnh báo                                                                     |
 | `ABSENT_SECONDS`                                                                                 | `6`                                    | Không thấy người liên tục quá ngưỡng này thì báo `vang_mat`                                                                              |
@@ -228,6 +229,11 @@ người giám thị khác hoặc tab khác, dữ liệu vẫn cập nhật theo
 trang đó (tối đa ~10 giây). Muốn đẩy tức thời cho nhiều người cần thêm SSE/WebSocket
 hoặc polling ngắn hơn.
 
+Trên lưới Thi online, ảnh của thí sinh **đã dừng** được giữ trong `st.session_state`
+và không gọi lại API mỗi nhịp poll; chỉ luồng đang hoạt động mới tải thumbnail live
+mỗi 2,5 giây. Ảnh live dùng cấu hình riêng (`LIVE_THUMB_MAX_WIDTH`/`LIVE_THUMB_JPEG_QUALITY`,
+mặc định 400px/q68 ≈ 12 KB) để giảm băng thông so với ảnh timeline.
+
 ## API chính
 
 Xác thực: cookie `access_token`/`refresh_token` hoặc header `Authorization: Bearer <token>`.
@@ -257,7 +263,7 @@ không cần JWT — xác thực bằng SBD và token nộp frame.
 |            | POST            | `/candidates/session/{id}/stream/{vai_tro}/token`                                               | Cấp/tái sử dụng link camera (`refresh=true` để đổi token)                                        |
 |            | GET             | `/candidates/session/{id}/streams`                                                              | Danh sách luồng camera của phiên con                                                             |
 |            | GET             | `/candidates/session/{id}/attach?token=`                                                        | Mở link camera bằng token có sẵn (không mint token mới)                                          |
-|            | GET             | `/candidates/session/{id}/snapshot?role=&variant=`                                              | Ảnh snapshot: `role=front/side`, `variant=auto/normalized/thumbnail/annotated`                   |
+|            | GET             | `/candidates/session/{id}/snapshot?role=&variant=`                                              | Ảnh snapshot: `role=front/side`, `variant=live/auto/normalized/thumbnail/annotated` (`live` = thumbnail RAM tươi mỗi tick) |
 | Ingest     | POST            | `/ingest/frame`                                                                                 | Form-data: `session_id`, `token`, `ts_client`, `vai_tro` (`front/side`), `frame` (JPEG ≤ 500 KB) |
 | Events     | GET             | `/events/session/{id}`, `/events`, `/events/{id}`                                               | Danh sách/chi tiết sự kiện                                                                       |
 |            | PATCH           | `/events/{id}`                                                                                  | `{"TrangThaiKiemTra": "dung"/"sai", "LoaiHanhVi": "cellphone"}`                                  |

@@ -198,13 +198,6 @@ def health_check():
     return {"status": "healthy", "environment": settings.ENVIRONMENT}
 
 
-# ── Trang test camera đơn giản ─────────────────────────────────
-@app.get("/camera-test", include_in_schema=False)
-def camera_test_page():
-    """Trả trang HTML test camera máy + AI nhận diện."""
-    return FileResponse(Path(__file__).resolve().parent / "static" / "camera_test.html")
-
-
 # ── Trang thi online cho thí sinh ────────────────────────────
 @app.get("/exam", include_in_schema=False)
 def exam_page():

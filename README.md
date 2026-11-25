@@ -322,44 +322,21 @@ cũ không còn được đăng ký/ghi dữ liệu.
 Nhãn hợp lệ của `LoaiHanhVi`: `Cheat_Paper`, `cellphone`, `quay_dau`, `quay_sau`,
 `cui_xuong`, `vang_mat`, `nhieu_nguoi`, `Answer_paper` (tương thích weights cũ).
 
-Khi khởi động, `backend/main.py` tự tạo các bảng mới (`tbl_camera_stream`,
-`tbl_snapshot`, `tbl_snapshot_processed`, `tbl_candidate_timeline`) và tự bổ sung `FK_MaThiSinh`,
-`VaiTroCamera` (trên sự kiện/bằng chứng), nới `FK_MaThietBi`
-cho phép NULL và cập nhật CHECK constraint. Cột `TokenThamGia` (legacy) được thêm
-bằng script riêng. Với DB cũ có thể chạy thủ công (từ gốc dự án):
+Khi khởi động, `backend/main.py` tự động tạo các bảng (`tbl_camera_stream`,
+`tbl_snapshot`, `tbl_snapshot_processed`, `tbl_candidate_timeline`) và chạy migration
+cột/ràng buộc cần thiết (`ensure_online_exam_migrations()`).
 
-```bash
-.venv/bin/python backend/scripts/migrate_online_exam.py
-.venv/bin/python backend/scripts/migrate_session_token.py
-.venv/bin/python backend/scripts/migrate_event_labels.py
-```
+## Thay mô hình AI
 
-## Huấn luyện / thay mô hình
+Thư mục trọng số mặc định nằm tại `backend/ai_model/weights/`:
 
-Repo **không kèm dataset và log train** (đã gitignore: `training/dataset_*`,
-`training/realworld_data`, `training/runs`, `runs/`). Hiện có sẵn:
-
-- `backend/ai_model/weights/best.pt` và `best_openvino_model/` — model seg 2 nhãn đang dùng.
-- `training/yolo26n-pose_openvino_model/` — model pose OpenVINO (bản dùng ở backend).
-- `training/scripts/check_dataset.py` — kiểm tra dataset YOLO-seg (khớp ảnh/nhãn,
-  phân bố lớp, rò rỉ train/valid, vẽ mẫu).
-- `backend/scripts/migrate_dataset.py` — gộp `training/dataset_seg` + `training/realworld_data`
-  thành `training/dataset_seg_v4` với 2 nhãn (cần tự chuẩn bị dữ liệu nguồn).
-
-Quy trình huấn luyện lại model vật thể:
-
-```bash
-.venv/bin/python backend/scripts/migrate_dataset.py --clean
-.venv/bin/python training/scripts/check_dataset.py --root training/dataset_seg_v4
-.venv/bin/yolo task=segment mode=train model=<yolo26n-seg.pt> \
-  data=training/dataset_seg_v4/data.yaml epochs=50 imgsz=512 batch=2 device=cpu
-.venv/bin/yolo export model=runs/segment/train/weights/best.pt format=openvino imgsz=512
-cp -R runs/segment/train/weights/best_openvino_model backend/ai_model/weights/
-```
+- `best_openvino_model/` — model YOLO26n-seg (2 nhãn `Cheat_Paper`, `cellphone`) tối ưu CPU.
+- `best.pt` — trọng số PyTorch gốc dự phòng khi thiếu OpenVINO.
+- `yolo26n-pose_openvino_model/` — model pose OpenVINO phát hiện hành vi tư thế.
 
 Thay model không cần sửa code: trỏ `MODEL_PATH`/`POSE_MODEL_PATH` trong `.env`
 tới weights mới, hoặc thay trực tiếp thư mục trong `backend/ai_model/weights/`.
-Giữ đúng thứ tự nhãn `Cheat_Paper`, `cellphone` khi train seg.
+Giữ đúng thứ tự nhãn `Cheat_Paper`, `cellphone` khi xuất model seg.
 
 ## Cấu trúc thư mục
 
@@ -370,34 +347,31 @@ backend/
   database/database.py       # Engine + SessionLocal (validate DATABASE_URL khi import)
   models/                    # ORM: tbl_user, tbl_edgedevice, tbl_monitoring_sessions,
                              #      tbl_thi_sinh, tbl_camera_stream, tbl_snapshot,
-                             #      tbl_snapshot_processed, tbl_detected_events, tbl_evidences
+                             #      tbl_snapshot_processed, tbl_detected_events, tbl_evidences,
+                             #      tbl_candidate_timeline
   schemas/                   # Pydantic request/response
   crud/                      # Truy vấn DB
   api/router/                # users, devices, camera, candidates, ingest, events, history, statistics
   service/                   # camera_service, camera_state, pipeline_service, stream_service,
                              # ingest_service, snapshot_service, session_service,
-                             # statistics_service, user_service
+                             # statistics_service, timeline_service, user_service
   ai_model/                  # ai_pipeline.py (seg + track), behavior.py (luật pose), weights/
-  scripts/                   # create_admin, migrate_online_exam, migrate_session_token,
-                             # migrate_event_labels, migrate_dataset
-  static/                    # exam.html (thí sinh), camera_test.html (test nhanh)
+  scripts/                   # create_admin, clear_test_data
+  static/                    # exam.html (trang dự thi trực tuyến cho thí sinh)
   tests/test_security.py     # Script kiểm thử bảo mật thủ công (cần backend đang chạy)
-  utils/                     # create_admin (bản argparse), label_utils
+  utils/                     # label_utils
 frontend/
   app.py                     # Điểm vào Streamlit, khôi phục phiên từ localStorage/query params
   config.py                  # API_BASE_URL (env, mặc định http://127.0.0.1:8000)
-  components/                # evidence_dialog, nav_tabs
-  pages/                     # login, home, online_exam, history, session_detail,
-                             # event_detail, statistics, devices, users
-  services/                  # Gọi API: auth, device, candidate, event, history, stats, user
+  components/                # evidence_dialog
+  pages/                     # login, online_exam, history, session_detail,
+                             # event_detail, statistics, users
+  services/                  # Gọi API: auth, candidate, event, history, stats, user
   styles/, utils/            # CSS và helper (http, auth_guard, load_css, notify, ...)
-training/
-  yolo26n-pose_openvino_model/  # Model pose OpenVINO
-  scripts/check_dataset.py      # Kiểm tra dataset YOLO-seg
-videos/                      # Video mẫu test_exam.mp4, test_exam_2.mp4
 images/                      # Ảnh sinh ra khi chạy (gitignore): raw/ + processed/ + bằng chứng
 docker-compose.yml           # PostgreSQL 16 (examcheat / examcheat123)
 setup.sh                     # Cài đặt tự động
+start_server.sh              # Khởi động DB + Backend + Frontend + Cloudflare Tunnel
 ```
 
 ## Kiểm thử

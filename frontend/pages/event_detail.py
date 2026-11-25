@@ -30,7 +30,7 @@ require_auth()
 hide_sidebar()
 st.markdown(load_css("styles/sidebar.css"), unsafe_allow_html=True)
 st.markdown(load_css("styles/app_theme.css"), unsafe_allow_html=True)
-st.markdown(load_css("styles/frame_detail.css"), unsafe_allow_html=True)
+st.markdown(load_css("styles/event_detail.css"), unsafe_allow_html=True)
 
 # ── Event ID & Session ID ───────────────────────────────────
 target_eid = st.query_params.get("id") or st.query_params.get("event_id")

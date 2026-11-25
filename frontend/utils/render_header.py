@@ -5,7 +5,7 @@ from utils.logo import logo_img
 
 def render_page_header(title: str, active: str | None = None):
     """Vẽ thanh header chung: logo ExamCheat AI + tiêu đề trang + thanh tab điều hướng cố định.
-    active: key trang hiện tại (home/events/statistics/history/devices/setting).
+    active: key trang hiện tại (online_exam/history/statistics/users).
     """
     st.markdown(load_css("styles/header.css"), unsafe_allow_html=True)
     st.markdown(load_css("styles/app_theme.css"), unsafe_allow_html=True)
@@ -19,11 +19,9 @@ def render_page_header(title: str, active: str | None = None):
     avatar_letter = user_name.strip()[:1].upper() if user_name.strip() else "U"
     is_admin = role_raw == "admin"
 
-    # Xác định class active cho đúng 5 tab điều hướng chính
+    # Xác định class active cho 4 tab điều hướng chính
     active_key = (active or "").lower()
-    cls_home = "active" if active_key in ("home", "giamsat") else ""
     cls_hist = "active" if active_key in ("history", "lichsu", "events", "sukien") else ""
-    cls_dev = "active" if active_key in ("devices", "thietbi") else ""
     cls_stats = "active" if active_key in ("statistics", "thongke") else ""
     cls_set = "active" if active_key in ("setting", "users", "caidat") else ""
     cls_online = "active" if active_key in ("online_exam", "thionline") else ""

@@ -50,11 +50,6 @@ from crud.event_crud import (
     verify_event,
 )
 
-from crud.statistics_crud import (
-    create_statistics,
-    get_stats_by_session,
-)
-
 __all__ = [
     "admin_update_user",
     "create_user",
@@ -91,6 +86,4 @@ __all__ = [
     "get_evidence_by_id",
     "list_events_by_session",
     "verify_event",
-    "create_statistics",
-    "get_stats_by_session",
 ]

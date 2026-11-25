@@ -13,7 +13,6 @@ from ai_model.ai_pipeline import process_frame
 from core.config import settings
 from core.logger import get_logger
 from crud.event_crud import create_event, create_evidence
-from crud.statistics_crud import create_statistics
 from database.database import SessionLocal
 from service.camera_state import CameraState
 
@@ -48,7 +47,6 @@ def capture_loop() -> None:
         logger.error(f"Failed to create image directory: {exc}", exc_info=True)
         return
 
-    last_save_time = 0.0
     frame_count = 0
 
     logger.info("Capture loop started")
@@ -80,13 +78,6 @@ def capture_loop() -> None:
                 state.update_fps()
                 # Chỉ giao frame mới nhất cho worker, không chờ infer xong
                 state.raw_frame = frame
-
-                # Định kỳ lưu thống kê phiên (stats) cho biểu đồ giám sát
-                if time.time() - last_save_time > SAVE_INTERVAL_SECONDS:
-                    with state.lock:
-                        results = list(state.latest_results)
-                    _save_periodic_stats(db, state.current_session_id, results)
-                    last_save_time = time.time()
 
             except KeyboardInterrupt:
                 logger.info("Capture loop interrupted by user")
@@ -276,23 +267,6 @@ def _save_event_snapshot(
         return []
 
 
-def _save_periodic_stats(
-    db,
-    session_id: int | None,
-    results: list[dict],
-) -> None:
-    """Định kỳ ghi bản ghi thống kê Statistic (không ghi ảnh thừa khi không có vi phạm mới)."""
-    if not session_id:
-        return
-    try:
-        stats_data = calculate_stats(results)
-        create_statistics(db, stats_data, session_id)
-        db.commit()
-    except Exception as exc:
-        db.rollback()
-        logger.debug(f"Failed to save periodic statistics: {exc}")
-
-
 def _save_snapshot(
     db,
     session_id: int | None,
@@ -315,20 +289,5 @@ def _save_snapshot(
             reason="snapshot",
             vai_tro_camera=vai_tro_camera,
         )
-    # Chỉ camera trước ghi thống kê định kỳ: camera phụ chạy song song sẽ
-    # nhân đôi số liệu trong bảng statistics của cùng một phiên.
-    if vai_tro_camera == "front":
-        _save_periodic_stats(db, session_id, results)
     return []
-
-
-def calculate_stats(results: list[dict]) -> dict:
-    """
-    Thống kê gian lận của một snapshot.
-    total: tổng số detection; sleeping: số lượng vi phạm gian lận;
-    focus_rate: 1.0 nếu sạch (không vi phạm), 0.0 nếu có vi phạm.
-    """
-    total = len(results)
-    cheat_count = sum(1 for r in results if r.get("is_cheat"))
-    clean_rate = 1.0 if cheat_count == 0 else 0.0
 

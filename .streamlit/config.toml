@@ -5,5 +5,13 @@ port = 8501
 enableCORS = false
 enableXsrfProtection = false
 
+[theme]
+base = "light"
+primaryColor = "#1677ff"
+
+[client]
+toolbarMode = "minimal"
+showSidebarNavigation = false
+
 [browser]
 gatherUsageStats = false

@@ -6,20 +6,7 @@ Lưu ý: tên key sleeping/focus_rate là lịch sử, giữ nguyên để tươ
 from datetime import datetime
 from typing import Optional
 
-from pydantic import BaseModel, Field
-
-
-class StatisticResponse(BaseModel):
-    """Một bản ghi thống kê, focus_rate giới hạn từ 0 tới 1."""
-
-    statistic_id: int
-    timestamp: datetime
-    total_students: int = Field(..., ge=0)
-    sleeping_count: int = Field(..., ge=0)
-    focus_rate: float = Field(..., ge=0.0, le=1.0)
-    session_id: int
-
-    model_config = {"from_attributes": True}
+from pydantic import BaseModel
 
 
 class DailyStatItem(BaseModel):
